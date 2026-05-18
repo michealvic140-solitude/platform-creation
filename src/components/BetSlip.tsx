@@ -207,16 +207,21 @@ function BetSlipDrawer({ open, onClose }: { open: boolean; onClose: () => void }
               </div>
               <ShieldCheck className="h-8 w-8 text-primary/50" />
             </Card>
-            {capped && (
-              <p className="text-[10px] text-amber-400 text-center">
-                Payout capped at the maximum of {maxPayout.toLocaleString()} tokens (uncapped: {rawPayout.toLocaleString()}).
-              </p>
+            {mixedTypes && <p className="text-[11px] text-destructive text-center">Cannot mix virtual and regular selections in one ticket. Remove one type to continue.</p>}
+            {allVirtual && (
+              <div className="text-center"><Badge variant="outline" className="bg-primary/10 border-primary/40 text-primary text-[10px]">Virtual ticket · Wins require admin approval</Badge></div>
             )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={clear} className="flex-1"><Trash2 className="h-4 w-4 mr-1" />Clear</Button>
-              <Button className="btn-luxury flex-1" disabled={submitting || selections.length < 2} onClick={place}>{submitting ? "Placing…" : `Place Bet${selections.length < 2 ? ` (need ${2 - selections.length} more)` : ""}`}</Button>
+              <Button className="btn-luxury flex-1" disabled={submitting || mixedTypes || selections.length < minSelectionsRequired} onClick={place}>
+                {submitting ? "Placing…" : `Place ${allVirtual ? "Ticket" : "Bet"}${selections.length < minSelectionsRequired ? ` (need ${minSelectionsRequired - selections.length} more)` : ""}`}
+              </Button>
             </div>
-            <p className="text-[10px] text-muted-foreground text-center">Minimum 2 selections required. Tokens are deducted on placement. Cash-out available only after the match ends and your bet wins.</p>
+            <p className="text-[10px] text-muted-foreground text-center">
+              {allVirtual
+                ? "Virtual: single or multi-leg allowed. Winnings held for admin approval, then claim from history."
+                : "Minimum 2 selections required. Tokens are deducted on placement. Cash-out available only after the match ends and your bet wins."}
+            </p>
           </div>
         )}
         </div>
