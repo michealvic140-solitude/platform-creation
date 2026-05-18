@@ -741,7 +741,7 @@ function UserEditDialog({ user, roles, onClose }: { user: any; roles: string[]; 
               </FieldLuxe>
               <div className="grid grid-cols-1 gap-2">
                 {isAdmin ? (
-                  <Button variant={user.is_banned ? "outline" : "destructive"} className="h-11 justify-start" onClick={() => flagAction("is_banned", !user.is_banned, "ban_reason")}>
+                  <Button variant="outline" className={`admin-action-btn h-11 justify-start ${user.is_banned ? "admin-action-active" : ""}`} onClick={() => flagAction("is_banned", !user.is_banned, "ban_reason")}>
                     <Lock className="h-4 w-4 mr-2" />{user.is_banned ? "Unban user" : "Ban user from platform"}
                   </Button>
                 ) : (
@@ -749,10 +749,10 @@ function UserEditDialog({ user, roles, onClose }: { user: any; roles: string[]; 
                     <Lock className="h-4 w-4 mr-2" />Ban (admin only)
                   </Button>
                 )}
-                <Button variant={user.is_muted ? "outline" : "destructive"} className="h-11 justify-start" onClick={() => flagAction("is_muted", !user.is_muted, "mute_reason")}>
+                <Button variant="outline" className={`admin-action-btn h-11 justify-start ${user.is_muted ? "admin-action-active" : ""}`} onClick={() => flagAction("is_muted", !user.is_muted, "mute_reason")}>
                   <MessageSquare className="h-4 w-4 mr-2" />{user.is_muted ? "Unmute chat" : "Mute in chat"}
                 </Button>
-                <Button variant={user.is_restricted ? "outline" : "destructive"} className="h-11 justify-start" onClick={() => flagAction("is_restricted", !user.is_restricted, "restrict_reason")}>
+                <Button variant="outline" className={`admin-action-btn h-11 justify-start ${user.is_restricted ? "admin-action-active" : ""}`} onClick={() => flagAction("is_restricted", !user.is_restricted, "restrict_reason")}>
                   <AlertTriangle className="h-4 w-4 mr-2" />{user.is_restricted ? "Allow betting" : "Restrict betting"}
                 </Button>
               </div>
