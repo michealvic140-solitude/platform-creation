@@ -1,5 +1,6 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
+import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Settings as SettingsIcon, UserCog, Bell, ChevronRight } from "lucide-react";
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/settings")({
 function SettingsPage() {
   return (
     <Layout>
+      <PageShell tone="default">
       <div className="container mx-auto px-4 py-8 max-w-3xl space-y-6">
         <div className="flex items-center gap-3">
           <SettingsIcon className="h-6 w-6 text-primary" />
@@ -49,6 +51,7 @@ function SettingsPage() {
           </Card>
         </section>
       </div>
+      </PageShell>
     </Layout>
   );
 }

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
+import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy } from "lucide-react";
@@ -103,6 +104,7 @@ function Page() {
 
   return (
     <Layout>
+      <PageShell tone="social">
       <div className="container py-10">
         <div className="flex items-center gap-2 mb-6">
           <Trophy className="h-7 w-7 text-primary" />
@@ -169,6 +171,7 @@ function Page() {
           </TabsContent>
         </Tabs>
       </div>
+      </PageShell>
     </Layout>
   );
 }
