@@ -117,6 +117,11 @@ export type Database = {
           vapid_subject: string | null
           vip_enabled: boolean
           vip_token_multipliers: Json
+          virtual_max_stake: number
+          virtual_min_stake: number
+          virtual_payout_multiplier: number
+          virtual_win_bonus_tokens: number
+          virtual_xp_per_win: number
           why_trust_us: string | null
           xp_per_bet: number
           xp_per_login: number
@@ -171,6 +176,11 @@ export type Database = {
           vapid_subject?: string | null
           vip_enabled?: boolean
           vip_token_multipliers?: Json
+          virtual_max_stake?: number
+          virtual_min_stake?: number
+          virtual_payout_multiplier?: number
+          virtual_win_bonus_tokens?: number
+          virtual_xp_per_win?: number
           why_trust_us?: string | null
           xp_per_bet?: number
           xp_per_login?: number
@@ -225,6 +235,11 @@ export type Database = {
           vapid_subject?: string | null
           vip_enabled?: boolean
           vip_token_multipliers?: Json
+          virtual_max_stake?: number
+          virtual_min_stake?: number
+          virtual_payout_multiplier?: number
+          virtual_win_bonus_tokens?: number
+          virtual_xp_per_win?: number
           why_trust_us?: string | null
           xp_per_bet?: number
           xp_per_login?: number
@@ -825,7 +840,11 @@ export type Database = {
           is_virtual: boolean
           location: string | null
           lock_time: string | null
+          locked_at: string | null
+          locked_by: string | null
           name: string
+          settled_at: string | null
+          settled_by: string | null
           start_time: string
           status: Database["public"]["Enums"]["match_status"]
           updated_at: string
@@ -846,7 +865,11 @@ export type Database = {
           is_virtual?: boolean
           location?: string | null
           lock_time?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
           name: string
+          settled_at?: string | null
+          settled_by?: string | null
           start_time: string
           status?: Database["public"]["Enums"]["match_status"]
           updated_at?: string
@@ -867,7 +890,11 @@ export type Database = {
           is_virtual?: boolean
           location?: string | null
           lock_time?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
           name?: string
+          settled_at?: string | null
+          settled_by?: string | null
           start_time?: string
           status?: Database["public"]["Enums"]["match_status"]
           updated_at?: string
@@ -1975,6 +2002,7 @@ export type Database = {
           match_name: string
         }[]
       }
+      admin_lock_virtual_round: { Args: { _match_id: string }; Returns: Json }
       admin_mark_task_completed: {
         Args: { _task_id: string }
         Returns: undefined
@@ -2029,6 +2057,10 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_mod_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      place_virtual_bet: {
+        Args: { _match_id: string; _odd_id: string; _stake: number }
+        Returns: Json
+      }
       recalc_vip_tier: { Args: { _user_id: string }; Returns: string }
       redeem_promo_code: { Args: { _code: string }; Returns: Json }
       resolve_virtual_round: {
