@@ -548,3 +548,103 @@ function PendingPayouts() {
     </Card>
   );
 }
+
+function VirtualWalletPanel() {
+  const [wallet, setWallet] = useState<{ balance: number; total_in: number; total_out: number } | null>(null);
+  const [txs, setTxs] = useState<any[]>([]);
+  const [amount, setAmount] = useState<number>(1000000);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [concurrent, setConcurrent] = useState<number>(4);
+
+  const load = async () => {
+    const [{ data: w }, { data: t }, { data: s }] = await Promise.all([
+      supabase.from("virtual_house_wallet").select("balance,total_in,total_out").eq("id", 1).maybeSingle(),
+      supabase.from("virtual_house_transactions").select("id,kind,amount,balance_after,reason,created_at").order("created_at", { ascending: false }).limit(20),
+      supabase.from("app_settings").select("virtual_concurrent_rounds").eq("id", 1).maybeSingle(),
+    ]);
+    if (w) setWallet(w as any);
+    setTxs((t ?? []) as any);
+    if (s) setConcurrent(Number((s as any).virtual_concurrent_rounds ?? 4));
+  };
+
+  useEffect(() => {
+    load();
+    const ch = supabase.channel("admin-vhw")
+      .on("postgres_changes", { event: "*", schema: "public", table: "virtual_house_wallet" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "virtual_house_transactions" }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  async function adjust(sign: 1 | -1) {
+    if (!amount || amount <= 0) return toast.error("Enter a positive amount");
+    if (!reason.trim()) return toast.error("Reason is required");
+    setBusy(true);
+    const { error } = await supabase.rpc("virtual_wallet_admin_adjust" as any, { _amount: sign * amount, _reason: reason });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success(sign > 0 ? "Wallet funded" : "Wallet debited");
+    setReason("");
+  }
+
+  async function saveConcurrent() {
+    setBusy(true);
+    const { error } = await supabase.from("app_settings").update({ virtual_concurrent_rounds: Math.max(1, concurrent) }).eq("id", 1);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Concurrency saved");
+  }
+
+  return (
+    <Card className="glass p-4 border-accent/30">
+      <div className="flex items-center gap-2 mb-3">
+        <Coins className="h-4 w-4 text-accent" />
+        <div className="text-sm font-bold">Virtual House Wallet</div>
+      </div>
+      <div className="grid grid-cols-3 gap-3 mb-3">
+        <div className="rounded-md border border-border bg-background/40 p-3">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Balance</div>
+          <div className="text-2xl font-black text-accent tabular-nums">{Number(wallet?.balance ?? 0).toLocaleString()}</div>
+        </div>
+        <div className="rounded-md border border-border bg-background/40 p-3">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Total in</div>
+          <div className="text-lg font-bold tabular-nums">{Number(wallet?.total_in ?? 0).toLocaleString()}</div>
+        </div>
+        <div className="rounded-md border border-border bg-background/40 p-3">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Total out</div>
+          <div className="text-lg font-bold tabular-nums">{Number(wallet?.total_out ?? 0).toLocaleString()}</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr_auto_auto] gap-2 items-end mb-3">
+        <Field label="Amount" value={amount} step={100000} onChange={setAmount} />
+        <div>
+          <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">Reason</Label>
+          <Input value={reason} onChange={(e) => setReason(e.target.value)} className="h-9" placeholder="Funding / adjustment note" />
+        </div>
+        <Button size="sm" disabled={busy} onClick={() => adjust(1)}><Plus className="h-3 w-3 mr-1" />Fund</Button>
+        <Button size="sm" variant="destructive" disabled={busy} onClick={() => adjust(-1)}>Debit</Button>
+      </div>
+
+      <div className="grid grid-cols-[1fr_auto] gap-2 items-end mb-3">
+        <Field label="Concurrent virtual rounds" value={concurrent} step={1} onChange={setConcurrent} />
+        <Button size="sm" variant="outline" disabled={busy} onClick={saveConcurrent}>Save</Button>
+      </div>
+
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Recent wallet activity</div>
+      <div className="space-y-1 max-h-[220px] overflow-y-auto text-xs">
+        {txs.length === 0 && <p className="text-muted-foreground">No activity yet.</p>}
+        {txs.map((t) => (
+          <div key={t.id} className="flex items-center justify-between gap-2 border-b border-border/40 py-1">
+            <div className="min-w-0">
+              <div className="font-bold truncate">{t.kind} {t.reason ? <span className="text-muted-foreground font-normal">· {t.reason}</span> : null}</div>
+              <div className="text-[10px] text-muted-foreground">{new Date(t.created_at).toLocaleString()}</div>
+            </div>
+            <div className={`font-mono font-bold tabular-nums ${t.amount >= 0 ? "text-emerald-400" : "text-destructive"}`}>{t.amount >= 0 ? "+" : ""}{Number(t.amount).toLocaleString()}</div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
