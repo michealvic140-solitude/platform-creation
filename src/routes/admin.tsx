@@ -125,6 +125,7 @@ function AdminPage() {
             {(isAdmin || isMod) && <TabsTrigger value="matches"><Trophy className="h-3 w-3 mr-1" />Matches</TabsTrigger>}
             {(isAdmin || isMod) && <TabsTrigger value="notify"><Send className="h-3 w-3 mr-1" />Notify</TabsTrigger>}
             {isAdmin && <TabsTrigger value="pnl"><BarChart3 className="h-3 w-3 mr-1" />P&L</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="virtual"><Dice5 className="h-3 w-3 mr-1" />Virtual</TabsTrigger>}
             {isAdmin && <TabsTrigger value="promos"><Tag className="h-3 w-3 mr-1" />Promo Codes</TabsTrigger>}
             {isAdmin && <TabsTrigger value="promoreqs"><AdminTab icon={Tag} label="Promo Requests" count={alerts.promoreqs} /></TabsTrigger>}
             {isAdmin && <TabsTrigger value="referrals"><Users className="h-3 w-3 mr-1" />Referrals</TabsTrigger>}
