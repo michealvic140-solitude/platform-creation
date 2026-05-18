@@ -30,13 +30,17 @@ function TicketPage() {
     loadBet();
     const ch = supabase.channel(`item-${id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "bets", filter: `id=eq.${id}` }, loadBet)
-      .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, loadBet)
+      .on("postgres_changes", { event: "*", schema: "public", table: "bet_selections", filter: `bet_id=eq.${id}` }, loadBet)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "matches" }, loadBet)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "support_tickets", filter: `id=eq.${id}` },
         (p) => setTicket(p.new))
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "support_tickets", filter: `id=eq.${id}` },
         () => setTicket(null))
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    // Polling fallback ensures the voucher reflects settlement promptly even
+    // if realtime publication is delayed after a virtual round ends.
+    const poll = setInterval(loadBet, 8000);
+    return () => { supabase.removeChannel(ch); clearInterval(poll); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
