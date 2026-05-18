@@ -173,6 +173,7 @@ function AdminPage() {
           <TabsContent value="vip" className="mt-4"><VipAdminPanel /></TabsContent>
           <TabsContent value="spotlights" className="mt-4"><SpotlightsAdminPanel /></TabsContent>
         </Tabs>
+        </div>
       </div>
     </Layout>
   );
