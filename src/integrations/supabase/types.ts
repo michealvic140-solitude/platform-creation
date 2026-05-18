@@ -2209,6 +2209,10 @@ export type Database = {
       }
       recalc_vip_tier: { Args: { _user_id: string }; Returns: string }
       redeem_promo_code: { Args: { _code: string }; Returns: Json }
+      refresh_virtual_selection_results: {
+        Args: { _match_id?: string }
+        Returns: number
+      }
       resolve_virtual_round: {
         Args: {
           _away_score: number
