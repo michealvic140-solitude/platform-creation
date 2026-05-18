@@ -364,7 +364,7 @@ function LiveMatchTicker({ match, animSec }: { match: MatchRow & { lock_time?: s
 
   useEffect(() => {
     const tick = () => {
-      const now = Date.now();
+      const now = serverNow();
       const ratio = Math.min(1, Math.max(0, (now - lockMs) / Math.max(1, endMs - lockMs)));
       setProgress(ratio);
       const fh = match.home_score ?? 0;
