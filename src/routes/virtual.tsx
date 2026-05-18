@@ -323,14 +323,16 @@ function LiveMatchTicker({ match, animSec }: { match: MatchRow & { lock_time?: s
   const [progress, setProgress] = useState(0);
 
   // Pre-roll a fixed timeline of "kills" using a match-seeded RNG so every viewer agrees.
+  // Dense schedule so something happens every couple of seconds across the live window.
   const timeline = useMemo(() => {
     const rnd = seedFrom(match.id);
     const maxPerSide = 8;
-    const total = 2 + Math.floor(rnd() * 9); // 2..10 kills across the match
+    const total = 6 + Math.floor(rnd() * 9); // 6..14 kills across the match
     const events: { t: number; side: "h" | "a" }[] = [];
     let h = 0, a = 0;
     for (let i = 0; i < total; i++) {
-      const t = rnd();
+      // Spread events through 5%..95% of the window for a steady drumbeat
+      const t = 0.05 + rnd() * 0.9;
       const side: "h" | "a" = rnd() < 0.5 ? "h" : "a";
       if (side === "h" && h >= maxPerSide) continue;
       if (side === "a" && a >= maxPerSide) continue;
@@ -341,30 +343,32 @@ function LiveMatchTicker({ match, animSec }: { match: MatchRow & { lock_time?: s
   }, [match.id]);
 
   useEffect(() => {
-    const t = setInterval(() => {
+    const tick = () => {
       const now = Date.now();
-      const ratio = Math.min(1, Math.max(0, (now - lockMs) / (endMs - lockMs)));
+      const ratio = Math.min(1, Math.max(0, (now - lockMs) / Math.max(1, endMs - lockMs)));
       setProgress(ratio);
-      // Server final scores override once resolved
       const fh = match.home_score ?? 0;
       const fa = match.away_score ?? 0;
-      if (match.status === "ended" && (fh || fa)) {
+      // Only override with server scores once we're fully done AND server has values
+      if (match.status === "ended" && ratio >= 1 && (fh || fa)) {
         setTickScore({ h: fh, a: fa });
-      } else {
-        let h = 0, a = 0;
-        const surfaced: string[] = [];
-        for (const ev of timeline) {
-          if (ev.t <= ratio) {
-            if (ev.side === "h") h++; else a++;
-            const team = ev.side === "h" ? match.home_team?.name : match.away_team?.name;
-            const line = KILL_LINES[Math.floor((ev.t * 9973) % KILL_LINES.length)];
-            surfaced.unshift(`${team}: ${line}`);
-          }
-        }
-        setTickScore({ h, a });
-        setFeed(surfaced.slice(0, 4));
+        return;
       }
-    }, 700);
+      let h = 0, a = 0;
+      const surfaced: string[] = [];
+      for (const ev of timeline) {
+        if (ev.t <= ratio) {
+          if (ev.side === "h") h++; else a++;
+          const team = ev.side === "h" ? match.home_team?.name : match.away_team?.name;
+          const line = KILL_LINES[Math.floor((ev.t * 9973) % KILL_LINES.length)];
+          surfaced.unshift(`${team}: ${line}`);
+        }
+      }
+      setTickScore({ h, a });
+      setFeed(surfaced.slice(0, 5));
+    };
+    tick();
+    const t = setInterval(tick, 250);
     return () => clearInterval(t);
   }, [lockMs, endMs, timeline, match.status, match.home_score, match.away_score, match.home_team?.name, match.away_team?.name]);
 
