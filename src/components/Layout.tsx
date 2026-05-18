@@ -67,6 +67,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
           </Link>
           <nav className="hidden lg:flex flex-1 items-center justify-center gap-1 flex-nowrap">
             <NavLink to="/matches" icon={MatchIcon} label="Matches" />
+            <NavLink to="/virtual" icon={Dice5} label="Virtual" />
             <NavLink to="/leaderboard" icon={Trophy} label="Leaderboard" />
             {user && <NavLink to="/chat" icon={MessageSquare} label="Chat" badge={chatUnread} />}
             {user && <NavLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" />}
