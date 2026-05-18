@@ -308,34 +308,65 @@ const KILL_LINES = [
   "🛡 Clutch defuse incoming!",
 ];
 
+// Deterministic PRNG so all viewers see same live scores per match
+function seedFrom(id: string) {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) { h ^= id.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); h ^= h >>> 16; return ((h >>> 0) % 10000) / 10000; };
+}
+
 function LiveMatchTicker({ match, animSec }: { match: MatchRow & { lock_time?: string | null }; animSec: number }) {
   const lockMs = (match as any).lock_time ? new Date((match as any).lock_time).getTime() : Date.now();
   const endMs = lockMs + animSec * 1000;
-  const startedRef = useRef(Date.now());
   const [feed, setFeed] = useState<string[]>([]);
   const [tickScore, setTickScore] = useState<{ h: number; a: number }>({ h: 0, a: 0 });
+  const [progress, setProgress] = useState(0);
 
-  const progress = useMemo(() => {
-    const now = Date.now();
-    return Math.min(1, Math.max(0, (now - lockMs) / (endMs - lockMs)));
-  }, [lockMs, endMs]);
+  // Pre-roll a fixed timeline of "kills" using a match-seeded RNG so every viewer agrees.
+  const timeline = useMemo(() => {
+    const rnd = seedFrom(match.id);
+    const maxPerSide = 8;
+    const total = 2 + Math.floor(rnd() * 9); // 2..10 kills across the match
+    const events: { t: number; side: "h" | "a" }[] = [];
+    let h = 0, a = 0;
+    for (let i = 0; i < total; i++) {
+      const t = rnd();
+      const side: "h" | "a" = rnd() < 0.5 ? "h" : "a";
+      if (side === "h" && h >= maxPerSide) continue;
+      if (side === "a" && a >= maxPerSide) continue;
+      if (side === "h") h++; else a++;
+      events.push({ t, side });
+    }
+    return events.sort((x, y) => x.t - y.t);
+  }, [match.id]);
 
   useEffect(() => {
     const t = setInterval(() => {
-      const elapsed = Date.now() - startedRef.current;
-      // expected final scores from server (may already be filled if resolved)
+      const now = Date.now();
+      const ratio = Math.min(1, Math.max(0, (now - lockMs) / (endMs - lockMs)));
+      setProgress(ratio);
+      // Server final scores override once resolved
       const fh = match.home_score ?? 0;
       const fa = match.away_score ?? 0;
-      const ratio = Math.min(1, elapsed / (animSec * 1000));
-      setTickScore({ h: Math.round(fh * ratio), a: Math.round(fa * ratio) });
-      if (Math.random() < 0.35) {
-        const team = Math.random() < 0.5 ? match.home_team?.name : match.away_team?.name;
-        const line = KILL_LINES[Math.floor(Math.random() * KILL_LINES.length)];
-        setFeed((f) => [`${team}: ${line}`, ...f].slice(0, 4));
+      if (match.status === "ended" && (fh || fa)) {
+        setTickScore({ h: fh, a: fa });
+      } else {
+        let h = 0, a = 0;
+        const surfaced: string[] = [];
+        for (const ev of timeline) {
+          if (ev.t <= ratio) {
+            if (ev.side === "h") h++; else a++;
+            const team = ev.side === "h" ? match.home_team?.name : match.away_team?.name;
+            const line = KILL_LINES[Math.floor((ev.t * 9973) % KILL_LINES.length)];
+            surfaced.unshift(`${team}: ${line}`);
+          }
+        }
+        setTickScore({ h, a });
+        setFeed(surfaced.slice(0, 4));
       }
-    }, 800);
+    }, 700);
     return () => clearInterval(t);
-  }, [animSec, match.home_score, match.away_score, match.home_team?.name, match.away_team?.name]);
+  }, [lockMs, endMs, timeline, match.status, match.home_score, match.away_score, match.home_team?.name, match.away_team?.name]);
 
   return (
     <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 overflow-hidden">
