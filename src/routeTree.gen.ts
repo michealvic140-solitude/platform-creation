@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WithdrawRouteImport } from './routes/withdraw'
 import { Route as WatchlistRouteImport } from './routes/watchlist'
+import { Route as VirtualRouteImport } from './routes/virtual'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
@@ -43,6 +44,11 @@ const WithdrawRoute = WithdrawRouteImport.update({
 const WatchlistRoute = WatchlistRouteImport.update({
   id: '/watchlist',
   path: '/watchlist',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VirtualRoute = VirtualRouteImport.update({
+  id: '/virtual',
+  path: '/virtual',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TasksRoute = TasksRouteImport.update({
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/support': typeof SupportRoute
   '/tasks': typeof TasksRoute
+  '/virtual': typeof VirtualRoute
   '/watchlist': typeof WatchlistRoute
   '/withdraw': typeof WithdrawRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
@@ -209,6 +216,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/support': typeof SupportRoute
   '/tasks': typeof TasksRoute
+  '/virtual': typeof VirtualRoute
   '/watchlist': typeof WatchlistRoute
   '/withdraw': typeof WithdrawRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
@@ -237,6 +245,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/support': typeof SupportRoute
   '/tasks': typeof TasksRoute
+  '/virtual': typeof VirtualRoute
   '/watchlist': typeof WatchlistRoute
   '/withdraw': typeof WithdrawRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
@@ -266,6 +275,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/support'
     | '/tasks'
+    | '/virtual'
     | '/watchlist'
     | '/withdraw'
     | '/matches/$matchId'
@@ -293,6 +303,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/support'
     | '/tasks'
+    | '/virtual'
     | '/watchlist'
     | '/withdraw'
     | '/matches/$matchId'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/support'
     | '/tasks'
+    | '/virtual'
     | '/watchlist'
     | '/withdraw'
     | '/matches/$matchId'
@@ -348,6 +360,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SupportRoute: typeof SupportRoute
   TasksRoute: typeof TasksRoute
+  VirtualRoute: typeof VirtualRoute
   WatchlistRoute: typeof WatchlistRoute
   WithdrawRoute: typeof WithdrawRoute
   TicketIdRoute: typeof TicketIdRoute
@@ -368,6 +381,13 @@ declare module '@tanstack/react-router' {
       path: '/watchlist'
       fullPath: '/watchlist'
       preLoaderRoute: typeof WatchlistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/virtual': {
+      id: '/virtual'
+      path: '/virtual'
+      fullPath: '/virtual'
+      preLoaderRoute: typeof VirtualRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tasks': {
@@ -566,6 +586,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SupportRoute: SupportRoute,
   TasksRoute: TasksRoute,
+  VirtualRoute: VirtualRoute,
   WatchlistRoute: WatchlistRoute,
   WithdrawRoute: WithdrawRoute,
   TicketIdRoute: TicketIdRoute,
