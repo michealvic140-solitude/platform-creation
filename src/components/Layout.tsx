@@ -127,6 +127,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
           <div className="flex items-stretch justify-around gap-0.5 px-1.5 py-1.5 w-full min-w-max">
             <MobLink to="/" icon={Home} label="Home" />
             <MobLink to="/matches" icon={MatchIcon} label="Matches" />
+            <MobLink to="/virtual" icon={Dice5} label="Virtual" />
             <MobLink to="/leaderboard" icon={Trophy} label="Top" />
             {user && <>
               <MobLink to="/dashboard" icon={Ticket} label="ME" />
