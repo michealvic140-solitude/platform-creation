@@ -39,14 +39,22 @@ function Dashboard() {
   useEffect(() => {
     if (!user) return;
     const load = () => supabase.from("bets")
-      .select("*, bet_selections(*, matches!match_id(name))")
+      .select("*, bet_selections(*, matches!match_id(name, status, is_virtual))")
       .eq("user_id", user.id).order("created_at", { ascending: false })
       .then(({ data }) => setBets(data ?? []));
     load();
     const ch = supabase.channel(`my-bets-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "bets", filter: `user_id=eq.${user.id}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "bet_selections" }, load)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "matches" }, load)
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    // Polling fallback: while any pending bet exists, refresh every 10s so vouchers
+    // settle in the UI even if realtime is delayed after a virtual round ends.
+    const poll = setInterval(() => {
+      // Re-read latest state via closure-free check by always loading; cheap query.
+      load();
+    }, 10000);
+    return () => { supabase.removeChannel(ch); clearInterval(poll); };
   }, [user?.id]);
 
   useEffect(() => {
