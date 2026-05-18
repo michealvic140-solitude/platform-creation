@@ -526,6 +526,74 @@
     0 0 22px -4px oklch(0.85 0.18 88 / 0.55);
   transform: translateY(-1px);
 }
+/* ===== Page Shell — themed glass background for user-facing pages ===== */
+.page-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - 4rem);
+  overflow: hidden;
+}
+.page-shell::before {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 0% 0%, oklch(0.40 0.12 75 / 0.45), transparent 60%),
+    radial-gradient(110% 80% at 100% 100%, oklch(0.38 0.16 158 / 0.42), transparent 65%),
+    linear-gradient(160deg, oklch(0.18 0.07 75 / 0.45) 0%, oklch(0.16 0.06 95 / 0.40) 35%, oklch(0.16 0.08 140 / 0.45) 70%, oklch(0.16 0.10 158 / 0.50) 100%);
+  z-index: -2;
+}
+.page-shell--wallet::before {
+  background:
+    radial-gradient(120% 80% at 0% 0%, oklch(0.46 0.16 88 / 0.55), transparent 60%),
+    radial-gradient(110% 80% at 100% 100%, oklch(0.40 0.18 158 / 0.45), transparent 65%),
+    linear-gradient(160deg, oklch(0.22 0.10 80 / 0.55) 0%, oklch(0.18 0.08 110 / 0.45) 50%, oklch(0.18 0.12 158 / 0.55) 100%);
+}
+.page-shell--social::before {
+  background:
+    radial-gradient(120% 80% at 0% 0%, oklch(0.38 0.10 158 / 0.50), transparent 60%),
+    radial-gradient(110% 80% at 100% 100%, oklch(0.42 0.14 80 / 0.45), transparent 65%),
+    linear-gradient(160deg, oklch(0.16 0.08 158 / 0.50) 0%, oklch(0.16 0.06 120 / 0.45) 50%, oklch(0.18 0.08 80 / 0.45) 100%);
+}
+.page-shell-aurora {
+  position: absolute; inset: -20%;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 30% at 20% 25%, oklch(0.78 0.20 88 / 0.30), transparent 70%),
+    radial-gradient(45% 35% at 80% 75%, oklch(0.66 0.24 158 / 0.35), transparent 70%),
+    radial-gradient(35% 28% at 70% 15%, oklch(0.72 0.20 120 / 0.22), transparent 70%);
+  filter: blur(50px) saturate(150%);
+  animation: admin-aurora 18s ease-in-out infinite alternate;
+  z-index: -1;
+}
+.page-shell-logo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: center 42%;
+  background-size: min(520px, 60%) auto;
+  opacity: 0.07;
+  filter: saturate(1.2) contrast(1.05) drop-shadow(0 12px 36px rgba(0,0,0,0.55));
+  mix-blend-mode: screen;
+  z-index: -1;
+  animation: admin-logo-float 14s ease-in-out infinite;
+}
+.page-shell-content { position: relative; z-index: 1; }
+
+/* Richer Card surface for themed pages */
+.page-shell .card,
+.page-shell [data-slot="card"] {
+  background: linear-gradient(160deg, oklch(0.22 0.06 80 / 0.55), oklch(0.18 0.06 140 / 0.65)) !important;
+  border: 1px solid oklch(0.72 0.16 88 / 0.30) !important;
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 oklch(0.95 0.10 92 / 0.12),
+    0 14px 36px -16px oklch(0 0 0 / 0.65),
+    0 0 22px -8px oklch(0.66 0.24 158 / 0.30);
+}
+
 .admin-action-active {
   background: linear-gradient(135deg,
     oklch(0.55 0.18 88 / 0.45) 0%,
