@@ -81,6 +81,7 @@ export function VirtualAdminPanel() {
   return (
     <div className="space-y-4">
       <CycleControl />
+      <VirtualWalletPanel />
       <PendingPayouts />
       <Card className="glass p-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
