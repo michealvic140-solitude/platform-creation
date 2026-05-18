@@ -778,6 +778,81 @@ export type Database = {
         }
         Relationships: []
       }
+      imported_profiles: {
+        Row: {
+          claimed_at: string | null
+          claimed_user_id: string | null
+          country: string | null
+          created_at: string
+          discord_full_name: string | null
+          discord_username: string | null
+          email: string
+          full_name: string | null
+          gang_name: string | null
+          gang_type: Database["public"]["Enums"]["gang_type"] | null
+          id: string
+          ingame_name: string | null
+          last_login_date: string | null
+          longest_streak: number | null
+          phone: string | null
+          referral_code: string | null
+          server: string | null
+          source_id: string | null
+          streak_days: number | null
+          token_balance: number | null
+          vip_tier: string | null
+          xp: number | null
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_user_id?: string | null
+          country?: string | null
+          created_at?: string
+          discord_full_name?: string | null
+          discord_username?: string | null
+          email: string
+          full_name?: string | null
+          gang_name?: string | null
+          gang_type?: Database["public"]["Enums"]["gang_type"] | null
+          id?: string
+          ingame_name?: string | null
+          last_login_date?: string | null
+          longest_streak?: number | null
+          phone?: string | null
+          referral_code?: string | null
+          server?: string | null
+          source_id?: string | null
+          streak_days?: number | null
+          token_balance?: number | null
+          vip_tier?: string | null
+          xp?: number | null
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_user_id?: string | null
+          country?: string | null
+          created_at?: string
+          discord_full_name?: string | null
+          discord_username?: string | null
+          email?: string
+          full_name?: string | null
+          gang_name?: string | null
+          gang_type?: Database["public"]["Enums"]["gang_type"] | null
+          id?: string
+          ingame_name?: string | null
+          last_login_date?: string | null
+          longest_streak?: number | null
+          phone?: string | null
+          referral_code?: string | null
+          server?: string | null
+          source_id?: string | null
+          streak_days?: number | null
+          token_balance?: number | null
+          vip_tier?: string | null
+          xp?: number | null
+        }
+        Relationships: []
+      }
       leaderboard_overrides: {
         Row: {
           draws: number
@@ -2158,6 +2233,10 @@ export type Database = {
         Returns: undefined
       }
       admin_unsuspend_bet: { Args: { _bet_id: string }; Returns: undefined }
+      apply_imported_profile: {
+        Args: { _email: string; _user_id: string }
+        Returns: boolean
+      }
       apply_referral_code: { Args: { _code: string }; Returns: Json }
       approve_promo_request: {
         Args: { _id: string; _note?: string }
