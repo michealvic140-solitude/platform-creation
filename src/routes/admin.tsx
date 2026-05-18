@@ -75,7 +75,7 @@ function AdminPage() {
     <Layout>
       <div className="admin-shell relative">
         <div className="admin-shell-aurora" aria-hidden />
-        <div className="admin-shell-logo" aria-hidden />
+        <div className="admin-shell-logo" aria-hidden style={{ backgroundImage: `url(${lslLogo})` }} />
         <div className="container py-8 space-y-6 relative z-10">
           <div className="relative overflow-hidden rounded-2xl p-5 admin-hero-frame">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-gold" />
