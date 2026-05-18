@@ -143,19 +143,18 @@ export function BetVoucher({ bet, sels, statusBadge, allWon, copy, shareCode }: 
         {/* Circuit pattern */}
         <div className="absolute inset-0 voucher-circuit pointer-events-none" />
 
-        {/* Platform logo watermark */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden z-0">
+        {/* Platform logo watermark — visible on all states + print */}
+        <div className="voucher-watermark absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden z-0">
           <img
             src={lslLogo}
             alt=""
             aria-hidden="true"
             draggable={false}
-            className="w-[80%] max-w-[560px] aspect-square object-contain opacity-25"
-            style={{ filter: "saturate(1.1) contrast(1.05) drop-shadow(0 8px 32px rgba(0,0,0,0.55))" }}
+            className="voucher-watermark-img w-[78%] max-w-[540px] aspect-square object-contain"
           />
         </div>
         {/* Subtle vignette to keep content legible over watermark */}
-        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,transparent_45%,oklch(0.10_0.04_60/0.7)_100%)] z-0" />
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,transparent_50%,oklch(0.10_0.04_60/0.65)_100%)] z-0" />
 
         <div className="relative px-3 sm:px-5 pt-6 pb-5 space-y-4">
           {/* HEADER */}
