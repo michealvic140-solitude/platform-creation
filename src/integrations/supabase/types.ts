@@ -403,6 +403,39 @@ export type Database = {
         }
         Relationships: []
       }
+      broadcasts: {
+        Row: {
+          body: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          link: string | null
+          segment: string
+          sent_count: number
+          title: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          link?: string | null
+          segment?: string
+          sent_count?: number
+          title: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          link?: string | null
+          segment?: string
+          sent_count?: number
+          title?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -421,6 +454,51 @@ export type Database = {
           icon?: string | null
           id?: string
           name?: string
+        }
+        Relationships: []
+      }
+      challenges: {
+        Row: {
+          action_key: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          ends_at: string | null
+          id: string
+          is_active: boolean
+          kind: string
+          reward_tokens: number
+          starts_at: string | null
+          target_count: number
+          title: string
+        }
+        Insert: {
+          action_key?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind: string
+          reward_tokens?: number
+          starts_at?: string | null
+          target_count?: number
+          title: string
+        }
+        Update: {
+          action_key?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: string
+          reward_tokens?: number
+          starts_at?: string | null
+          target_count?: number
+          title?: string
         }
         Relationships: []
       }
@@ -487,6 +565,84 @@ export type Database = {
         }
         Relationships: []
       }
+      friends: {
+        Row: {
+          created_at: string
+          followee_id: string
+          follower_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          followee_id: string
+          follower_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          followee_id?: string
+          follower_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      gang_emblems: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      gifts: {
+        Row: {
+          amount: number
+          created_at: string
+          fee: number
+          id: string
+          recipient_id: string
+          sender_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          fee?: number
+          id?: string
+          recipient_id: string
+          sender_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          fee?: number
+          id?: string
+          recipient_id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
       highlights: {
         Row: {
           created_at: string
@@ -511,6 +667,72 @@ export type Database = {
           media_type?: string
           media_url?: string
           title?: string
+        }
+        Relationships: []
+      }
+      house_transactions: {
+        Row: {
+          actor_id: string | null
+          amount: number
+          balance_after: number
+          bet_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          reason: string | null
+          user_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          amount: number
+          balance_after: number
+          bet_id?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          reason?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          amount?: number
+          balance_after?: number
+          bet_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          reason?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      house_wallet: {
+        Row: {
+          balance: number
+          id: number
+          pause_reason: string | null
+          payouts_paused: boolean
+          total_in: number
+          total_out: number
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          id?: number
+          pause_reason?: string | null
+          payouts_paused?: boolean
+          total_in?: number
+          total_out?: number
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          id?: number
+          pause_reason?: string | null
+          payouts_paused?: boolean
+          total_in?: number
+          total_out?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -598,6 +820,7 @@ export type Database = {
           home_score: number
           home_team_id: string
           id: string
+          is_archived: boolean
           is_featured: boolean
           location: string | null
           name: string
@@ -615,6 +838,7 @@ export type Database = {
           home_score?: number
           home_team_id: string
           id?: string
+          is_archived?: boolean
           is_featured?: boolean
           location?: string | null
           name: string
@@ -632,6 +856,7 @@ export type Database = {
           home_score?: number
           home_team_id?: string
           id?: string
+          is_archived?: boolean
           is_featured?: boolean
           location?: string | null
           name?: string
@@ -670,6 +895,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notification_prefs: {
+        Row: {
+          bet_results: boolean
+          chat_mentions: boolean
+          daily_streak: boolean
+          match_starting: boolean
+          promotions: boolean
+          push_enabled: boolean
+          referrals: boolean
+          rewards: boolean
+          ticket_replies: boolean
+          updated_at: string
+          user_id: string
+          vip_tier_up: boolean
+          withdrawals: boolean
+        }
+        Insert: {
+          bet_results?: boolean
+          chat_mentions?: boolean
+          daily_streak?: boolean
+          match_starting?: boolean
+          promotions?: boolean
+          push_enabled?: boolean
+          referrals?: boolean
+          rewards?: boolean
+          ticket_replies?: boolean
+          updated_at?: string
+          user_id: string
+          vip_tier_up?: boolean
+          withdrawals?: boolean
+        }
+        Update: {
+          bet_results?: boolean
+          chat_mentions?: boolean
+          daily_streak?: boolean
+          match_starting?: boolean
+          promotions?: boolean
+          push_enabled?: boolean
+          referrals?: boolean
+          rewards?: boolean
+          ticket_replies?: boolean
+          updated_at?: string
+          user_id?: string
+          vip_tier_up?: boolean
+          withdrawals?: boolean
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -779,67 +1052,157 @@ export type Database = {
           accepted_terms: boolean
           avatar_url: string | null
           ban_reason: string | null
+          chat_color: string | null
           country: string | null
           created_at: string
+          discord_full_name: string | null
           discord_username: string | null
           email: string
+          emblem_status: string | null
           full_name: string
+          gang_emblem_url: string | null
           gang_name: string | null
           gang_type: Database["public"]["Enums"]["gang_type"] | null
           id: string
+          ingame_name: string | null
           is_banned: boolean
           is_muted: boolean
           is_restricted: boolean
+          last_login_date: string | null
+          longest_streak: number
           mute_reason: string | null
           phone: string | null
+          profile_banner_url: string | null
+          profile_title: string | null
+          referral_code: string | null
+          referred_by: string | null
           restrict_reason: string | null
           server: string | null
+          showcase_achievement_ids: string[]
+          streak_days: number
           token_balance: number
           updated_at: string
+          vip_tier: string
+          xp: number
         }
         Insert: {
           accepted_terms?: boolean
           avatar_url?: string | null
           ban_reason?: string | null
+          chat_color?: string | null
           country?: string | null
           created_at?: string
+          discord_full_name?: string | null
           discord_username?: string | null
           email: string
+          emblem_status?: string | null
           full_name: string
+          gang_emblem_url?: string | null
           gang_name?: string | null
           gang_type?: Database["public"]["Enums"]["gang_type"] | null
           id: string
+          ingame_name?: string | null
           is_banned?: boolean
           is_muted?: boolean
           is_restricted?: boolean
+          last_login_date?: string | null
+          longest_streak?: number
           mute_reason?: string | null
           phone?: string | null
+          profile_banner_url?: string | null
+          profile_title?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           restrict_reason?: string | null
           server?: string | null
+          showcase_achievement_ids?: string[]
+          streak_days?: number
           token_balance?: number
           updated_at?: string
+          vip_tier?: string
+          xp?: number
         }
         Update: {
           accepted_terms?: boolean
           avatar_url?: string | null
           ban_reason?: string | null
+          chat_color?: string | null
           country?: string | null
           created_at?: string
+          discord_full_name?: string | null
           discord_username?: string | null
           email?: string
+          emblem_status?: string | null
           full_name?: string
+          gang_emblem_url?: string | null
           gang_name?: string | null
           gang_type?: Database["public"]["Enums"]["gang_type"] | null
           id?: string
+          ingame_name?: string | null
           is_banned?: boolean
           is_muted?: boolean
           is_restricted?: boolean
+          last_login_date?: string | null
+          longest_streak?: number
           mute_reason?: string | null
           phone?: string | null
+          profile_banner_url?: string | null
+          profile_title?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           restrict_reason?: string | null
           server?: string | null
+          showcase_achievement_ids?: string[]
+          streak_days?: number
           token_balance?: number
           updated_at?: string
+          vip_tier?: string
+          xp?: number
+        }
+        Relationships: []
+      }
+      promo_code_requests: {
+        Row: {
+          admin_note: string | null
+          amount: number
+          created_at: string
+          generated_code: string | null
+          id: string
+          promo_id: string | null
+          reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          usage_limit: number
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount: number
+          created_at?: string
+          generated_code?: string | null
+          id?: string
+          promo_id?: string | null
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          usage_limit?: number
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount?: number
+          created_at?: string
+          generated_code?: string | null
+          id?: string
+          promo_id?: string | null
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          usage_limit?: number
+          user_id?: string
         }
         Relationships: []
       }
@@ -912,10 +1275,205 @@ export type Database = {
             foreignKeyName: "promo_redemptions_promo_id_fkey"
             columns: ["promo_id"]
             isOneToOne: false
+            referencedRelation: "promo_code_usage_log"
+            referencedColumns: ["promo_id"]
+          },
+          {
+            foreignKeyName: "promo_redemptions_promo_id_fkey"
+            columns: ["promo_id"]
+            isOneToOne: false
             referencedRelation: "promo_codes"
             referencedColumns: ["id"]
           },
         ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth_key: string
+          created_at: string
+          enabled: boolean
+          endpoint: string
+          id: string
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth_key: string
+          created_at?: string
+          enabled?: boolean
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth_key?: string
+          created_at?: string
+          enabled?: boolean
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          id: string
+          referee_bonus: number
+          referee_id: string
+          referrer_bonus: number
+          referrer_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          referee_bonus?: number
+          referee_id: string
+          referrer_bonus?: number
+          referrer_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          referee_bonus?: number
+          referee_id?: string
+          referrer_bonus?: number
+          referrer_id?: string
+        }
+        Relationships: []
+      }
+      season_points: {
+        Row: {
+          correct_scores: number
+          id: string
+          points: number
+          season_id: string
+          updated_at: string
+          user_id: string
+          wins: number
+        }
+        Insert: {
+          correct_scores?: number
+          id?: string
+          points?: number
+          season_id: string
+          updated_at?: string
+          user_id: string
+          wins?: number
+        }
+        Update: {
+          correct_scores?: number
+          id?: string
+          points?: number
+          season_id?: string
+          updated_at?: string
+          user_id?: string
+          wins?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "season_points_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seasons: {
+        Row: {
+          banner_url: string | null
+          created_at: string
+          description: string | null
+          ends_at: string
+          id: string
+          is_active: boolean
+          name: string
+          reward_structure: Json | null
+          starts_at: string
+        }
+        Insert: {
+          banner_url?: string | null
+          created_at?: string
+          description?: string | null
+          ends_at: string
+          id?: string
+          is_active?: boolean
+          name: string
+          reward_structure?: Json | null
+          starts_at?: string
+        }
+        Update: {
+          banner_url?: string | null
+          created_at?: string
+          description?: string | null
+          ends_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          reward_structure?: Json | null
+          starts_at?: string
+        }
+        Relationships: []
+      }
+      spins: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      spotlights: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          headline: string
+          id: string
+          is_active: boolean
+          message: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          headline: string
+          id?: string
+          is_active?: boolean
+          message?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          headline?: string
+          id?: string
+          is_active?: boolean
+          message?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       support_tickets: {
         Row: {
@@ -1081,6 +1639,77 @@ export type Database = {
         }
         Relationships: []
       }
+      user_achievements: {
+        Row: {
+          awarded_at: string
+          code: string
+          description: string | null
+          icon: string | null
+          id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          awarded_at?: string
+          code: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          awarded_at?: string
+          code?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_challenge_progress: {
+        Row: {
+          challenge_id: string
+          claimed_at: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          period_key: string
+          progress: number
+          user_id: string
+        }
+        Insert: {
+          challenge_id: string
+          claimed_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          period_key?: string
+          progress?: number
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string
+          claimed_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          period_key?: string
+          progress?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_challenge_progress_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           assigned_by: string | null
@@ -1101,6 +1730,84 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_sessions: {
+        Row: {
+          last_seen: string
+          route: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          last_seen?: string
+          route?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          last_seen?: string
+          route?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_tasks: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          id: string
+          reward_tokens: number
+          status: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          reward_tokens?: number
+          status?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          reward_tokens?: number
+          status?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      watchlist: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
           user_id?: string
         }
         Relationships: []
@@ -1149,10 +1856,149 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      hot_bets_v1: {
+        Row: {
+          avg_odds: number | null
+          bets_count: number | null
+          last_bet_at: string | null
+          market_name: string | null
+          match_id: string | null
+          match_name: string | null
+          selection_label: string | null
+          total_stake: number | null
+          users_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bet_selections_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promo_code_usage_log: {
+        Row: {
+          amount: number | null
+          code: string | null
+          created_by: string | null
+          expires_at: string | null
+          generated_at: string | null
+          generated_by_email: string | null
+          generated_by_name: string | null
+          is_active: boolean | null
+          max_uses: number | null
+          promo_id: string | null
+          redemption_id: string | null
+          target_user_ids: string[] | null
+          usage_limit: number | null
+          used_at: string | null
+          used_by: string | null
+          used_by_email: string | null
+          used_by_gang_name: string | null
+          used_by_name: string | null
+          used_count: number | null
+        }
+        Relationships: []
+      }
+      promo_code_usage_v2: {
+        Row: {
+          code: string | null
+          code_amount: number | null
+          email: string | null
+          full_name: string | null
+          gang_name: string | null
+          ingame_name: string | null
+          promo_id: string | null
+          redeemed_amount: number | null
+          redeemed_at: string | null
+          redemption_id: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_redemptions_promo_id_fkey"
+            columns: ["promo_id"]
+            isOneToOne: false
+            referencedRelation: "promo_code_usage_log"
+            referencedColumns: ["promo_id"]
+          },
+          {
+            foreignKeyName: "promo_redemptions_promo_id_fkey"
+            columns: ["promo_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      admin_adjust_xp: {
+        Args: { _delta: number; _reason?: string; _user_id: string }
+        Returns: Json
+      }
+      admin_award_achievement: {
+        Args: {
+          _code: string
+          _description?: string
+          _icon?: string
+          _title: string
+          _user_id: string
+        }
+        Returns: string
+      }
+      admin_broadcast: {
+        Args: { _body: string; _link: string; _segment: string; _title: string }
+        Returns: Json
+      }
+      admin_delete_bet: {
+        Args: { _bet_id: string; _reason?: string; _refund?: boolean }
+        Returns: undefined
+      }
+      admin_exposure_per_match: {
+        Args: never
+        Returns: {
+          bet_count: number
+          exposure: number
+          match_id: string
+          match_name: string
+        }[]
+      }
+      admin_mark_task_completed: {
+        Args: { _task_id: string }
+        Returns: undefined
+      }
+      admin_pnl_summary: { Args: { _days?: number }; Returns: Json }
+      admin_risk_summary: { Args: never; Returns: Json }
+      admin_suspend_bet: {
+        Args: { _bet_id: string; _reason?: string }
+        Returns: undefined
+      }
+      admin_unsuspend_bet: { Args: { _bet_id: string }; Returns: undefined }
+      apply_referral_code: { Args: { _code: string }; Returns: Json }
+      approve_promo_request: {
+        Args: { _id: string; _note?: string }
+        Returns: string
+      }
       can_use_gang_chat: { Args: { _user_id: string }; Returns: boolean }
+      claim_challenge: { Args: { _progress_id: string }; Returns: Json }
+      claim_daily_login: { Args: never; Returns: Json }
+      claim_task: { Args: { _task_id: string }; Returns: Json }
+      create_withdrawal_request: {
+        Args: {
+          _amount: number
+          _gang: string
+          _ingame: string
+          _ticket?: string
+        }
+        Returns: string
+      }
+      decline_promo_request: {
+        Args: { _id: string; _note?: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1160,8 +2006,29 @@ export type Database = {
         }
         Returns: boolean
       }
+      house_manual_adjust: {
+        Args: { _amount: number; _reason: string }
+        Returns: Json
+      }
+      house_set_paused: {
+        Args: { _paused: boolean; _reason?: string }
+        Returns: undefined
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_mod_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      recalc_vip_tier: { Args: { _user_id: string }; Returns: string }
+      redeem_promo_code: { Args: { _code: string }; Returns: Json }
+      review_gang_emblem: {
+        Args: { _approve: boolean; _id: string; _note?: string }
+        Returns: undefined
+      }
+      review_withdrawal_request: {
+        Args: { _approve: boolean; _id: string; _note?: string }
+        Returns: undefined
+      }
+      user_cashout_bet: { Args: { _bet_id: string }; Returns: Json }
+      verify_xp_consistency: { Args: { _user_id?: string }; Returns: Json }
+      wipe_all_tokens: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role:
