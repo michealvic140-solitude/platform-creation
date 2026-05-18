@@ -57,19 +57,19 @@
   --popover: oklch(0.13 0.025 168 / 0.92);
   --popover-foreground: oklch(0.96 0.04 90);
 
-  /* Gold primary — slightly more luminous */
-  --primary: oklch(0.84 0.18 90);
+  /* Gold primary — richer, thicker */
+  --primary: oklch(0.82 0.22 88);
   --primary-foreground: oklch(0.10 0.02 165);
-  --primary-glow: oklch(0.92 0.18 92);
+  --primary-glow: oklch(0.92 0.22 92);
 
-  --secondary: oklch(0.20 0.03 168 / 0.85);
+  --secondary: oklch(0.22 0.05 168 / 0.88);
   --secondary-foreground: oklch(0.96 0.04 90);
 
-  --muted: oklch(0.20 0.025 168 / 0.75);
-  --muted-foreground: oklch(0.74 0.03 100);
+  --muted: oklch(0.22 0.04 168 / 0.78);
+  --muted-foreground: oklch(0.78 0.05 100);
 
-  /* Emerald accent — punchier */
-  --accent: oklch(0.70 0.19 158);
+  /* Emerald accent — deeper, more saturated */
+  --accent: oklch(0.68 0.24 158);
   --accent-foreground: oklch(0.10 0.02 165);
 
   --destructive: oklch(0.62 0.25 25);
