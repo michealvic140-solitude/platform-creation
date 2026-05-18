@@ -156,7 +156,7 @@ export function BetVoucher({ bet, sels, statusBadge, allWon, copy, shareCode }: 
         {/* Subtle vignette to keep content legible over watermark */}
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,transparent_50%,oklch(0.10_0.04_60/0.65)_100%)] z-0" />
 
-        <div className="relative px-3 sm:px-5 pt-6 pb-5 space-y-4">
+        <div className="relative z-10 px-3 sm:px-5 pt-6 pb-5 space-y-4">
           {/* HEADER */}
           <div className="text-center space-y-2">
             <div className="flex items-center justify-center gap-2">
