@@ -352,14 +352,24 @@ function LiveMatchTicker({ match, animSec }: { match: MatchRow & { lock_time?: s
       setProgress(ratio);
       const fh = match.home_score ?? 0;
       const fa = match.away_score ?? 0;
-      // Only override with server scores once we're fully done AND server has values
-      if (match.status === "ended" && ratio >= 1 && (fh || fa)) {
+      // Once settled, lock to final server scores
+      if (match.status === "ended" && (fh || fa)) {
         setTickScore({ h: fh, a: fa });
+        setProgress(1);
         return;
       }
       let h = 0, a = 0;
       const surfaced: string[] = [];
       for (const ev of timeline) {
+        if (ev.t <= ratio) {
+          if (ev.side === "h") h++; else a++;
+          const team = ev.side === "h" ? match.home_team?.name : match.away_team?.name;
+          const line = KILL_LINES[Math.floor((ev.t * 9973) % KILL_LINES.length)];
+          surfaced.unshift(`${team}: ${line}`);
+        }
+      }
+      // Prefer server-progressed scores when they exceed ticker estimate
+      setTickScore({ h: Math.max(h, fh), a: Math.max(a, fa) });
         if (ev.t <= ratio) {
           if (ev.side === "h") h++; else a++;
           const team = ev.side === "h" ? match.home_team?.name : match.away_team?.name;
