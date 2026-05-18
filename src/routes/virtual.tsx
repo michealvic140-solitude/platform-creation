@@ -53,12 +53,15 @@ function VirtualPage() {
       });
     };
     load();
-    const t = setInterval(load, 4000);
+    const t = setInterval(load, 3000);
+    // Fallback ping in case scheduled cron lags. Function is safe for anon.
+    const ping = setInterval(() => { supabase.rpc("virtual_tick").then(() => {}, () => {}); }, 8000);
+    supabase.rpc("virtual_tick").then(() => {}, () => {});
     const ch = supabase.channel("virtual-rounds-v2")
       .on("postgres_changes", { event: "*", schema: "public", table: "matches", filter: "is_virtual=eq.true" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, load)
       .subscribe();
-    return () => { clearInterval(t); supabase.removeChannel(ch); };
+    return () => { clearInterval(t); clearInterval(ping); supabase.removeChannel(ch); };
   }, []);
 
   return (
@@ -349,9 +352,10 @@ function LiveMatchTicker({ match, animSec }: { match: MatchRow & { lock_time?: s
       setProgress(ratio);
       const fh = match.home_score ?? 0;
       const fa = match.away_score ?? 0;
-      // Only override with server scores once we're fully done AND server has values
-      if (match.status === "ended" && ratio >= 1 && (fh || fa)) {
+      // Once settled, lock to final server scores
+      if (match.status === "ended" && (fh || fa)) {
         setTickScore({ h: fh, a: fa });
+        setProgress(1);
         return;
       }
       let h = 0, a = 0;
@@ -364,7 +368,8 @@ function LiveMatchTicker({ match, animSec }: { match: MatchRow & { lock_time?: s
           surfaced.unshift(`${team}: ${line}`);
         }
       }
-      setTickScore({ h, a });
+      // Prefer server-progressed scores when they exceed ticker estimate
+      setTickScore({ h: Math.max(h, fh), a: Math.max(a, fa) });
       setFeed(surfaced.slice(0, 5));
     };
     tick();
