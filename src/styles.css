@@ -79,19 +79,19 @@
   --input: oklch(0.22 0.03 168 / 0.75);
   --ring: oklch(0.84 0.18 90);
 
-  --gold: oklch(0.84 0.18 90);
-  --gold-soft: oklch(0.90 0.13 92);
-  --gold-deep: oklch(0.62 0.14 80);
-  --emerald: oklch(0.70 0.19 158);
-  --emerald-soft: oklch(0.82 0.15 160);
+  --gold: oklch(0.82 0.22 88);
+  --gold-soft: oklch(0.90 0.17 92);
+  --gold-deep: oklch(0.58 0.18 78);
+  --emerald: oklch(0.68 0.24 158);
+  --emerald-soft: oklch(0.80 0.20 160);
 
-  --gradient-gold: linear-gradient(135deg, oklch(0.90 0.16 92), oklch(0.62 0.14 80));
-  --gradient-emerald: linear-gradient(135deg, oklch(0.84 0.18 90), oklch(0.70 0.19 158));
-  --gradient-luxury: linear-gradient(160deg, oklch(0.08 0.02 200) 0%, oklch(0.10 0.04 165) 45%, oklch(0.12 0.05 158) 75%, oklch(0.10 0.04 90) 100%);
+  --gradient-gold: linear-gradient(135deg, oklch(0.92 0.20 92), oklch(0.58 0.18 78));
+  --gradient-emerald: linear-gradient(135deg, oklch(0.82 0.22 90), oklch(0.66 0.24 158));
+  --gradient-luxury: linear-gradient(160deg, oklch(0.08 0.03 200) 0%, oklch(0.11 0.06 165) 45%, oklch(0.13 0.07 158) 75%, oklch(0.11 0.06 90) 100%);
   --gradient-glow:
-    radial-gradient(60% 50% at 12% 8%, oklch(0.70 0.19 158 / 0.22), transparent 60%),
-    radial-gradient(55% 45% at 92% 96%, oklch(0.84 0.18 90 / 0.18), transparent 65%),
-    radial-gradient(40% 35% at 50% 110%, oklch(0.70 0.19 158 / 0.12), transparent 70%);
+    radial-gradient(60% 50% at 12% 8%, oklch(0.68 0.24 158 / 0.32), transparent 60%),
+    radial-gradient(55% 45% at 92% 96%, oklch(0.82 0.22 90 / 0.26), transparent 65%),
+    radial-gradient(40% 35% at 50% 110%, oklch(0.68 0.24 158 / 0.18), transparent 70%);
 
   --shadow-gold: 0 10px 48px -10px oklch(0.84 0.18 90 / 0.55);
   --shadow-luxury: 0 28px 80px -24px oklch(0 0 0 / 0.85);
