@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TeamLogo } from "@/components/TeamLogo";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { Sparkles, Send, ArrowLeft, Ticket as TicketIcon, Copy, Check, X, Image as ImageIcon, Share2, Trash2, Lock as LockIcon, Clock as ClockIcon, ShieldCheck, Trophy, Coins, TrendingUp, Gem, Calendar, CalendarCheck, ShieldAlert } from "lucide-react";
+import { Sparkles, Send, ArrowLeft, Ticket as TicketIcon, Copy, Check, X, Image as ImageIcon, Share2, Trash2, Lock as LockIcon, Clock as ClockIcon, ShieldCheck, Trophy, Coins, TrendingUp, Gem, Calendar, CalendarCheck, ShieldAlert, Printer } from "lucide-react";
 import { GangLogo } from "@/components/GangLogo";
 import lslLogo from "@/assets/lsl-logo.png";
 import { toast } from "sonner";
@@ -78,11 +78,18 @@ function BetTicket({ bet, viewerId }: { bet: any; viewerId: string }) {
   return (
     <Layout>
       <div className="w-full max-w-xl px-3 py-6 md:ml-0 md:mr-auto">
-        <Link to="/dashboard" className="text-muted-foreground text-sm flex items-center gap-1 hover:text-primary mb-3"><ArrowLeft className="h-4 w-4" />My bets</Link>
-        <BetVoucher bet={bet} sels={sels} statusBadge={statusBadge} allWon={allWon} copy={copy} shareCode={shareCode} />
+        <div className="flex items-center justify-between mb-3 print-hide">
+          <Link to="/dashboard" className="text-muted-foreground text-sm flex items-center gap-1 hover:text-primary"><ArrowLeft className="h-4 w-4" />My bets</Link>
+          <Button size="sm" variant="outline" onClick={() => window.print()} className="gap-1.5">
+            <Printer className="h-4 w-4" /> Print
+          </Button>
+        </div>
+        <div className="printable-voucher">
+          <BetVoucher bet={bet} sels={sels} statusBadge={statusBadge} allWon={allWon} copy={copy} shareCode={shareCode} />
+        </div>
 
         {!isOwner && (
-          <Card className="glass mt-4 p-3 text-xs text-muted-foreground">
+          <Card className="glass mt-4 p-3 text-xs text-muted-foreground print-hide">
             Viewing a shared booking. Use the booking code on the home page to copy these picks to your own slip.
           </Card>
         )}
@@ -212,10 +219,6 @@ export function BetVoucher({ bet, sels, statusBadge, allWon, copy, shareCode }: 
               return (
                 <div key={s.id} className="voucher-row p-3 sm:p-4 transition-all hover:scale-[1.01]">
                   <div className="flex items-center gap-3">
-                    {/* Number */}
-                    <div className="font-display font-black text-2xl sm:text-3xl neon-green w-8 text-center shrink-0">
-                      {String(i + 1).padStart(2, "0")}
-                    </div>
                     {/* Logo */}
                     <div className="shrink-0">
                       <TeamLogo name={m?.home_team?.name} url={m?.home_team?.logo_url} size={36} rounded="full" />

@@ -57,19 +57,19 @@
   --popover: oklch(0.13 0.025 168 / 0.92);
   --popover-foreground: oklch(0.96 0.04 90);
 
-  /* Gold primary — slightly more luminous */
-  --primary: oklch(0.84 0.18 90);
+  /* Gold primary — richer, thicker */
+  --primary: oklch(0.82 0.22 88);
   --primary-foreground: oklch(0.10 0.02 165);
-  --primary-glow: oklch(0.92 0.18 92);
+  --primary-glow: oklch(0.92 0.22 92);
 
-  --secondary: oklch(0.20 0.03 168 / 0.85);
+  --secondary: oklch(0.22 0.05 168 / 0.88);
   --secondary-foreground: oklch(0.96 0.04 90);
 
-  --muted: oklch(0.20 0.025 168 / 0.75);
-  --muted-foreground: oklch(0.74 0.03 100);
+  --muted: oklch(0.22 0.04 168 / 0.78);
+  --muted-foreground: oklch(0.78 0.05 100);
 
-  /* Emerald accent — punchier */
-  --accent: oklch(0.70 0.19 158);
+  /* Emerald accent — deeper, more saturated */
+  --accent: oklch(0.68 0.24 158);
   --accent-foreground: oklch(0.10 0.02 165);
 
   --destructive: oklch(0.62 0.25 25);
@@ -79,19 +79,19 @@
   --input: oklch(0.22 0.03 168 / 0.75);
   --ring: oklch(0.84 0.18 90);
 
-  --gold: oklch(0.84 0.18 90);
-  --gold-soft: oklch(0.90 0.13 92);
-  --gold-deep: oklch(0.62 0.14 80);
-  --emerald: oklch(0.70 0.19 158);
-  --emerald-soft: oklch(0.82 0.15 160);
+  --gold: oklch(0.82 0.22 88);
+  --gold-soft: oklch(0.90 0.17 92);
+  --gold-deep: oklch(0.58 0.18 78);
+  --emerald: oklch(0.68 0.24 158);
+  --emerald-soft: oklch(0.80 0.20 160);
 
-  --gradient-gold: linear-gradient(135deg, oklch(0.90 0.16 92), oklch(0.62 0.14 80));
-  --gradient-emerald: linear-gradient(135deg, oklch(0.84 0.18 90), oklch(0.70 0.19 158));
-  --gradient-luxury: linear-gradient(160deg, oklch(0.08 0.02 200) 0%, oklch(0.10 0.04 165) 45%, oklch(0.12 0.05 158) 75%, oklch(0.10 0.04 90) 100%);
+  --gradient-gold: linear-gradient(135deg, oklch(0.92 0.20 92), oklch(0.58 0.18 78));
+  --gradient-emerald: linear-gradient(135deg, oklch(0.82 0.22 90), oklch(0.66 0.24 158));
+  --gradient-luxury: linear-gradient(160deg, oklch(0.08 0.03 200) 0%, oklch(0.11 0.06 165) 45%, oklch(0.13 0.07 158) 75%, oklch(0.11 0.06 90) 100%);
   --gradient-glow:
-    radial-gradient(60% 50% at 12% 8%, oklch(0.70 0.19 158 / 0.22), transparent 60%),
-    radial-gradient(55% 45% at 92% 96%, oklch(0.84 0.18 90 / 0.18), transparent 65%),
-    radial-gradient(40% 35% at 50% 110%, oklch(0.70 0.19 158 / 0.12), transparent 70%);
+    radial-gradient(60% 50% at 12% 8%, oklch(0.68 0.24 158 / 0.32), transparent 60%),
+    radial-gradient(55% 45% at 92% 96%, oklch(0.82 0.22 90 / 0.26), transparent 65%),
+    radial-gradient(40% 35% at 50% 110%, oklch(0.68 0.24 158 / 0.18), transparent 70%);
 
   --shadow-gold: 0 10px 48px -10px oklch(0.84 0.18 90 / 0.55);
   --shadow-luxury: 0 28px 80px -24px oklch(0 0 0 / 0.85);
@@ -389,5 +389,95 @@
     background-clip: text;
     color: transparent;
     filter: drop-shadow(0 1px 0 oklch(0 0 0 / 0.35));
+  }
+}
+
+/* ===== Admin Console — light golden brown + emerald gradient glassmorphism ===== */
+@layer utilities {
+  .admin-shell {
+    position: relative;
+    isolation: isolate;
+    border-radius: 24px;
+    overflow: hidden;
+    background:
+      radial-gradient(120% 80% at 0% 0%, oklch(0.42 0.12 75 / 0.55), transparent 60%),
+      radial-gradient(110% 80% at 100% 100%, oklch(0.40 0.16 158 / 0.50), transparent 65%),
+      linear-gradient(160deg, oklch(0.30 0.10 75) 0%, oklch(0.24 0.08 90) 35%, oklch(0.20 0.10 140) 70%, oklch(0.18 0.12 158) 100%);
+    border: 1px solid oklch(0.72 0.16 88 / 0.40);
+    box-shadow:
+      0 0 0 1px oklch(0.62 0.14 80 / 0.35),
+      0 30px 80px -30px oklch(0 0 0 / 0.70),
+      inset 0 1px 0 oklch(0.95 0.10 92 / 0.12);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+  }
+  .admin-shell-aurora {
+    position: absolute; inset: -20%;
+    pointer-events: none;
+    background:
+      radial-gradient(40% 30% at 20% 25%, oklch(0.78 0.20 88 / 0.40), transparent 70%),
+      radial-gradient(45% 35% at 80% 75%, oklch(0.66 0.24 158 / 0.45), transparent 70%),
+      radial-gradient(35% 28% at 70% 15%, oklch(0.72 0.20 120 / 0.30), transparent 70%);
+    filter: blur(40px) saturate(150%);
+    animation: admin-aurora 16s ease-in-out infinite alternate;
+    z-index: 0;
+  }
+  .admin-shell-logo {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-repeat: no-repeat;
+    background-position: center 38%;
+    background-size: min(640px, 70%) auto;
+    opacity: 0.10;
+    filter: saturate(1.2) contrast(1.05) drop-shadow(0 12px 36px rgba(0,0,0,0.55));
+    mix-blend-mode: screen;
+    z-index: 0;
+    animation: admin-logo-float 12s ease-in-out infinite;
+  }
+  .admin-hero-frame {
+    border: 1px solid oklch(0.78 0.16 88 / 0.45);
+    background:
+      linear-gradient(135deg, oklch(0.32 0.10 80 / 0.78) 0%, oklch(0.22 0.08 120 / 0.70) 50%, oklch(0.20 0.12 158 / 0.78) 100%);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    box-shadow:
+      inset 0 1px 0 oklch(0.95 0.10 92 / 0.15),
+      0 18px 50px -18px oklch(0 0 0 / 0.70),
+      0 0 28px -8px oklch(0.66 0.24 158 / 0.40);
+  }
+}
+
+@keyframes admin-aurora {
+  0%   { transform: translate3d(0,0,0) rotate(0deg); }
+  50%  { transform: translate3d(2%, -2%, 0) rotate(4deg); }
+  100% { transform: translate3d(-2%, 2%, 0) rotate(-4deg); }
+}
+@keyframes admin-logo-float {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.10; }
+  50%      { transform: translateY(-10px) scale(1.02); opacity: 0.14; }
+}
+
+/* ===== Print: only the bet voucher ===== */
+@media print {
+  @page { size: A4 portrait; margin: 12mm; }
+  html, body {
+    background: #ffffff !important;
+    color: #000 !important;
+  }
+  body * { visibility: hidden !important; }
+  .printable-voucher, .printable-voucher * { visibility: visible !important; }
+  .printable-voucher {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .print-hide { display: none !important; }
+  .voucher-frame {
+    box-shadow: 0 0 0 1.5px #b8860b, 0 0 0 4px #1a1a1a !important;
+    break-inside: avoid;
   }
 }
