@@ -26,6 +26,8 @@ import {
 } from "recharts";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { SpotlightsAdminPanel } from "@/components/Spotlight";
+import { VirtualAdminPanel } from "@/components/admin/VirtualAdminPanel";
+import { Dice5 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — LSL" }, { name: "description", content: "League administration dashboard." }] }),
