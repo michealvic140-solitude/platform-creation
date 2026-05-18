@@ -154,9 +154,26 @@ function SectionTitle({ icon: Icon, label, color }: { icon: any; label: string; 
   );
 }
 
+// Server-time offset so every client agrees with the DB clock (not their local time).
+let __serverOffsetMs = 0;
+async function syncServerOffset() {
+  const t0 = Date.now();
+  const { data, error } = await (supabase as any).rpc("server_now");
+  const t1 = Date.now();
+  if (error || !data) return;
+  const serverMs = new Date(data as string).getTime();
+  const rtt = (t1 - t0) / 2;
+  __serverOffsetMs = serverMs - (t0 + rtt);
+}
+if (typeof window !== "undefined") {
+  syncServerOffset();
+  setInterval(syncServerOffset, 60000);
+}
+function serverNow() { return Date.now() + __serverOffsetMs; }
+
 function useCountdown(target: string | null | undefined) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(t); }, []);
+  const [now, setNow] = useState(serverNow());
+  useEffect(() => { const t = setInterval(() => setNow(serverNow()), 500); return () => clearInterval(t); }, []);
   if (!target) return { secs: 0, mm: "0", ss: "00", done: true };
   const diff = Math.max(0, new Date(target).getTime() - now);
   const secs = Math.floor(diff / 1000);
@@ -347,7 +364,7 @@ function LiveMatchTicker({ match, animSec }: { match: MatchRow & { lock_time?: s
 
   useEffect(() => {
     const tick = () => {
-      const now = Date.now();
+      const now = serverNow();
       const ratio = Math.min(1, Math.max(0, (now - lockMs) / Math.max(1, endMs - lockMs)));
       setProgress(ratio);
       const fh = match.home_score ?? 0;
