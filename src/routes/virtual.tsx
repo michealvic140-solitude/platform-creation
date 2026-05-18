@@ -33,7 +33,7 @@ function VirtualPage() {
   const [live, setLive] = useState<MatchRow[]>([]);
   const [upcoming, setUpcoming] = useState<MatchRow[]>([]);
   const [recent, setRecent] = useState<MatchRow[]>([]);
-  const [cycle, setCycle] = useState<{ running: boolean; animSec: number; durSec: number }>({ running: false, animSec: 15, durSec: 120 });
+  const [cycle, setCycle] = useState<{ running: boolean; animSec: number; durSec: number }>({ running: false, animSec: 120, durSec: 120 });
 
   useEffect(() => {
     const load = async () => {
