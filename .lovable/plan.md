@@ -1,61 +1,109 @@
+# Virtual Gangs v2 — Auto-Play + Approved Payouts
 
-# Instant Virtual Gangs — Plan
+A big upgrade to the Virtual Gangs system. Below is exactly what will change.
 
-A new "Virtual" section where users bet on quick (~30s) gang-vs-gang instant rounds. Gangs are pulled from registered gangs (the distinct `gang_name` values across `profiles`). Admin creates, runs, and resolves each round from the admin panel; outcomes are not auto-generated.
+## 1. Auto-resolving cycle engine
 
-## User experience
+A new admin-controlled engine that runs rounds in a loop:
 
-- New nav entry **Virtual** (next to Matches).
-- `/virtual` page shows:
-  - The **current live round** (countdown to lock, two gang emblems, 4 markets with odds).
-  - A short **upcoming rounds** strip (next 3 scheduled).
-  - **Recent results** strip with winning selections highlighted.
-- Tapping any odd adds it to the existing BetSlip — same flow as real matches, so payouts, tracking IDs, and ticket pages all work unchanged.
-- When the round locks (countdown hits 0), selections become unclickable and the card flips to a "Drawing result…" state until the admin publishes the result; ticket then settles automatically (same path as real matches).
+- **Admin "Start cycle" button** — sets a global `virtual_cycle_running = true` flag in `app_settings`, then triggers the first round.
+- **Admin "Pause cycle" button** — sets `virtual_cycle_running = false`. Any in-flight round finishes, but no new round auto-spawns. Admin can create/edit rounds while paused.
+- **2-minute betting window** — when a round starts, `start_time = now()`, `lock_time = now() + 2 minutes`. Public page shows a big live countdown.
+- **Auto-lock + auto-resolve** — when the timer reaches zero:
+  - Markets close (status → `live`).
+  - 15-second "match playing" animation runs client-side (kill ticker, score tracker).
+  - Server RPC `auto_resolve_virtual_round` generates **random but varied** scores (0–8 each side, plus randomised first blood). Scores are guaranteed not identical to the previous round.
+  - Match status → `ended`, winners computed, bets marked `won`/`lost` — but **payouts NOT credited yet** (held for admin review).
+- **Auto-next round** — if cycle is running and no admin-scheduled rounds are pending, the engine picks 2 random teams from `teams` and spawns the next round with the same 4 markets.
 
-## Markets per round
+Engine runs via `pg_cron` calling a `/api/public/hooks/virtual-tick` endpoint every 10 seconds.
 
-1. **Match winner** — Gang A / Draw / Gang B
-2. **First blood** — Gang A / Gang B (which gang scores first)
-3. **Total kills O/U** — Over X.5 / Under X.5 (admin sets line)
-4. **Correct score** — common scorelines (admin-configured list, high odds)
+## 2. "Watch the match" experience
 
-Admin can toggle which markets appear per round and edit odds before lock.
+On `/virtual`, when a round is `live` (post-lock, pre-settled):
 
-## Admin panel additions (new "Virtual" tab)
+- Card flips into a **play view**: animated dice/crosshair, kill-feed ticker ("⚔ Gang A scored!"), live score counter ticking up to the final result.
+- Smooth 15-second build-up using `framer-motion`.
+- When `status = ended`, a "Final" badge appears with W/D/L outcome strip.
 
-- **Round composer**: pick Gang A / Gang B from registered-gang dropdown, set start time, lock time (default start+25s), enable markets, edit odds & O/U line, edit correct-score grid.
-- **Quick-create**: "Create next round" button that auto-pairs two random registered gangs with default odds.
-- **Live control**: list of rounds with status pills (`scheduled` → `live` → `locked` → `resolved`); buttons to **Lock now**, **Publish result**, **Void & refund**.
-- **Resolve form**: enter final score `A:B` and first-blood gang. Backend computes winners for all 4 markets, marks each `odds.is_winner`, and reuses the existing settlement pipeline so bets pay out exactly like real matches (no parallel payout code).
+The scores ticking up are purely visual — final numbers come from the server's resolve RPC.
 
-## Data model (uses existing tables, no parallel system)
+## 3. Multi-selection betting + editable checkout
 
-The cleanest approach is to model each round as a `matches` row with a new category and dedicated teams, so the entire BetSlip / `bets` / `bet_selections` / payout machinery works untouched.
+The current `/virtual` page uses a single-bet dialog. This will change to:
 
-- Insert a category `Virtual Gangs` in `categories`.
-- For each registered gang name, lazy-create a row in `teams` (name = gang name) the first time it's used in a virtual round.
-- A virtual round = `matches` row with `category = Virtual Gangs`, `start_time` = round start, plus `markets` + `odds` rows for the enabled markets.
-- New columns on `matches` (migration): `is_virtual boolean default false`, `lock_time timestamptz null`, `auto_settle boolean default false`. Existing pages filter `is_virtual = false` so virtual rounds don't pollute the regular Matches page.
-- New RPC `resolve_virtual_round(_match_id, _home_score, _away_score, _first_blood_team_id)` (security definer, admin-only) that:
-  1. Sets `odds.is_winner` for every market based on the inputs.
-  2. Calls the existing settlement path used after a real match ends.
-  3. Marks the match `status = 'ended'`.
+- Each market pick **adds to the existing `BetSlipContext`** (already used for normal matches).
+- Floating bet slip shows all virtual selections, lets user adjust stake per leg or as accumulator, remove legs, then "Place ticket".
+- Reuses the existing `BetSlip` component; virtual selections are tagged so checkout validates against `virtual_min_stake`/`virtual_max_stake`.
+- Wallet balance enforced before submit.
 
-## Routes & files
+## 4. Pending-approval payouts
 
-- `src/routes/virtual.tsx` — public page.
-- `src/components/virtual/VirtualRoundCard.tsx` — live round + countdown + market tabs.
-- `src/components/virtual/VirtualResultsStrip.tsx`.
-- `src/components/admin/VirtualAdminPanel.tsx` — composer + live control + resolve form, mounted in `src/routes/admin.tsx` as a new tab.
-- `src/lib/virtual.ts` — fetch helpers (current/upcoming/recent rounds).
-- Migration: add columns, category seed, new RPC.
-- Layout nav: add **Virtual** link (desktop nav + mobile bottom bar).
+New flow after a round resolves:
 
-## Out of scope (can come later)
+- Winning bets get `status = 'won'` but no tokens credited.
+- A new row goes into `virtual_payout_requests` (status `pending`).
+- User sees on `/virtual/history` and on the ticket: "🏆 Won — awaiting admin approval. Claim available once approved."
+- **Admin panel** gets a new "Pending Payouts" tab:
+  - List of all pending wins (user, round, stake, payout).
+  - **Approve** → flips to `approved`, user can now click "Claim" to credit tokens.
+  - **Decline** with reason → flips to `declined`, stake is refunded, user notified.
+- User claim button calls `claim_virtual_payout(_request_id)` RPC — only works if `approved`.
 
-- Auto-scheduled rounds / cron.
-- Animated reveal (we'll start with a simple flip + result text; can layer Motion later).
-- Provably-fair seeding (engine is admin-controlled per your choice).
+## 5. Admin controls (Virtual tab)
 
-Confirm and I'll start with the migration, then build the page, then the admin panel.
+```text
+┌─ Cycle Engine ────────────────────────────┐
+│  Status: ● RUNNING       [ Pause cycle ]  │
+│  Next auto-spawn: in 0:42                 │
+└───────────────────────────────────────────┘
+┌─ Pending Payouts (12) ────────────────────┐
+│  user · round · 250K → 750K  [✓] [✗]      │
+│  ...                                       │
+└───────────────────────────────────────────┘
+┌─ Round Composer ──────────────────────────┐
+│  (existing — manually queue specific rounds)│
+└───────────────────────────────────────────┘
+┌─ Reward Settings · Audit Log (existing)   │
+└───────────────────────────────────────────┘
+```
+
+## 6. Score variation guarantee
+
+`auto_resolve_virtual_round` rules:
+- Random scores in `[0,8]` per side.
+- Re-roll if `(home, away)` equals the most recent ended virtual match.
+- Re-roll if both sides equal 0 more than once in a row.
+- Outcome label derived: `home > away` → home win, `home < away` → away win, `home = away` → draw. The Match-Winner odds settle based on this. Correct-score/totals/first-blood already handled by existing resolve logic.
+
+---
+
+## Technical changes
+
+**Migration** (`virtual_v2_engine.sql`)
+- `app_settings`: add `virtual_cycle_running boolean`, `virtual_round_duration_seconds int default 120`, `virtual_resolve_animation_seconds int default 15`, `virtual_auto_payout boolean default false`.
+- New table `virtual_payout_requests(id, bet_id, user_id, match_id, amount, status, reviewed_by, reviewed_at, decline_reason, created_at)` with RLS (user reads own, admin manages).
+- New RPCs:
+  - `admin_set_virtual_cycle(_running boolean)` — toggle engine.
+  - `auto_resolve_virtual_round(_match_id uuid)` — random scores + variation guard, marks bets won/lost, inserts payout requests instead of crediting.
+  - `virtual_tick()` — internal: lock rounds past `lock_time`, resolve rounds past `lock_time + animation_seconds`, spawn next round if cycle running and queue empty.
+  - `admin_review_virtual_payout(_id uuid, _approve boolean, _reason text)` — credit or refund + notify.
+  - `claim_virtual_payout(_id uuid)` — user claims approved payout, credits balance once.
+  - `place_virtual_ticket(_selections jsonb, _stake bigint)` — multi-leg ticket replacement for the current single-pick RPC.
+
+**Cron** — `pg_cron` job calling `/api/public/hooks/virtual-tick` every 10s with anon key.
+
+**New/edited files**
+- `src/routes/api/public/hooks/virtual-tick.ts` (new) — calls `virtual_tick()` via admin client.
+- `src/routes/virtual.tsx` — countdown, watch-play animation, BetSlip integration.
+- `src/routes/virtual.history.tsx` — show payout-approval state, "Claim" button.
+- `src/components/admin/VirtualAdminPanel.tsx` — Cycle controls + Pending Payouts tab.
+- `src/components/BetSlip.tsx` — small tweak to surface virtual stake limits.
+- `src/contexts/BetSlipContext.tsx` — flag virtual selections.
+
+**Out of scope**
+- Provably-fair seeding (random is server-side only).
+- Live odds movement during betting window.
+- Animated 3D shooter visualisation (kept as ticker + score counter).
+
+Confirm and I'll build it.

@@ -49,16 +49,26 @@ function BetSlipDrawer({ open, onClose }: { open: boolean; onClose: () => void }
   const { user, profile, refresh } = useAuth();
   const [minStake, setMinStake] = useState(2_000_000);
   const [maxPayout, setMaxPayout] = useState(100_000_000);
+  const [vMin, setVMin] = useState(100_000);
+  const [vMax, setVMax] = useState(10_000_000);
   const [submitting, setSubmitting] = useState(false);
   const [placed, setPlaced] = useState<any>(null);
   const confirm = useConfirm();
   const nav = useNavigate();
 
+  const allVirtual = selections.length > 0 && selections.every((s) => s.is_virtual);
+  const anyVirtual = selections.some((s) => s.is_virtual);
+  const mixedTypes = anyVirtual && !allVirtual;
+  const effectiveMin = allVirtual ? vMin : minStake;
+  const minSelectionsRequired = allVirtual ? 1 : 2;
+
   useEffect(() => {
-    supabase.from("app_settings").select("min_stake,max_payout").eq("id", 1).maybeSingle()
+    supabase.from("app_settings").select("min_stake,max_payout,virtual_min_stake,virtual_max_stake").eq("id", 1).maybeSingle()
       .then(({ data }) => {
         if (data?.min_stake) setMinStake(Number(data.min_stake));
         if ((data as any)?.max_payout) setMaxPayout(Number((data as any).max_payout));
+        if ((data as any)?.virtual_min_stake) setVMin(Number((data as any).virtual_min_stake));
+        if ((data as any)?.virtual_max_stake) setVMax(Number((data as any).virtual_max_stake));
       });
   }, [open]);
 
@@ -69,44 +79,54 @@ function BetSlipDrawer({ open, onClose }: { open: boolean; onClose: () => void }
   async function place() {
     if (!user || !profile) { nav({ to: "/login" }); return; }
     if (selections.length === 0) return;
-    if (selections.length < 2) {
-      toast.error(`Add at least 2 selections to place a bet (you have ${selections.length}).`);
+    if (mixedTypes) { toast.error("Cannot mix virtual and regular selections in one ticket."); return; }
+    if (selections.length < minSelectionsRequired) {
+      toast.error(`Add at least ${minSelectionsRequired} selection(s) to place a bet.`);
       return;
     }
     if (profile.is_restricted) { toast.error("Your account is restricted from betting."); return; }
-    if (stake < minStake) { toast.error(`Minimum stake is ${minStake.toLocaleString()} tokens`); return; }
+    if (stake < effectiveMin) { toast.error(`Minimum stake is ${effectiveMin.toLocaleString()} tokens`); return; }
+    if (allVirtual && stake > vMax) { toast.error(`Maximum virtual stake is ${vMax.toLocaleString()}`); return; }
     if (stake > (profile.token_balance ?? 0)) { toast.error("Insufficient balance"); return; }
 
     const ok = await confirm({
-      title: "Confirm bet placement",
-      description: `Stake ${stake.toLocaleString()} on ${selections.length} selection(s) at total odds ${totalOdds.toFixed(2)}. Potential payout: ${payout.toLocaleString()} tokens${capped ? ` (capped at max ${maxPayout.toLocaleString()})` : ""}. Tokens will be deducted immediately.`,
-      confirmText: "Place Bet",
+      title: allVirtual ? "Confirm virtual ticket" : "Confirm bet placement",
+      description: `Stake ${stake.toLocaleString()} on ${selections.length} ${allVirtual ? "virtual " : ""}selection(s) at total odds ${totalOdds.toFixed(2)}. Potential payout: ${payout.toLocaleString()} tokens${capped ? ` (capped at max ${maxPayout.toLocaleString()})` : ""}.${allVirtual ? " Winnings require admin approval before claim." : " Tokens will be deducted immediately."}`,
+      confirmText: allVirtual ? "Place Ticket" : "Place Bet",
     });
     if (!ok) return;
 
     setSubmitting(true);
     try {
-      const { data: bet, error: be } = await supabase.from("bets").insert({
-        user_id: user.id, stake, total_odds: totalOdds, potential_payout: payout, status: "open",
-      }).select().single();
-      if (be) throw be;
-      const rows = selections.map((s) => ({
-        bet_id: bet.id, match_id: s.match_id, market_id: s.market_id, odd_id: s.odd_id,
-        locked_odds: s.odds, selection_label: s.selection_label,
-      }));
-      const { error: se } = await supabase.from("bet_selections").insert(rows);
-      if (se) {
-        // rollback bet so we don't leave an orphan
-        await supabase.from("bets").delete().eq("id", bet.id);
-        throw se;
+      if (allVirtual) {
+        const { data, error } = await supabase.rpc("place_virtual_ticket" as any, {
+          _selections: selections.map((s) => ({ odd_id: s.odd_id })) as any,
+          _stake: stake,
+        });
+        if (error) throw error;
+        const r = data as any;
+        const snapshot = { id: r.bet_id, tracking_id: r.tracking_id, stake, total_odds: r.total_odds, _payout: r.payout, booking_code: r.tracking_id, _selections: selections };
+        clear(); refresh();
+        setPlaced(snapshot);
+        toast.success(`Virtual ticket placed · ${r.tracking_id}`);
+      } else {
+        const { data: bet, error: be } = await supabase.from("bets").insert({
+          user_id: user.id, stake, total_odds: totalOdds, potential_payout: payout, status: "open",
+        }).select().single();
+        if (be) throw be;
+        const rows = selections.map((s) => ({
+          bet_id: bet.id, match_id: s.match_id, market_id: s.market_id, odd_id: s.odd_id,
+          locked_odds: s.odds, selection_label: s.selection_label,
+        }));
+        const { error: se } = await supabase.from("bet_selections").insert(rows);
+        if (se) { await supabase.from("bets").delete().eq("id", bet.id); throw se; }
+        await supabase.from("profiles").update({ token_balance: (profile.token_balance ?? 0) - stake }).eq("id", user.id);
+        await supabase.from("notifications").insert({ user_id: user.id, title: "Bet placed", body: `Ticket ${bet.tracking_id} · ${stake.toLocaleString()} tokens staked.`, link: `/ticket/${bet.id}` });
+        toast.success(`Bet placed! Ticket ${bet.tracking_id}`);
+        const snapshot = { ...bet, _selections: selections, _payout: payout };
+        clear(); refresh();
+        setPlaced(snapshot);
       }
-      // deduct tokens
-      await supabase.from("profiles").update({ token_balance: (profile.token_balance ?? 0) - stake }).eq("id", user.id);
-      await supabase.from("notifications").insert({ user_id: user.id, title: "Bet placed", body: `Ticket ${bet.tracking_id} · ${stake.toLocaleString()} tokens staked.`, link: `/ticket/${bet.id}` });
-      toast.success(`Bet placed! Ticket ${bet.tracking_id}`);
-      const snapshot = { ...bet, _selections: selections, _payout: payout };
-      clear(); refresh();
-      setPlaced(snapshot);
     } catch (e: any) {
       toast.error(e.message || "Failed to place bet");
     } finally { setSubmitting(false); }
@@ -187,16 +207,21 @@ function BetSlipDrawer({ open, onClose }: { open: boolean; onClose: () => void }
               </div>
               <ShieldCheck className="h-8 w-8 text-primary/50" />
             </Card>
-            {capped && (
-              <p className="text-[10px] text-amber-400 text-center">
-                Payout capped at the maximum of {maxPayout.toLocaleString()} tokens (uncapped: {rawPayout.toLocaleString()}).
-              </p>
+            {mixedTypes && <p className="text-[11px] text-destructive text-center">Cannot mix virtual and regular selections in one ticket. Remove one type to continue.</p>}
+            {allVirtual && (
+              <div className="text-center"><Badge variant="outline" className="bg-primary/10 border-primary/40 text-primary text-[10px]">Virtual ticket · Wins require admin approval</Badge></div>
             )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={clear} className="flex-1"><Trash2 className="h-4 w-4 mr-1" />Clear</Button>
-              <Button className="btn-luxury flex-1" disabled={submitting || selections.length < 2} onClick={place}>{submitting ? "Placing…" : `Place Bet${selections.length < 2 ? ` (need ${2 - selections.length} more)` : ""}`}</Button>
+              <Button className="btn-luxury flex-1" disabled={submitting || mixedTypes || selections.length < minSelectionsRequired} onClick={place}>
+                {submitting ? "Placing…" : `Place ${allVirtual ? "Ticket" : "Bet"}${selections.length < minSelectionsRequired ? ` (need ${minSelectionsRequired - selections.length} more)` : ""}`}
+              </Button>
             </div>
-            <p className="text-[10px] text-muted-foreground text-center">Minimum 2 selections required. Tokens are deducted on placement. Cash-out available only after the match ends and your bet wins.</p>
+            <p className="text-[10px] text-muted-foreground text-center">
+              {allVirtual
+                ? "Virtual: single or multi-leg allowed. Winnings held for admin approval, then claim from history."
+                : "Minimum 2 selections required. Tokens are deducted on placement. Cash-out available only after the match ends and your bet wins."}
+            </p>
           </div>
         )}
         </div>

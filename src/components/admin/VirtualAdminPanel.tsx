@@ -80,6 +80,8 @@ export function VirtualAdminPanel() {
 
   return (
     <div className="space-y-4">
+      <CycleControl />
+      <PendingPayouts />
       <Card className="glass p-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
@@ -438,5 +440,110 @@ function ResolveDialog({ round, onClose }: { round: Round; onClose: () => void }
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function CycleControl() {
+  const [cfg, setCfg] = useState<{ running: boolean; durSec: number; animSec: number; maxScore: number; lastTick: string | null }>({ running: false, durSec: 120, animSec: 15, maxScore: 8, lastTick: null });
+  const [busy, setBusy] = useState(false);
+  const load = () => supabase.from("app_settings").select("virtual_cycle_running,virtual_round_duration_seconds,virtual_animation_seconds,virtual_max_score,virtual_cycle_last_tick").eq("id", 1).maybeSingle()
+    .then(({ data }) => { if (data) setCfg({ running: !!(data as any).virtual_cycle_running, durSec: Number((data as any).virtual_round_duration_seconds ?? 120), animSec: Number((data as any).virtual_animation_seconds ?? 15), maxScore: Number((data as any).virtual_max_score ?? 8), lastTick: (data as any).virtual_cycle_last_tick }); });
+  useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, []);
+  async function toggle(running: boolean) {
+    setBusy(true);
+    const { error } = await supabase.rpc("admin_set_virtual_cycle" as any, { _running: running });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success(running ? "Cycle started — rounds will auto-spawn" : "Cycle paused");
+    load();
+  }
+  async function saveTimings() {
+    setBusy(true);
+    const { error } = await supabase.from("app_settings").update({ virtual_round_duration_seconds: cfg.durSec, virtual_animation_seconds: cfg.animSec, virtual_max_score: cfg.maxScore }).eq("id", 1);
+    setBusy(false);
+    if (error) return toast.error(error.message); toast.success("Saved");
+  }
+  return (
+    <Card className="glass p-4 border-primary/30">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <div className="text-xs uppercase tracking-widest text-muted-foreground">Cycle engine</div>
+          <div className="text-lg font-black flex items-center gap-2">
+            <span className={cfg.running ? "text-emerald-400" : "text-muted-foreground"}>●</span>
+            {cfg.running ? "RUNNING — auto-spawning rounds" : "PAUSED"}
+          </div>
+          <div className="text-[10px] text-muted-foreground">Last tick: {cfg.lastTick ? new Date(cfg.lastTick).toLocaleTimeString() : "—"}</div>
+        </div>
+        <div className="flex gap-2">
+          {cfg.running ? (
+            <Button size="sm" variant="destructive" disabled={busy} onClick={() => toggle(false)}><Lock className="h-3 w-3 mr-1" />Pause cycle</Button>
+          ) : (
+            <Button size="sm" disabled={busy} onClick={() => toggle(true)}><Dice5 className="h-3 w-3 mr-1" />Start cycle</Button>
+          )}
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-3">
+        <Field label="Round (sec)" value={cfg.durSec} step={10} onChange={(v) => setCfg({ ...cfg, durSec: v })} />
+        <Field label="Animation (sec)" value={cfg.animSec} step={1} onChange={(v) => setCfg({ ...cfg, animSec: v })} />
+        <Field label="Max score" value={cfg.maxScore} step={1} onChange={(v) => setCfg({ ...cfg, maxScore: v })} />
+      </div>
+      <div className="mt-2 flex justify-end"><Button size="sm" variant="outline" disabled={busy} onClick={saveTimings}>Save timings</Button></div>
+    </Card>
+  );
+}
+
+function PendingPayouts() {
+  const [rows, setRows] = useState<any[]>([]);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const load = () => supabase.from("virtual_payout_requests").select("id,bet_id,user_id,match_id,stake,amount,status,created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(50)
+    .then(async ({ data }) => {
+      const list = data ?? [];
+      if (list.length) {
+        const uids = Array.from(new Set(list.map((r: any) => r.user_id)));
+        const { data: profs } = await supabase.from("profiles").select("id,ingame_name,full_name").in("id", uids);
+        const map: Record<string, string> = {};
+        (profs ?? []).forEach((p: any) => { map[p.id] = p.ingame_name || p.full_name || p.id.slice(0, 6); });
+        setRows(list.map((r: any) => ({ ...r, _user: map[r.user_id] ?? r.user_id.slice(0, 6) })));
+      } else setRows([]);
+    });
+  useEffect(() => {
+    load();
+    const ch = supabase.channel("admin-vpr").on("postgres_changes", { event: "*", schema: "public", table: "virtual_payout_requests" }, load).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+  async function review(id: string, approve: boolean) {
+    if (!approve && !reason) return toast.error("Add a decline reason");
+    setBusy(id);
+    const { error } = await supabase.rpc("admin_review_virtual_payout" as any, { _id: id, _approve: approve, _reason: approve ? null : reason });
+    setBusy(null);
+    if (error) return toast.error(error.message);
+    toast.success(approve ? "Approved — user can claim" : "Declined — stake refunded");
+    setReason("");
+  }
+  return (
+    <Card className="glass p-4 border-accent/30">
+      <div className="flex items-center gap-2 mb-3"><Coins className="h-4 w-4 text-accent" /><div className="text-sm font-bold">Pending payouts ({rows.length})</div></div>
+      {rows.length === 0 && <p className="text-xs text-muted-foreground">No pending payouts.</p>}
+      <div className="space-y-2 max-h-[320px] overflow-y-auto">
+        {rows.map((r) => (
+          <div key={r.id} className="rounded-md border border-border bg-background/40 p-2.5 text-xs">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="min-w-0">
+                <div className="font-bold truncate">{r._user}</div>
+                <div className="text-[10px] text-muted-foreground">Stake {Number(r.stake).toLocaleString()} → Payout <b className="text-accent">{Number(r.amount).toLocaleString()}</b></div>
+              </div>
+              <div className="flex gap-1">
+                <Button size="sm" disabled={busy === r.id} onClick={() => review(r.id, true)}>Approve</Button>
+                <Button size="sm" variant="destructive" disabled={busy === r.id} onClick={() => review(r.id, false)}>Decline</Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {rows.length > 0 && (
+        <div className="mt-2"><Input placeholder="Decline reason (required when declining)" value={reason} onChange={(e) => setReason(e.target.value)} className="h-8 text-xs" /></div>
+      )}
+    </Card>
   );
 }
