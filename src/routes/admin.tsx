@@ -176,6 +176,7 @@ function AdminPage() {
           <TabsContent value="emblems" className="mt-4"><EmblemModerationPanel /></TabsContent>
           <TabsContent value="vip" className="mt-4"><VipAdminPanel /></TabsContent>
           <TabsContent value="spotlights" className="mt-4"><SpotlightsAdminPanel /></TabsContent>
+          <TabsContent value="virtual" className="mt-4"><VirtualAdminPanel /></TabsContent>
         </Tabs>
         </div>
       </div>
