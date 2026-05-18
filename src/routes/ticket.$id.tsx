@@ -219,10 +219,6 @@ export function BetVoucher({ bet, sels, statusBadge, allWon, copy, shareCode }: 
               return (
                 <div key={s.id} className="voucher-row p-3 sm:p-4 transition-all hover:scale-[1.01]">
                   <div className="flex items-center gap-3">
-                    {/* Number */}
-                    <div className="font-display font-black text-2xl sm:text-3xl neon-green w-8 text-center shrink-0">
-                      {String(i + 1).padStart(2, "0")}
-                    </div>
                     {/* Logo */}
                     <div className="shrink-0">
                       <TeamLogo name={m?.home_team?.name} url={m?.home_team?.logo_url} size={36} rounded="full" />
