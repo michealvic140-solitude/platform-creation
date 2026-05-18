@@ -1971,6 +1971,10 @@ export type Database = {
         Returns: undefined
       }
       admin_pnl_summary: { Args: { _days?: number }; Returns: Json }
+      admin_refund_bet: {
+        Args: { _bet_id: string; _reason?: string }
+        Returns: Json
+      }
       admin_risk_summary: { Args: never; Returns: Json }
       admin_suspend_bet: {
         Args: { _bet_id: string; _reason?: string }
@@ -2026,6 +2030,7 @@ export type Database = {
         Args: { _approve: boolean; _id: string; _note?: string }
         Returns: undefined
       }
+      settle_pay_winning_bet: { Args: { _bet_id: string }; Returns: Json }
       user_cashout_bet: { Args: { _bet_id: string }; Returns: Json }
       verify_xp_consistency: { Args: { _user_id?: string }; Returns: Json }
       wipe_all_tokens: { Args: never; Returns: undefined }
