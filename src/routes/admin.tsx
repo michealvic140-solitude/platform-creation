@@ -2593,11 +2593,19 @@ function BetTrackerPanel() {
 
   async function load() {
     let qb = supabase.from("bets")
-      .select("*, profiles!user_id(full_name,email,ingame_name), bet_selections(*, matches!match_id(name))")
+      .select("*, bet_selections(*, matches!match_id(name))")
       .order("created_at", { ascending: false }).limit(200);
     if (filter !== "all") qb = qb.eq("status", filter as any);
-    const { data } = await qb;
-    setBets(data ?? []);
+    const { data, error } = await qb;
+    if (error) { console.error("bet tracker load", error); toast.error(error.message); setBets([]); return; }
+    const rows = data ?? [];
+    const userIds = Array.from(new Set(rows.map((b: any) => b.user_id).filter(Boolean)));
+    let profMap: Record<string, any> = {};
+    if (userIds.length) {
+      const { data: profs } = await supabase.from("profiles").select("id, full_name, email, ingame_name").in("id", userIds);
+      profMap = Object.fromEntries((profs ?? []).map((p: any) => [p.id, p]));
+    }
+    setBets(rows.map((b: any) => ({ ...b, profiles: profMap[b.user_id] ?? null })));
   }
   useEffect(() => { load(); }, [filter]);
   useEffect(() => {
