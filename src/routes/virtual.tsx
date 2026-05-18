@@ -37,6 +37,7 @@ function VirtualPage() {
 
   useEffect(() => {
     const load = async () => {
+      await syncServerOffset();
       const [{ data: liveRows }, { data: upRows }, { data: recRows }, { data: cfg }] = await Promise.all([
         supabase.from("matches").select(matchSelect).eq("is_virtual", true).eq("status", "live").order("start_time", { ascending: false }).limit(3),
         supabase.from("matches").select(matchSelect).eq("is_virtual", true).eq("status", "scheduled").order("start_time", { ascending: true }).limit(6),
@@ -54,7 +55,7 @@ function VirtualPage() {
     };
     load();
     const t = setInterval(load, 3000);
-    // Fallback ping in case scheduled cron lags. Function is safe for anon.
+    // Fallback ping while signed in, in case the scheduled backend tick lags.
     const ping = setInterval(() => { supabase.rpc("virtual_tick").then(() => {}, () => {}); }, 8000);
     supabase.rpc("virtual_tick").then(() => {}, () => {});
     const ch = supabase.channel("virtual-rounds-v2")
@@ -192,12 +193,17 @@ function VirtualRoundCard({ match, animSec }: { match: MatchRow & { lock_time?: 
   const playing = match.status === "live";
   const locked = settled || playing || cd.done;
   const isPicked = (oddId: string) => selections.some((s) => s.odd_id === oddId);
+  const hasThisRound = selections.some((s) => s.match_id === match.id);
 
   const order = (n: string) => /match\s*winner/i.test(n) ? 0 : /first\s*blood/i.test(n) ? 1 : /total/i.test(n) ? 2 : /correct\s*score/i.test(n) ? 3 : 4;
   const markets = [...(match.markets ?? [])].sort((a, b) => order(a.name) - order(b.name));
 
   function pick(mk: any, o: any) {
     if (locked) return;
+    if (hasThisRound && !isPicked(o.id)) {
+      toast.error("You can only select one market from the same virtual round.");
+      return;
+    }
     if (selections.length > 0 && selections.some((s) => !s.is_virtual)) {
       toast.error("Your slip has regular bets. Clear it before adding virtual selections.");
       return;
