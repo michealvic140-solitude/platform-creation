@@ -78,11 +78,18 @@ function BetTicket({ bet, viewerId }: { bet: any; viewerId: string }) {
   return (
     <Layout>
       <div className="w-full max-w-xl px-3 py-6 md:ml-0 md:mr-auto">
-        <Link to="/dashboard" className="text-muted-foreground text-sm flex items-center gap-1 hover:text-primary mb-3"><ArrowLeft className="h-4 w-4" />My bets</Link>
-        <BetVoucher bet={bet} sels={sels} statusBadge={statusBadge} allWon={allWon} copy={copy} shareCode={shareCode} />
+        <div className="flex items-center justify-between mb-3 print-hide">
+          <Link to="/dashboard" className="text-muted-foreground text-sm flex items-center gap-1 hover:text-primary"><ArrowLeft className="h-4 w-4" />My bets</Link>
+          <Button size="sm" variant="outline" onClick={() => window.print()} className="gap-1.5">
+            <Printer className="h-4 w-4" /> Print
+          </Button>
+        </div>
+        <div className="printable-voucher">
+          <BetVoucher bet={bet} sels={sels} statusBadge={statusBadge} allWon={allWon} copy={copy} shareCode={shareCode} />
+        </div>
 
         {!isOwner && (
-          <Card className="glass mt-4 p-3 text-xs text-muted-foreground">
+          <Card className="glass mt-4 p-3 text-xs text-muted-foreground print-hide">
             Viewing a shared booking. Use the booking code on the home page to copy these picks to your own slip.
           </Card>
         )}
