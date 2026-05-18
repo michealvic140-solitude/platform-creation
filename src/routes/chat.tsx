@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Layout } from "@/components/Layout";
+import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ function ChatPage() {
 
   return (
     <Layout>
+      <PageShell tone="social">
       <div className="container py-10 max-w-3xl">
         <h1 className="text-3xl font-bold gradient-gold-text flex items-center gap-2"><MessageSquare className="h-6 w-6" />Community Chat</h1>
         <p className="text-muted-foreground text-sm mt-1">Be respectful. Mods can mute or ban abusive accounts.</p>
@@ -43,6 +45,7 @@ function ChatPage() {
           <TabsContent value={room} className="mt-3"><Room room={room} muted={profile.is_muted} /></TabsContent>
         </Tabs>
       </div>
+      </PageShell>
     </Layout>
   );
 }

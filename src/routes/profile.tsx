@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/Layout";
+import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +24,7 @@ function ProfilePage() {
   };
   return (
     <Layout>
+      <PageShell tone="default">
       <div className="container mx-auto px-4 py-10 max-w-2xl">
         <h1 className="text-3xl font-bold text-primary mb-6">Your Profile</h1>
         <Card className="p-6 space-y-4">
@@ -32,6 +34,7 @@ function ProfilePage() {
           <Button onClick={save} className="w-full">Save</Button>
         </Card>
       </div>
+      </PageShell>
     </Layout>
   );
 }

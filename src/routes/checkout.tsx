@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
+import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,6 +67,7 @@ function Page() {
   if (!user) return null;
   return (
     <Layout>
+      <PageShell tone="wallet">
       <div className="container py-10 max-w-3xl">
         <h1 className="text-3xl font-bold gradient-gold-text flex items-center gap-2"><Coins className="h-6 w-6" />Buy Tokens</h1>
         <p className="text-muted-foreground text-sm mt-1">Submit a request with proof of payment. An admin will credit your account once verified.</p>
@@ -112,6 +114,7 @@ function Page() {
           Need help? <Link to="/support" className="text-primary underline">Open a support ticket</Link>.
         </p>
       </div>
+      </PageShell>
     </Layout>
   );
 }
