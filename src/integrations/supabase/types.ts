@@ -121,8 +121,11 @@ export type Database = {
           virtual_concurrent_rounds: number
           virtual_cycle_last_tick: string | null
           virtual_cycle_running: boolean
+          virtual_max_payout: number | null
           virtual_max_score: number
+          virtual_max_selections: number
           virtual_max_stake: number
+          virtual_min_selections: number
           virtual_min_stake: number
           virtual_payout_multiplier: number
           virtual_round_duration_seconds: number
@@ -186,8 +189,11 @@ export type Database = {
           virtual_concurrent_rounds?: number
           virtual_cycle_last_tick?: string | null
           virtual_cycle_running?: boolean
+          virtual_max_payout?: number | null
           virtual_max_score?: number
+          virtual_max_selections?: number
           virtual_max_stake?: number
+          virtual_min_selections?: number
           virtual_min_stake?: number
           virtual_payout_multiplier?: number
           virtual_round_duration_seconds?: number
@@ -251,8 +257,11 @@ export type Database = {
           virtual_concurrent_rounds?: number
           virtual_cycle_last_tick?: string | null
           virtual_cycle_running?: boolean
+          virtual_max_payout?: number | null
           virtual_max_score?: number
+          virtual_max_selections?: number
           virtual_max_stake?: number
+          virtual_min_selections?: number
           virtual_min_stake?: number
           virtual_payout_multiplier?: number
           virtual_round_duration_seconds?: number

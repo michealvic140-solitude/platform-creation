@@ -191,11 +191,11 @@ function LockConfirmDialog({ round, onClose }: { round: Round; onClose: () => vo
 }
 
 function RewardsSettings() {
-  const [cfg, setCfg] = useState({ virtual_payout_multiplier: 1, virtual_min_stake: 100000, virtual_max_stake: 10000000, virtual_xp_per_win: 15, virtual_win_bonus_tokens: 0 });
+  const [cfg, setCfg] = useState<any>({ virtual_payout_multiplier: 1, virtual_min_stake: 100000, virtual_max_stake: 10000000, virtual_max_payout: 100000000, virtual_min_selections: 1, virtual_max_selections: 20, virtual_xp_per_win: 15, virtual_win_bonus_tokens: 0 });
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    supabase.from("app_settings").select("virtual_payout_multiplier,virtual_min_stake,virtual_max_stake,virtual_xp_per_win,virtual_win_bonus_tokens").eq("id", 1).maybeSingle()
-      .then(({ data }) => { if (data) setCfg(data as any); });
+    supabase.from("app_settings").select("virtual_payout_multiplier,virtual_min_stake,virtual_max_stake,virtual_max_payout,virtual_min_selections,virtual_max_selections,virtual_xp_per_win,virtual_win_bonus_tokens").eq("id", 1).maybeSingle()
+      .then(({ data }) => { if (data) setCfg((prev: any) => ({ ...prev, ...data })); });
   }, []);
   const save = async () => {
     setBusy(true);
@@ -206,15 +206,18 @@ function RewardsSettings() {
   };
   return (
     <Card className="glass p-4">
-      <div className="flex items-center gap-2 mb-3"><Settings2 className="h-4 w-4 text-primary" /><div className="text-sm font-bold">Virtual reward settings</div></div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="flex items-center gap-2 mb-3"><Settings2 className="h-4 w-4 text-primary" /><div className="text-sm font-bold">Virtual reward & stake settings</div></div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Field label="Payout × multiplier" value={cfg.virtual_payout_multiplier} step={0.05} onChange={(v) => setCfg({ ...cfg, virtual_payout_multiplier: v })} />
-        <Field label="Min stake" value={cfg.virtual_min_stake} step={10000} onChange={(v) => setCfg({ ...cfg, virtual_min_stake: v })} />
-        <Field label="Max stake" value={cfg.virtual_max_stake} step={100000} onChange={(v) => setCfg({ ...cfg, virtual_max_stake: v })} />
+        <Field label="Min stake (tokens)" value={cfg.virtual_min_stake} step={10000} onChange={(v) => setCfg({ ...cfg, virtual_min_stake: v })} />
+        <Field label="Max stake (tokens)" value={cfg.virtual_max_stake} step={100000} onChange={(v) => setCfg({ ...cfg, virtual_max_stake: v })} />
+        <Field label="Max payout (tokens)" value={cfg.virtual_max_payout ?? 0} step={1000000} onChange={(v) => setCfg({ ...cfg, virtual_max_payout: v })} />
+        <Field label="Min selections / ticket" value={cfg.virtual_min_selections} step={1} onChange={(v) => setCfg({ ...cfg, virtual_min_selections: Math.max(1, v) })} />
+        <Field label="Max selections / ticket" value={cfg.virtual_max_selections} step={1} onChange={(v) => setCfg({ ...cfg, virtual_max_selections: Math.max(1, v) })} />
         <Field label="XP per win" value={cfg.virtual_xp_per_win} step={1} onChange={(v) => setCfg({ ...cfg, virtual_xp_per_win: v })} />
         <Field label="Win bonus (tokens)" value={cfg.virtual_win_bonus_tokens} step={10000} onChange={(v) => setCfg({ ...cfg, virtual_win_bonus_tokens: v })} />
       </div>
-      <div className="mt-3 flex justify-end"><Button size="sm" disabled={busy} onClick={save}><Coins className="h-3 w-3 mr-1" />Save rewards</Button></div>
+      <div className="mt-3 flex justify-end"><Button size="sm" disabled={busy} onClick={save}><Coins className="h-3 w-3 mr-1" />Save settings</Button></div>
     </Card>
   );
 }
