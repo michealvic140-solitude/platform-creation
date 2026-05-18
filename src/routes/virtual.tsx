@@ -48,7 +48,7 @@ function VirtualPage() {
       setRecent((recRows ?? []) as unknown as MatchRow[]);
       if (cfg) setCycle({
         running: !!(cfg as any).virtual_cycle_running,
-        animSec: Number((cfg as any).virtual_animation_seconds ?? 15),
+        animSec: Number((cfg as any).virtual_animation_seconds ?? 120),
         durSec: Number((cfg as any).virtual_round_duration_seconds ?? 120),
       });
     };
