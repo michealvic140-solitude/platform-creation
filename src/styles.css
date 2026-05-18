@@ -458,15 +458,27 @@
   50%      { transform: translateY(-10px) scale(1.02); opacity: 0.14; }
 }
 
-/* ===== Print: only the bet voucher ===== */
+/* ===== Voucher watermark (visible on screen + print) ===== */
+.voucher-watermark-img {
+  opacity: 0.22;
+  filter: saturate(1.15) contrast(1.08) drop-shadow(0 8px 32px rgba(0,0,0,0.55));
+}
+
+/* ===== Print: only the bet voucher, full-color watermark ===== */
 @media print {
-  @page { size: A4 portrait; margin: 12mm; }
+  @page { size: A4 portrait; margin: 10mm; }
   html, body {
     background: #ffffff !important;
     color: #000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   body * { visibility: hidden !important; }
-  .printable-voucher, .printable-voucher * { visibility: visible !important; }
+  .printable-voucher, .printable-voucher * {
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
   .printable-voucher {
     position: absolute !important;
     inset: 0 auto auto 0 !important;
@@ -479,5 +491,9 @@
   .voucher-frame {
     box-shadow: 0 0 0 1.5px #b8860b, 0 0 0 4px #1a1a1a !important;
     break-inside: avoid;
+  }
+  .voucher-watermark-img {
+    opacity: 0.28 !important;
+    filter: saturate(1.2) contrast(1.1) !important;
   }
 }
