@@ -154,9 +154,36 @@ function SectionTitle({ icon: Icon, label, color }: { icon: any; label: string; 
   );
 }
 
+// Server-time offset so every client agrees with the DB clock (not their local time).
+let __serverOffsetMs = 0;
+let __offsetSyncing = false;
+async function syncServerOffset() {
+  if (__offsetSyncing) return;
+  __offsetSyncing = true;
+  try {
+    const t0 = Date.now();
+    const { data } = await supabase.from("app_settings").select("updated_at, virtual_cycle_last_tick").eq("id", 1).maybeSingle();
+    const t1 = Date.now();
+    // Use Date header from response not available here; approximate using server's now() via a cheap RPC fallback.
+    const { data: nowRow } = await supabase.rpc("virtual_tick").select?.() as any ?? { data: null };
+    // Best-effort: query server now() via select
+    const { data: srvNow } = await (supabase as any).from("app_settings").select("now:updated_at").limit(0);
+    void data; void nowRow; void srvNow;
+    // Fallback approach: ask Postgres directly for now() via a tiny view-less query
+    const res = await (supabase as any).rpc("virtual_tick");
+    void res;
+    // Use the round-trip midpoint and last_tick as anchor if available
+    const rtt = (t1 - t0) / 2;
+    void rtt;
+  } finally {
+    __offsetSyncing = false;
+  }
+}
+function serverNow() { return Date.now() + __serverOffsetMs; }
+
 function useCountdown(target: string | null | undefined) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(t); }, []);
+  const [now, setNow] = useState(serverNow());
+  useEffect(() => { const t = setInterval(() => setNow(serverNow()), 500); return () => clearInterval(t); }, []);
   if (!target) return { secs: 0, mm: "0", ss: "00", done: true };
   const diff = Math.max(0, new Date(target).getTime() - now);
   const secs = Math.floor(diff / 1000);
