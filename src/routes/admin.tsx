@@ -26,6 +26,8 @@ import {
 } from "recharts";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { SpotlightsAdminPanel } from "@/components/Spotlight";
+import { VirtualAdminPanel } from "@/components/admin/VirtualAdminPanel";
+import { Dice5 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — LSL" }, { name: "description", content: "League administration dashboard." }] }),
@@ -123,6 +125,7 @@ function AdminPage() {
             {(isAdmin || isMod) && <TabsTrigger value="matches"><Trophy className="h-3 w-3 mr-1" />Matches</TabsTrigger>}
             {(isAdmin || isMod) && <TabsTrigger value="notify"><Send className="h-3 w-3 mr-1" />Notify</TabsTrigger>}
             {isAdmin && <TabsTrigger value="pnl"><BarChart3 className="h-3 w-3 mr-1" />P&L</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="virtual"><Dice5 className="h-3 w-3 mr-1" />Virtual</TabsTrigger>}
             {isAdmin && <TabsTrigger value="promos"><Tag className="h-3 w-3 mr-1" />Promo Codes</TabsTrigger>}
             {isAdmin && <TabsTrigger value="promoreqs"><AdminTab icon={Tag} label="Promo Requests" count={alerts.promoreqs} /></TabsTrigger>}
             {isAdmin && <TabsTrigger value="referrals"><Users className="h-3 w-3 mr-1" />Referrals</TabsTrigger>}
@@ -173,6 +176,7 @@ function AdminPage() {
           <TabsContent value="emblems" className="mt-4"><EmblemModerationPanel /></TabsContent>
           <TabsContent value="vip" className="mt-4"><VipAdminPanel /></TabsContent>
           <TabsContent value="spotlights" className="mt-4"><SpotlightsAdminPanel /></TabsContent>
+          <TabsContent value="virtual" className="mt-4"><VirtualAdminPanel /></TabsContent>
         </Tabs>
         </div>
       </div>

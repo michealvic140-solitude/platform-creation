@@ -822,11 +822,14 @@ export type Database = {
           id: string
           is_archived: boolean
           is_featured: boolean
+          is_virtual: boolean
           location: string | null
+          lock_time: string | null
           name: string
           start_time: string
           status: Database["public"]["Enums"]["match_status"]
           updated_at: string
+          virtual_first_blood_team_id: string | null
           winner_team_id: string | null
         }
         Insert: {
@@ -840,11 +843,14 @@ export type Database = {
           id?: string
           is_archived?: boolean
           is_featured?: boolean
+          is_virtual?: boolean
           location?: string | null
+          lock_time?: string | null
           name: string
           start_time: string
           status?: Database["public"]["Enums"]["match_status"]
           updated_at?: string
+          virtual_first_blood_team_id?: string | null
           winner_team_id?: string | null
         }
         Update: {
@@ -858,11 +864,14 @@ export type Database = {
           id?: string
           is_archived?: boolean
           is_featured?: boolean
+          is_virtual?: boolean
           location?: string | null
+          lock_time?: string | null
           name?: string
           start_time?: string
           status?: Database["public"]["Enums"]["match_status"]
           updated_at?: string
+          virtual_first_blood_team_id?: string | null
           winner_team_id?: string | null
         }
         Relationships: [
@@ -2022,6 +2031,15 @@ export type Database = {
       is_mod_or_admin: { Args: { _user_id: string }; Returns: boolean }
       recalc_vip_tier: { Args: { _user_id: string }; Returns: string }
       redeem_promo_code: { Args: { _code: string }; Returns: Json }
+      resolve_virtual_round: {
+        Args: {
+          _away_score: number
+          _first_blood_team_id: string
+          _home_score: number
+          _match_id: string
+        }
+        Returns: Json
+      }
       review_gang_emblem: {
         Args: { _approve: boolean; _id: string; _note?: string }
         Returns: undefined
