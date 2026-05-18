@@ -118,6 +118,7 @@ export type Database = {
           vip_enabled: boolean
           vip_token_multipliers: Json
           virtual_animation_seconds: number
+          virtual_concurrent_rounds: number
           virtual_cycle_last_tick: string | null
           virtual_cycle_running: boolean
           virtual_max_score: number
@@ -182,6 +183,7 @@ export type Database = {
           vip_enabled?: boolean
           vip_token_multipliers?: Json
           virtual_animation_seconds?: number
+          virtual_concurrent_rounds?: number
           virtual_cycle_last_tick?: string | null
           virtual_cycle_running?: boolean
           virtual_max_score?: number
@@ -246,6 +248,7 @@ export type Database = {
           vip_enabled?: boolean
           vip_token_multipliers?: Json
           virtual_animation_seconds?: number
+          virtual_concurrent_rounds?: number
           virtual_cycle_last_tick?: string | null
           virtual_cycle_running?: boolean
           virtual_max_score?: number
@@ -1839,6 +1842,69 @@ export type Database = {
         }
         Relationships: []
       }
+      virtual_house_transactions: {
+        Row: {
+          actor_id: string | null
+          amount: number
+          balance_after: number
+          bet_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          match_id: string | null
+          reason: string | null
+          user_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          amount: number
+          balance_after: number
+          bet_id?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          match_id?: string | null
+          reason?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          amount?: number
+          balance_after?: number
+          bet_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          match_id?: string | null
+          reason?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      virtual_house_wallet: {
+        Row: {
+          balance: number
+          id: number
+          total_in: number
+          total_out: number
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          id?: number
+          total_in?: number
+          total_out?: number
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          id?: number
+          total_in?: number
+          total_out?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       virtual_payout_requests: {
         Row: {
           amount: number
@@ -2155,6 +2221,32 @@ export type Database = {
       user_cashout_bet: { Args: { _bet_id: string }; Returns: Json }
       verify_xp_consistency: { Args: { _user_id?: string }; Returns: Json }
       virtual_tick: { Args: never; Returns: Json }
+      virtual_wallet_admin_adjust: {
+        Args: { _amount: number; _reason: string }
+        Returns: Json
+      }
+      virtual_wallet_credit: {
+        Args: {
+          _amount: number
+          _bet: string
+          _kind: string
+          _match: string
+          _reason: string
+          _user: string
+        }
+        Returns: number
+      }
+      virtual_wallet_debit: {
+        Args: {
+          _amount: number
+          _bet: string
+          _kind: string
+          _match: string
+          _reason: string
+          _user: string
+        }
+        Returns: number
+      }
       wipe_all_tokens: { Args: never; Returns: undefined }
     }
     Enums: {
