@@ -8,37 +8,55 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Dice5, Plus, Lock, Trophy, Trash2, RefreshCw } from "lucide-react";
+import { Dice5, Plus, Lock, Trophy, Trash2, RefreshCw, Settings2, ShieldAlert, Coins, History } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "@tanstack/react-router";
 
 const DEFAULT_SCORES = ["0:0", "1:0", "0:1", "1:1", "2:0", "0:2", "2:1", "1:2", "2:2", "3:0", "0:3", "3:1", "1:3", "3:2", "2:3", "3:3"];
 
-type GangOpt = { name: string };
+type TeamOpt = { id: string; name: string };
 type Round = {
   id: string; name: string; status: string; start_time: string; lock_time: string | null;
   home_team_id: string; away_team_id: string;
   home_score: number; away_score: number; virtual_first_blood_team_id: string | null;
+  locked_by: string | null; locked_at: string | null; settled_by: string | null; settled_at: string | null;
   home_team: { id: string; name: string } | null;
   away_team: { id: string; name: string } | null;
 };
 
+type AuditEntry = { id: string; action: string; target_id: string | null; actor_id: string | null; created_at: string; metadata: any };
+
 export function VirtualAdminPanel() {
-  const [gangs, setGangs] = useState<GangOpt[]>([]);
+  const [teams, setTeams] = useState<TeamOpt[]>([]);
   const [rounds, setRounds] = useState<Round[]>([]);
   const [composerOpen, setComposerOpen] = useState(false);
   const [resolveOf, setResolveOf] = useState<Round | null>(null);
+  const [lockConfirm, setLockConfirm] = useState<Round | null>(null);
+  const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [actors, setActors] = useState<Record<string, string>>({});
 
   const reload = async () => {
-    const { data: profs } = await supabase.from("profiles").select("gang_name").not("gang_name", "is", null);
-    const names = Array.from(new Set((profs ?? []).map((p: any) => p.gang_name).filter(Boolean))).sort();
-    setGangs(names.map((name) => ({ name })));
-    const { data: rs } = await supabase
-      .from("matches")
-      .select("id,name,status,start_time,lock_time,home_team_id,away_team_id,home_score,away_score,virtual_first_blood_team_id,home_team:teams!home_team_id(id,name),away_team:teams!away_team_id(id,name)")
-      .eq("is_virtual", true)
-      .order("start_time", { ascending: false })
-      .limit(50);
+    const [{ data: ts }, { data: rs }, { data: al }] = await Promise.all([
+      supabase.from("teams").select("id,name").order("name"),
+      supabase.from("matches")
+        .select("id,name,status,start_time,lock_time,home_team_id,away_team_id,home_score,away_score,virtual_first_blood_team_id,locked_by,locked_at,settled_by,settled_at,home_team:teams!home_team_id(id,name),away_team:teams!away_team_id(id,name)")
+        .eq("is_virtual", true).order("start_time", { ascending: false }).limit(50),
+      supabase.from("audit_logs").select("id,action,target_id,actor_id,created_at,metadata")
+        .in("action", ["virtual_round_locked", "virtual_round_resolved", "virtual_round_created"])
+        .order("created_at", { ascending: false }).limit(30),
+    ]);
+    setTeams((ts ?? []) as any);
     setRounds((rs ?? []) as any);
+    setAudit((al ?? []) as any);
+    const ids = new Set<string>();
+    (rs ?? []).forEach((r: any) => { if (r.locked_by) ids.add(r.locked_by); if (r.settled_by) ids.add(r.settled_by); });
+    (al ?? []).forEach((a: any) => { if (a.actor_id) ids.add(a.actor_id); });
+    if (ids.size) {
+      const { data: profs } = await supabase.from("profiles").select("id,full_name,ingame_name").in("id", Array.from(ids));
+      const map: Record<string, string> = {};
+      (profs ?? []).forEach((p: any) => { map[p.id] = p.ingame_name || p.full_name || p.id.slice(0,6); });
+      setActors(map);
+    }
   };
 
   useEffect(() => {
@@ -50,12 +68,14 @@ export function VirtualAdminPanel() {
   }, []);
 
   async function quickCreate() {
-    if (gangs.length < 2) return toast.error("Need at least 2 registered gangs");
-    const a = gangs[Math.floor(Math.random() * gangs.length)];
-    let b = gangs[Math.floor(Math.random() * gangs.length)];
-    while (b.name === a.name) b = gangs[Math.floor(Math.random() * gangs.length)];
-    await createRound({ gangA: a.name, gangB: b.name, startInSec: 5, lockInSec: 35, oddsA: 1.95, oddsDraw: 3.5, oddsB: 1.95, totalLine: 4.5, oddsOver: 1.85, oddsUnder: 1.85, oddsFirstA: 1.95, oddsFirstB: 1.95, csOdds: 7, includeWinner: true, includeFirstBlood: true, includeTotal: true, includeCS: true });
-    toast.success("Round created");
+    if (teams.length < 2) return toast.error("Need at least 2 teams. Create teams in Matches first.");
+    const a = teams[Math.floor(Math.random() * teams.length)];
+    let b = teams[Math.floor(Math.random() * teams.length)];
+    while (b.id === a.id) b = teams[Math.floor(Math.random() * teams.length)];
+    try {
+      await createRound({ teamAId: a.id, teamBId: b.id, teamAName: a.name, teamBName: b.name, startInSec: 5, lockInSec: 35, oddsA: 1.95, oddsDraw: 3.5, oddsB: 1.95, totalLine: 4.5, oddsOver: 1.85, oddsUnder: 1.85, oddsFirstA: 1.95, oddsFirstB: 1.95, csOdds: 7, includeWinner: true, includeFirstBlood: true, includeTotal: true, includeCS: true });
+      toast.success("Round created");
+    } catch (e: any) { toast.error(e.message); }
   }
 
   return (
@@ -64,9 +84,10 @@ export function VirtualAdminPanel() {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <h3 className="text-lg font-black flex items-center gap-2"><Dice5 className="h-5 w-5 text-primary" /> Virtual Gangs · Instant Rounds</h3>
-            <p className="text-xs text-muted-foreground">Create, lock and resolve gang-vs-gang virtual matches.</p>
+            <p className="text-xs text-muted-foreground">Same team roster as regular matches. Lock & resolve actions are audit-logged.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Link to="/virtual/history"><Button size="sm" variant="outline"><History className="h-3 w-3 mr-1" />History</Button></Link>
             <Button size="sm" variant="outline" onClick={reload}><RefreshCw className="h-3 w-3 mr-1" />Refresh</Button>
             <Button size="sm" variant="outline" onClick={quickCreate}><Dice5 className="h-3 w-3 mr-1" />Quick Round</Button>
             <Button size="sm" onClick={() => setComposerOpen(true)}><Plus className="h-3 w-3 mr-1" />New Round</Button>
@@ -74,30 +95,36 @@ export function VirtualAdminPanel() {
         </div>
       </Card>
 
+      <RewardsSettings />
+
       <Card className="glass p-4">
         <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Rounds ({rounds.length})</div>
         <div className="space-y-2 max-h-[500px] overflow-y-auto">
           {rounds.length === 0 && <p className="text-sm text-muted-foreground">No virtual rounds yet.</p>}
           {rounds.map((r) => {
             const lockMs = r.lock_time ? new Date(r.lock_time).getTime() : 0;
-            const isLockedByTime = lockMs && lockMs <= Date.now();
-            const tone = r.status === "ended" ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
-              : isLockedByTime || r.status === "live" ? "bg-destructive/15 border-destructive/40 text-destructive"
+            const isLockedByTime = !!lockMs && lockMs <= Date.now();
+            const ended = r.status === "ended";
+            const locked = ended || r.status === "live" || isLockedByTime;
+            const tone = ended ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
+              : locked ? "bg-destructive/15 border-destructive/40 text-destructive"
               : "bg-primary/15 border-primary/40 text-primary";
             return (
-              <div key={r.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-background/40 p-2.5">
+              <div key={r.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-background/40 p-2.5 flex-wrap">
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-bold truncate">{r.home_team?.name} vs {r.away_team?.name}</div>
-                  <div className="text-[10px] text-muted-foreground">{new Date(r.start_time).toLocaleString()} · {r.status} {r.status === "ended" && <span className="text-emerald-400">· final {r.home_score}-{r.away_score}</span>}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {new Date(r.start_time).toLocaleString()} · {r.status}
+                    {ended && <span className="text-emerald-400"> · final {r.home_score}-{r.away_score}</span>}
+                    {r.locked_by && <span> · 🔒 by {actors[r.locked_by] ?? "—"}</span>}
+                    {r.settled_by && <span> · ✓ by {actors[r.settled_by] ?? "—"}</span>}
+                  </div>
                 </div>
-                <Badge variant="outline" className={tone}>{r.status === "ended" ? "RESOLVED" : isLockedByTime ? "LOCKED" : "OPEN"}</Badge>
+                <Badge variant="outline" className={tone}>{ended ? "SETTLED" : locked ? "LOCKED" : "OPEN"}</Badge>
                 <div className="flex gap-1">
-                  {r.status !== "ended" && (
+                  {!ended && (
                     <>
-                      <Button size="sm" variant="outline" onClick={async () => {
-                        await supabase.from("matches").update({ lock_time: new Date().toISOString(), status: "live" }).eq("id", r.id);
-                        toast.success("Locked");
-                      }}><Lock className="h-3 w-3 mr-1" />Lock</Button>
+                      {!locked && <Button size="sm" variant="outline" onClick={() => setLockConfirm(r)}><Lock className="h-3 w-3 mr-1" />Lock</Button>}
                       <Button size="sm" onClick={() => setResolveOf(r)}><Trophy className="h-3 w-3 mr-1" />Resolve</Button>
                     </>
                   )}
@@ -114,14 +141,90 @@ export function VirtualAdminPanel() {
         </div>
       </Card>
 
-      {composerOpen && <ComposerDialog gangs={gangs} onClose={() => setComposerOpen(false)} onSave={createRound} />}
+      <Card className="glass p-4">
+        <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-2"><ShieldAlert className="h-3.5 w-3.5" />Audit log</div>
+        <div className="space-y-1.5 max-h-[300px] overflow-y-auto text-xs">
+          {audit.length === 0 && <p className="text-muted-foreground">No audit entries yet.</p>}
+          {audit.map((a) => (
+            <div key={a.id} className="flex items-start gap-2 border-b border-border/40 py-1.5">
+              <Badge variant="outline" className="text-[9px] shrink-0">{a.action.replace("virtual_round_","")}</Badge>
+              <div className="flex-1 min-w-0">
+                <div className="truncate">{actors[a.actor_id ?? ""] ?? "—"}{a.metadata?.name ? ` · ${a.metadata.name}` : ""}{a.metadata?.home !== undefined ? ` · ${a.metadata.home}-${a.metadata.away}` : ""}</div>
+                <div className="text-[10px] text-muted-foreground">{new Date(a.created_at).toLocaleString()}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {composerOpen && <ComposerDialog teams={teams} onClose={() => setComposerOpen(false)} onSave={createRound} />}
       {resolveOf && <ResolveDialog round={resolveOf} onClose={() => setResolveOf(null)} />}
+      {lockConfirm && <LockConfirmDialog round={lockConfirm} onClose={() => setLockConfirm(null)} />}
     </div>
   );
 }
 
+function LockConfirmDialog({ round, onClose }: { round: Round; onClose: () => void }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Lock round · {round.home_team?.name} vs {round.away_team?.name}</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">Locking immediately closes all markets and prevents new bets. This action is recorded in the audit log with your admin ID.</p>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button variant="destructive" disabled={busy} onClick={async () => {
+            setBusy(true);
+            const { error } = await supabase.rpc("admin_lock_virtual_round", { _match_id: round.id });
+            setBusy(false);
+            if (error) return toast.error(error.message);
+            toast.success("Round locked");
+            onClose();
+          }}><Lock className="h-3 w-3 mr-1" />Lock Now</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RewardsSettings() {
+  const [cfg, setCfg] = useState({ virtual_payout_multiplier: 1, virtual_min_stake: 100000, virtual_max_stake: 10000000, virtual_xp_per_win: 15, virtual_win_bonus_tokens: 0 });
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    supabase.from("app_settings").select("virtual_payout_multiplier,virtual_min_stake,virtual_max_stake,virtual_xp_per_win,virtual_win_bonus_tokens").eq("id", 1).maybeSingle()
+      .then(({ data }) => { if (data) setCfg(data as any); });
+  }, []);
+  const save = async () => {
+    setBusy(true);
+    const { error } = await supabase.from("app_settings").update(cfg).eq("id", 1);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Reward settings saved");
+  };
+  return (
+    <Card className="glass p-4">
+      <div className="flex items-center gap-2 mb-3"><Settings2 className="h-4 w-4 text-primary" /><div className="text-sm font-bold">Virtual reward settings</div></div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Field label="Payout × multiplier" value={cfg.virtual_payout_multiplier} step={0.05} onChange={(v) => setCfg({ ...cfg, virtual_payout_multiplier: v })} />
+        <Field label="Min stake" value={cfg.virtual_min_stake} step={10000} onChange={(v) => setCfg({ ...cfg, virtual_min_stake: v })} />
+        <Field label="Max stake" value={cfg.virtual_max_stake} step={100000} onChange={(v) => setCfg({ ...cfg, virtual_max_stake: v })} />
+        <Field label="XP per win" value={cfg.virtual_xp_per_win} step={1} onChange={(v) => setCfg({ ...cfg, virtual_xp_per_win: v })} />
+        <Field label="Win bonus (tokens)" value={cfg.virtual_win_bonus_tokens} step={10000} onChange={(v) => setCfg({ ...cfg, virtual_win_bonus_tokens: v })} />
+      </div>
+      <div className="mt-3 flex justify-end"><Button size="sm" disabled={busy} onClick={save}><Coins className="h-3 w-3 mr-1" />Save rewards</Button></div>
+    </Card>
+  );
+}
+
+function Field({ label, value, onChange, step = 1 }: { label: string; value: number; onChange: (v: number) => void; step?: number }) {
+  return (
+    <div><Label className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</Label>
+      <Input type="number" step={step} value={value} onChange={(e) => onChange(+e.target.value)} className="h-9" /></div>
+  );
+}
+
 type Cfg = {
-  gangA: string; gangB: string;
+  teamAId: string; teamBId: string; teamAName: string; teamBName: string;
   startInSec: number; lockInSec: number;
   oddsA: number; oddsDraw: number; oddsB: number;
   oddsFirstA: number; oddsFirstB: number;
@@ -130,31 +233,20 @@ type Cfg = {
   includeWinner: boolean; includeFirstBlood: boolean; includeTotal: boolean; includeCS: boolean;
 };
 
-async function ensureTeam(name: string): Promise<string> {
-  const { data: existing } = await supabase.from("teams").select("id").eq("name", name).maybeSingle();
-  if (existing) return existing.id;
-  const { data: created, error } = await supabase.from("teams").insert({ name }).select("id").single();
-  if (error) throw error;
-  return created.id;
-}
-
 async function getVirtualCategoryId(): Promise<string | null> {
   const { data } = await supabase.from("categories").select("id").eq("name", "Virtual Gangs").maybeSingle();
   return data?.id ?? null;
 }
 
 async function createRound(cfg: Cfg) {
-  const homeId = await ensureTeam(cfg.gangA);
-  const awayId = await ensureTeam(cfg.gangB);
   const catId = await getVirtualCategoryId();
   const start = new Date(Date.now() + cfg.startInSec * 1000);
   const lock = new Date(Date.now() + cfg.lockInSec * 1000);
   const { data: match, error } = await supabase.from("matches").insert({
-    name: `${cfg.gangA} vs ${cfg.gangB}`,
-    home_team_id: homeId, away_team_id: awayId,
+    name: `${cfg.teamAName} vs ${cfg.teamBName}`,
+    home_team_id: cfg.teamAId, away_team_id: cfg.teamBId,
     start_time: start.toISOString(), lock_time: lock.toISOString(),
-    status: "scheduled", is_virtual: true,
-    category_id: catId,
+    status: "scheduled", is_virtual: true, category_id: catId,
   }).select("id").single();
   if (error) throw error;
   const matchId = match.id;
@@ -162,16 +254,16 @@ async function createRound(cfg: Cfg) {
   if (cfg.includeWinner) {
     const { data: mk } = await supabase.from("markets").insert({ match_id: matchId, name: "Match Winner" }).select("id").single();
     if (mk) await supabase.from("odds").insert([
-      { market_id: mk.id, label: cfg.gangA, value: cfg.oddsA },
+      { market_id: mk.id, label: cfg.teamAName, value: cfg.oddsA },
       { market_id: mk.id, label: "Draw", value: cfg.oddsDraw },
-      { market_id: mk.id, label: cfg.gangB, value: cfg.oddsB },
+      { market_id: mk.id, label: cfg.teamBName, value: cfg.oddsB },
     ]);
   }
   if (cfg.includeFirstBlood) {
     const { data: mk } = await supabase.from("markets").insert({ match_id: matchId, name: "First Blood" }).select("id").single();
     if (mk) await supabase.from("odds").insert([
-      { market_id: mk.id, label: cfg.gangA, value: cfg.oddsFirstA },
-      { market_id: mk.id, label: cfg.gangB, value: cfg.oddsFirstB },
+      { market_id: mk.id, label: cfg.teamAName, value: cfg.oddsFirstA },
+      { market_id: mk.id, label: cfg.teamBName, value: cfg.oddsFirstB },
     ]);
   }
   if (cfg.includeTotal) {
@@ -185,11 +277,13 @@ async function createRound(cfg: Cfg) {
     const { data: mk } = await supabase.from("markets").insert({ match_id: matchId, name: "Correct Score" }).select("id").single();
     if (mk) await supabase.from("odds").insert(DEFAULT_SCORES.map((s) => ({ market_id: mk.id, label: s, value: cfg.csOdds })));
   }
+  await supabase.from("audit_logs").insert({ action: "virtual_round_created", target_type: "match", target_id: matchId, metadata: { name: `${cfg.teamAName} vs ${cfg.teamBName}` } });
 }
 
-function ComposerDialog({ gangs, onClose, onSave }: { gangs: GangOpt[]; onClose: () => void; onSave: (c: Cfg) => Promise<void> }) {
+function ComposerDialog({ teams, onClose, onSave }: { teams: TeamOpt[]; onClose: () => void; onSave: (c: Cfg) => Promise<void> }) {
   const [cfg, setCfg] = useState<Cfg>({
-    gangA: gangs[0]?.name ?? "", gangB: gangs[1]?.name ?? "",
+    teamAId: teams[0]?.id ?? "", teamBId: teams[1]?.id ?? "",
+    teamAName: teams[0]?.name ?? "", teamBName: teams[1]?.name ?? "",
     startInSec: 5, lockInSec: 35,
     oddsA: 1.95, oddsDraw: 3.5, oddsB: 1.95,
     oddsFirstA: 1.95, oddsFirstB: 1.95,
@@ -198,6 +292,12 @@ function ComposerDialog({ gangs, onClose, onSave }: { gangs: GangOpt[]; onClose:
     includeWinner: true, includeFirstBlood: true, includeTotal: true, includeCS: true,
   });
   const upd = <K extends keyof Cfg>(k: K, v: Cfg[K]) => setCfg((c) => ({ ...c, [k]: v }));
+  const setTeam = (which: "A" | "B", id: string) => {
+    const t = teams.find((x) => x.id === id);
+    if (!t) return;
+    if (which === "A") setCfg((c) => ({ ...c, teamAId: id, teamAName: t.name }));
+    else setCfg((c) => ({ ...c, teamBId: id, teamBName: t.name }));
+  };
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -205,16 +305,16 @@ function ComposerDialog({ gangs, onClose, onSave }: { gangs: GangOpt[]; onClose:
         <DialogHeader><DialogTitle>New Virtual Round</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div><Label>Gang A</Label>
-              <Select value={cfg.gangA} onValueChange={(v) => upd("gangA", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{gangs.map((g) => <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>)}</SelectContent>
+            <div><Label>Team A (same roster as matches)</Label>
+              <Select value={cfg.teamAId} onValueChange={(v) => setTeam("A", v)}>
+                <SelectTrigger><SelectValue placeholder="Pick team" /></SelectTrigger>
+                <SelectContent>{teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div><Label>Gang B</Label>
-              <Select value={cfg.gangB} onValueChange={(v) => upd("gangB", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{gangs.map((g) => <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>)}</SelectContent>
+            <div><Label>Team B</Label>
+              <Select value={cfg.teamBId} onValueChange={(v) => setTeam("B", v)}>
+                <SelectTrigger><SelectValue placeholder="Pick team" /></SelectTrigger>
+                <SelectContent>{teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div><Label>Start in (sec)</Label><Input type="number" value={cfg.startInSec} onChange={(e) => upd("startInSec", +e.target.value)} /></div>
@@ -222,14 +322,14 @@ function ComposerDialog({ gangs, onClose, onSave }: { gangs: GangOpt[]; onClose:
           </div>
 
           <MarketBlock label="Match Winner" enabled={cfg.includeWinner} onToggle={(v) => upd("includeWinner", v)}>
-            <NumIn label={`${cfg.gangA || "Home"}`} v={cfg.oddsA} on={(v) => upd("oddsA", v)} />
+            <NumIn label={`${cfg.teamAName || "Home"}`} v={cfg.oddsA} on={(v) => upd("oddsA", v)} />
             <NumIn label="Draw" v={cfg.oddsDraw} on={(v) => upd("oddsDraw", v)} />
-            <NumIn label={`${cfg.gangB || "Away"}`} v={cfg.oddsB} on={(v) => upd("oddsB", v)} />
+            <NumIn label={`${cfg.teamBName || "Away"}`} v={cfg.oddsB} on={(v) => upd("oddsB", v)} />
           </MarketBlock>
 
           <MarketBlock label="First Blood" enabled={cfg.includeFirstBlood} onToggle={(v) => upd("includeFirstBlood", v)}>
-            <NumIn label={`${cfg.gangA || "A"}`} v={cfg.oddsFirstA} on={(v) => upd("oddsFirstA", v)} />
-            <NumIn label={`${cfg.gangB || "B"}`} v={cfg.oddsFirstB} on={(v) => upd("oddsFirstB", v)} />
+            <NumIn label={`${cfg.teamAName || "A"}`} v={cfg.oddsFirstA} on={(v) => upd("oddsFirstA", v)} />
+            <NumIn label={`${cfg.teamBName || "B"}`} v={cfg.oddsFirstB} on={(v) => upd("oddsFirstB", v)} />
           </MarketBlock>
 
           <MarketBlock label="Total Kills O/U" enabled={cfg.includeTotal} onToggle={(v) => upd("includeTotal", v)}>
@@ -245,8 +345,8 @@ function ComposerDialog({ gangs, onClose, onSave }: { gangs: GangOpt[]; onClose:
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button onClick={async () => {
-            if (!cfg.gangA || !cfg.gangB) return toast.error("Pick two gangs");
-            if (cfg.gangA === cfg.gangB) return toast.error("Gangs must differ");
+            if (!cfg.teamAId || !cfg.teamBId) return toast.error("Pick two teams");
+            if (cfg.teamAId === cfg.teamBId) return toast.error("Teams must differ");
             try { await onSave(cfg); toast.success("Round created"); onClose(); }
             catch (e: any) { toast.error(e.message); }
           }}>Create</Button>
@@ -280,40 +380,61 @@ function ResolveDialog({ round, onClose }: { round: Round; onClose: () => void }
   const [away, setAway] = useState(0);
   const [first, setFirst] = useState<string>(round.home_team_id);
   const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState<"edit" | "confirm">("edit");
 
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Resolve · {round.home_team?.name} vs {round.away_team?.name}</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label>{round.home_team?.name} score</Label><Input type="number" min={0} value={home} onChange={(e) => setHome(+e.target.value)} /></div>
-            <div><Label>{round.away_team?.name} score</Label><Input type="number" min={0} value={away} onChange={(e) => setAway(+e.target.value)} /></div>
+        <DialogHeader>
+          <DialogTitle>{step === "edit" ? "Resolve" : "Confirm settlement"} · {round.home_team?.name} vs {round.away_team?.name}</DialogTitle>
+        </DialogHeader>
+        {step === "edit" ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>{round.home_team?.name} score</Label><Input type="number" min={0} value={home} onChange={(e) => setHome(+e.target.value)} /></div>
+              <div><Label>{round.away_team?.name} score</Label><Input type="number" min={0} value={away} onChange={(e) => setAway(+e.target.value)} /></div>
+            </div>
+            <div>
+              <Label>First blood</Label>
+              <Select value={first} onValueChange={setFirst}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={round.home_team_id}>{round.home_team?.name}</SelectItem>
+                  <SelectItem value={round.away_team_id}>{round.away_team?.name}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div>
-            <Label>First blood</Label>
-            <Select value={first} onValueChange={setFirst}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={round.home_team_id}>{round.home_team?.name}</SelectItem>
-                <SelectItem value={round.away_team_id}>{round.away_team?.name}</SelectItem>
-              </SelectContent>
-            </Select>
+        ) : (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+              <div className="font-bold flex items-center gap-2 text-amber-300 mb-2"><ShieldAlert className="h-4 w-4" />Final settlement</div>
+              <div>This will mark <b>{round.home_team?.name} {home} – {away} {round.away_team?.name}</b>, settle every bet attached, credit winners, and log your admin ID to the audit trail. It cannot be undone.</div>
+            </div>
+            <div className="text-xs text-muted-foreground">First blood: <b>{first === round.home_team_id ? round.home_team?.name : round.away_team?.name}</b></div>
           </div>
-          <p className="text-[11px] text-muted-foreground">This marks winning odds across all markets, ends the match, and credits winning tickets.</p>
-        </div>
+        )}
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button disabled={busy} onClick={async () => {
-            setBusy(true);
-            const { error } = await supabase.rpc("resolve_virtual_round", {
-              _match_id: round.id, _home_score: home, _away_score: away, _first_blood_team_id: first,
-            });
-            setBusy(false);
-            if (error) return toast.error(error.message);
-            toast.success("Resolved & payouts credited");
-            onClose();
-          }}>Publish Result</Button>
+          {step === "edit" ? (
+            <>
+              <Button variant="ghost" onClick={onClose}>Cancel</Button>
+              <Button onClick={() => setStep("confirm")}>Review</Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => setStep("edit")} disabled={busy}>Back</Button>
+              <Button disabled={busy} onClick={async () => {
+                setBusy(true);
+                const { error } = await supabase.rpc("resolve_virtual_round", {
+                  _match_id: round.id, _home_score: home, _away_score: away, _first_blood_team_id: first,
+                });
+                setBusy(false);
+                if (error) return toast.error(error.message);
+                toast.success("Resolved & payouts credited");
+                onClose();
+              }}>Confirm & Publish</Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
