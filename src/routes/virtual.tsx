@@ -370,14 +370,6 @@ function LiveMatchTicker({ match, animSec }: { match: MatchRow & { lock_time?: s
       }
       // Prefer server-progressed scores when they exceed ticker estimate
       setTickScore({ h: Math.max(h, fh), a: Math.max(a, fa) });
-        if (ev.t <= ratio) {
-          if (ev.side === "h") h++; else a++;
-          const team = ev.side === "h" ? match.home_team?.name : match.away_team?.name;
-          const line = KILL_LINES[Math.floor((ev.t * 9973) % KILL_LINES.length)];
-          surfaced.unshift(`${team}: ${line}`);
-        }
-      }
-      setTickScore({ h, a });
       setFeed(surfaced.slice(0, 5));
     };
     tick();
