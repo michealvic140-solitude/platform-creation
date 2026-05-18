@@ -72,22 +72,25 @@ function AdminPage() {
 
   return (
     <Layout>
-      <div className="container py-8 space-y-6">
-        <div className="relative overflow-hidden rounded-2xl p-5 border border-primary/30 shadow-luxury bg-gradient-to-br from-card/90 via-card/70 to-primary/10 backdrop-blur-xl">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-gold" />
-          <div className="absolute -top-20 -right-20 h-64 w-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-accent/10 blur-3xl pointer-events-none" />
-          <div className="relative flex items-center gap-3 flex-wrap">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-gold text-primary-foreground grid place-items-center shadow-gold"><Shield className="h-6 w-6" /></div>
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Command center</p>
-              <h1 className="text-3xl font-bold gradient-gold-text">Admin Console</h1>
+      <div className="admin-shell relative">
+        <div className="admin-shell-aurora" aria-hidden />
+        <div className="admin-shell-logo" aria-hidden />
+        <div className="container py-8 space-y-6 relative z-10">
+          <div className="relative overflow-hidden rounded-2xl p-5 admin-hero-frame">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-gold" />
+            <div className="absolute -top-20 -right-20 h-64 w-64 rounded-full bg-primary/20 blur-3xl pointer-events-none animate-pulse-glow" />
+            <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-accent/25 blur-3xl pointer-events-none animate-pulse-glow" />
+            <div className="relative flex items-center gap-3 flex-wrap">
+              <div className="h-12 w-12 rounded-2xl bg-gradient-gold text-primary-foreground grid place-items-center shadow-gold"><Shield className="h-6 w-6" /></div>
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Command center</p>
+                <h1 className="text-3xl font-bold gradient-gold-text">Admin Console</h1>
+              </div>
+              <Badge variant="outline" className={`ml-auto ${isAdmin ? "border-accent/50 text-accent" : "border-primary/50 text-primary"}`}>
+                {isAdmin ? "Admin" : "Moderator"}
+              </Badge>
             </div>
-            <Badge variant="outline" className={`ml-auto ${isAdmin ? "border-accent/50 text-accent" : "border-primary/50 text-primary"}`}>
-              {isAdmin ? "Admin" : "Moderator"}
-            </Badge>
           </div>
-        </div>
 
         {isAdmin && <Stats />}
         <AdminSectionRail alerts={alerts} onOpen={setActiveTab} />
