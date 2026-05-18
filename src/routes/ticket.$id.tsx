@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TeamLogo } from "@/components/TeamLogo";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { Sparkles, Send, ArrowLeft, Ticket as TicketIcon, Copy, Check, X, Image as ImageIcon, Share2, Trash2, Lock as LockIcon, Clock as ClockIcon, ShieldCheck, Trophy, Coins, TrendingUp, Gem, Calendar, CalendarCheck, ShieldAlert } from "lucide-react";
+import { Sparkles, Send, ArrowLeft, Ticket as TicketIcon, Copy, Check, X, Image as ImageIcon, Share2, Trash2, Lock as LockIcon, Clock as ClockIcon, ShieldCheck, Trophy, Coins, TrendingUp, Gem, Calendar, CalendarCheck, ShieldAlert, Printer } from "lucide-react";
 import { GangLogo } from "@/components/GangLogo";
 import lslLogo from "@/assets/lsl-logo.png";
 import { toast } from "sonner";
