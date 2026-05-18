@@ -778,6 +778,93 @@ export type Database = {
         }
         Relationships: []
       }
+      imported_bet_selections: {
+        Row: {
+          id: string
+          legacy_bet_id: string | null
+          legacy_created_at: string | null
+          legacy_id: string | null
+          legacy_market_id: string | null
+          legacy_match_id: string | null
+          legacy_odd_id: string | null
+          locked_odds: number | null
+          result: string | null
+          selection_label: string | null
+        }
+        Insert: {
+          id?: string
+          legacy_bet_id?: string | null
+          legacy_created_at?: string | null
+          legacy_id?: string | null
+          legacy_market_id?: string | null
+          legacy_match_id?: string | null
+          legacy_odd_id?: string | null
+          locked_odds?: number | null
+          result?: string | null
+          selection_label?: string | null
+        }
+        Update: {
+          id?: string
+          legacy_bet_id?: string | null
+          legacy_created_at?: string | null
+          legacy_id?: string | null
+          legacy_market_id?: string | null
+          legacy_match_id?: string | null
+          legacy_odd_id?: string | null
+          locked_odds?: number | null
+          result?: string | null
+          selection_label?: string | null
+        }
+        Relationships: []
+      }
+      imported_bets: {
+        Row: {
+          booking_code: string | null
+          cashed_out_at: string | null
+          cashout_amount: number | null
+          id: string
+          legacy_created_at: string | null
+          legacy_id: string | null
+          old_user_id: string
+          potential_payout: number | null
+          settled_at: string | null
+          stake: number | null
+          status: string | null
+          total_odds: number | null
+          tracking_id: string | null
+        }
+        Insert: {
+          booking_code?: string | null
+          cashed_out_at?: string | null
+          cashout_amount?: number | null
+          id?: string
+          legacy_created_at?: string | null
+          legacy_id?: string | null
+          old_user_id: string
+          potential_payout?: number | null
+          settled_at?: string | null
+          stake?: number | null
+          status?: string | null
+          total_odds?: number | null
+          tracking_id?: string | null
+        }
+        Update: {
+          booking_code?: string | null
+          cashed_out_at?: string | null
+          cashout_amount?: number | null
+          id?: string
+          legacy_created_at?: string | null
+          legacy_id?: string | null
+          old_user_id?: string
+          potential_payout?: number | null
+          settled_at?: string | null
+          stake?: number | null
+          status?: string | null
+          total_odds?: number | null
+          tracking_id?: string | null
+        }
+        Relationships: []
+      }
       imported_profiles: {
         Row: {
           claimed_at: string | null
@@ -794,6 +881,7 @@ export type Database = {
           ingame_name: string | null
           last_login_date: string | null
           longest_streak: number | null
+          old_user_id: string | null
           phone: string | null
           referral_code: string | null
           server: string | null
@@ -818,6 +906,7 @@ export type Database = {
           ingame_name?: string | null
           last_login_date?: string | null
           longest_streak?: number | null
+          old_user_id?: string | null
           phone?: string | null
           referral_code?: string | null
           server?: string | null
@@ -842,6 +931,7 @@ export type Database = {
           ingame_name?: string | null
           last_login_date?: string | null
           longest_streak?: number | null
+          old_user_id?: string | null
           phone?: string | null
           referral_code?: string | null
           server?: string | null
@@ -850,6 +940,174 @@ export type Database = {
           token_balance?: number | null
           vip_tier?: string | null
           xp?: number | null
+        }
+        Relationships: []
+      }
+      imported_token_requests: {
+        Row: {
+          amount: number
+          claimed_at: string | null
+          claimed_user_id: string | null
+          id: string
+          legacy_created_at: string | null
+          legacy_id: string | null
+          note: string | null
+          old_user_id: string
+          proof_image_url: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          status: string | null
+        }
+        Insert: {
+          amount: number
+          claimed_at?: string | null
+          claimed_user_id?: string | null
+          id?: string
+          legacy_created_at?: string | null
+          legacy_id?: string | null
+          note?: string | null
+          old_user_id: string
+          proof_image_url?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          amount?: number
+          claimed_at?: string | null
+          claimed_user_id?: string | null
+          id?: string
+          legacy_created_at?: string | null
+          legacy_id?: string | null
+          note?: string | null
+          old_user_id?: string
+          proof_image_url?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      imported_token_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          claimed_at: string | null
+          claimed_user_id: string | null
+          description: string | null
+          id: string
+          kind: string
+          legacy_created_at: string | null
+          legacy_id: string | null
+          metadata: Json | null
+          old_user_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          claimed_at?: string | null
+          claimed_user_id?: string | null
+          description?: string | null
+          id?: string
+          kind: string
+          legacy_created_at?: string | null
+          legacy_id?: string | null
+          metadata?: Json | null
+          old_user_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          claimed_at?: string | null
+          claimed_user_id?: string | null
+          description?: string | null
+          id?: string
+          kind?: string
+          legacy_created_at?: string | null
+          legacy_id?: string | null
+          metadata?: Json | null
+          old_user_id?: string
+        }
+        Relationships: []
+      }
+      imported_user_roles: {
+        Row: {
+          claimed_at: string | null
+          claimed_user_id: string | null
+          email: string | null
+          id: string
+          legacy_created_at: string | null
+          legacy_id: string | null
+          old_user_id: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_user_id?: string | null
+          email?: string | null
+          id?: string
+          legacy_created_at?: string | null
+          legacy_id?: string | null
+          old_user_id: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_user_id?: string | null
+          email?: string | null
+          id?: string
+          legacy_created_at?: string | null
+          legacy_id?: string | null
+          old_user_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
+      imported_withdrawal_requests: {
+        Row: {
+          admin_note: string | null
+          amount: number
+          claimed_at: string | null
+          claimed_user_id: string | null
+          gang_name: string | null
+          id: string
+          ingame_name: string | null
+          legacy_created_at: string | null
+          legacy_id: string | null
+          old_user_id: string
+          reviewed_at: string | null
+          status: string | null
+          ticket_ref: string | null
+        }
+        Insert: {
+          admin_note?: string | null
+          amount: number
+          claimed_at?: string | null
+          claimed_user_id?: string | null
+          gang_name?: string | null
+          id?: string
+          ingame_name?: string | null
+          legacy_created_at?: string | null
+          legacy_id?: string | null
+          old_user_id: string
+          reviewed_at?: string | null
+          status?: string | null
+          ticket_ref?: string | null
+        }
+        Update: {
+          admin_note?: string | null
+          amount?: number
+          claimed_at?: string | null
+          claimed_user_id?: string | null
+          gang_name?: string | null
+          id?: string
+          ingame_name?: string | null
+          legacy_created_at?: string | null
+          legacy_id?: string | null
+          old_user_id?: string
+          reviewed_at?: string | null
+          status?: string | null
+          ticket_ref?: string | null
         }
         Relationships: []
       }
@@ -2236,6 +2494,10 @@ export type Database = {
       apply_imported_profile: {
         Args: { _email: string; _user_id: string }
         Returns: boolean
+      }
+      apply_imported_user_data: {
+        Args: { _email: string; _new_user_id: string }
+        Returns: Json
       }
       apply_referral_code: { Args: { _code: string }; Returns: Json }
       approve_promo_request: {
