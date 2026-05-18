@@ -136,6 +136,20 @@ export function BetVoucher({ bet, sels, statusBadge, allWon, copy, shareCode }: 
         {/* Circuit pattern */}
         <div className="absolute inset-0 voucher-circuit pointer-events-none" />
 
+        {/* Platform logo watermark */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
+          <img
+            src={lslLogo}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            className="w-[78%] max-w-[520px] aspect-square object-contain opacity-[0.07] mix-blend-luminosity"
+            style={{ filter: "saturate(0.6) contrast(1.05) drop-shadow(0 0 30px rgba(0,0,0,0.6))" }}
+          />
+        </div>
+        {/* Subtle vignette to keep content legible over watermark */}
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,transparent_30%,oklch(0.10_0.04_60/0.55)_100%)]" />
+
         <div className="relative px-3 sm:px-5 pt-6 pb-5 space-y-4">
           {/* HEADER */}
           <div className="text-center space-y-2">
