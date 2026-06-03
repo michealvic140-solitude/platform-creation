@@ -5,7 +5,7 @@ import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dice5, Lock, Flame, Trophy, Clock, History, Crosshair, Zap, CheckCircle2, PauseCircle, Sparkles } from "lucide-react";
+import { Dice5, Flame, Trophy, Clock, History, Crosshair, Zap, CheckCircle2, PauseCircle, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { TeamLogo } from "@/components/TeamLogo";
 import type { MatchRow } from "@/lib/queries";
@@ -33,26 +33,29 @@ function VirtualPage() {
   const [live, setLive] = useState<MatchRow[]>([]);
   const [upcoming, setUpcoming] = useState<MatchRow[]>([]);
   const [recent, setRecent] = useState<MatchRow[]>([]);
-  const [cycle, setCycle] = useState<{ running: boolean; animSec: number; durSec: number }>({ running: false, animSec: 30, durSec: 120 });
+  const [cycle, setCycle] = useState<{ running: boolean; animSec: number; durSec: number; maxOpen: number }>({ running: false, animSec: 30, durSec: 120, maxOpen: 4 });
 
   useEffect(() => {
     const load = async () => {
       await syncServerOffset();
       const [{ data: liveRows }, { data: upRows }, { data: recRows }, { data: cfg }] = await Promise.all([
-        supabase.from("matches").select(matchSelect).eq("is_virtual", true).eq("status", "live").order("start_time", { ascending: false }).limit(3),
-        supabase.from("matches").select(matchSelect).eq("is_virtual", true).eq("status", "scheduled").order("start_time", { ascending: true }).limit(6),
+        supabase.from("matches").select(matchSelect).eq("is_virtual", true).eq("status", "live").order("start_time", { ascending: false }).limit(8),
+        supabase.from("matches").select(matchSelect).eq("is_virtual", true).eq("status", "scheduled").order("start_time", { ascending: true }).limit(12),
         supabase.from("matches").select(matchSelect).eq("is_virtual", true).eq("status", "ended").order("settled_at", { ascending: false }).limit(8),
-        supabase.from("app_settings").select("virtual_cycle_running,virtual_animation_seconds,virtual_round_duration_seconds").eq("id", 1).maybeSingle(),
+        supabase.from("app_settings").select("virtual_cycle_running,virtual_animation_seconds,virtual_round_duration_seconds,virtual_concurrent_rounds").eq("id", 1).maybeSingle(),
       ]);
+      const maxOpen = Number((cfg as any)?.virtual_concurrent_rounds ?? 4);
       setLive((liveRows ?? []) as unknown as MatchRow[]);
-      setUpcoming((upRows ?? []) as unknown as MatchRow[]);
+      setUpcoming(((upRows ?? []) as unknown as MatchRow[]).slice(0, maxOpen));
       setRecent((recRows ?? []) as unknown as MatchRow[]);
       if (cfg) setCycle({
         running: !!(cfg as any).virtual_cycle_running,
         animSec: Number((cfg as any).virtual_animation_seconds ?? 30),
         durSec: Number((cfg as any).virtual_round_duration_seconds ?? 120),
+        maxOpen,
       });
     };
+
     load();
     const t = setInterval(load, 3000);
     // Fallback ping while signed in, in case the scheduled backend tick lags.
@@ -195,8 +198,10 @@ function VirtualRoundCard({ match, animSec }: { match: MatchRow & { lock_time?: 
   const isPicked = (oddId: string) => selections.some((s) => s.odd_id === oddId);
   const hasThisRound = selections.some((s) => s.match_id === match.id);
 
-  const order = (n: string) => /match\s*winner/i.test(n) ? 0 : /first\s*blood/i.test(n) ? 1 : /total/i.test(n) ? 2 : /correct\s*score/i.test(n) ? 3 : 4;
-  const markets = [...(match.markets ?? [])].sort((a, b) => order(a.name) - order(b.name));
+  const order = (n: string) => /match\s*winner/i.test(n) ? 0 : /first\s*blood/i.test(n) ? 1 : 4;
+  const hideMarket = (n: string) => /total\s*kills/i.test(n) || /correct\s*score/i.test(n) || /over\/?under/i.test(n);
+  const markets = [...(match.markets ?? [])].filter((mk) => !hideMarket(mk.name)).sort((a, b) => order(a.name) - order(b.name));
+
 
   function pick(mk: any, o: any) {
     if (locked) return;
@@ -234,7 +239,8 @@ function VirtualRoundCard({ match, animSec }: { match: MatchRow & { lock_time?: 
         ) : playing ? (
           <span className="text-destructive font-bold flex items-center justify-center gap-1 animate-pulse"><Crosshair className="h-3 w-3" />Match in progress…</span>
         ) : locked ? (
-          <span className="text-destructive font-bold flex items-center justify-center gap-1"><Lock className="h-3 w-3" />Locking…</span>
+          <span className="text-destructive font-bold flex items-center justify-center gap-1 animate-pulse"><Crosshair className="h-3 w-3" />Match in progress…</span>
+
         ) : (
           <div className="flex items-center justify-center gap-2">
             <span className="text-muted-foreground text-[10px] uppercase tracking-widest">Locks in</span>

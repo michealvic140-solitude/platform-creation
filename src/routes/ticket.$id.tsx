@@ -45,6 +45,9 @@ function TicketPage() {
   }, [id]);
 
   async function loadBet() {
+    // Safety net: ensure virtual selections reflect settled results, in case
+    // realtime missed the update from resolve_virtual_round.
+    try { await (supabase as any).rpc("refresh_virtual_selection_results", { _match_id: null }); } catch {/*ignore*/}
     const { data, error } = await supabase.from("bets")
       .select("*, bet_selections(*, matches!match_id(name, status, home_score, away_score, home_team:teams!home_team_id(name,logo_url), away_team:teams!away_team_id(name,logo_url)), markets!market_id(name))")
       .eq("id", id).maybeSingle();
@@ -53,6 +56,7 @@ function TicketPage() {
     const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", data.user_id).maybeSingle();
     setBet({ ...data, profiles: prof });
   }
+
 
   if (!user) return <Layout><div className="container py-10"><Link to="/login" className="text-primary underline">Sign in</Link> to view tickets.</div></Layout>;
   if (bet) return <BetTicket bet={bet} viewerId={user.id} />;
@@ -421,16 +425,10 @@ function SupportTicketView({ ticket, userId, isMod }: { ticket: any; userId: str
     if (!text.trim() || ticket.status === "closed") return;
     const content = text.trim(); setText(""); setSending(true);
     const { error } = await supabase.from("ticket_messages").insert({ ticket_id: ticket.id, user_id: userId, content });
-    if (error) { toast.error(error.message); setSending(false); return; }
-    // AI only auto-replies to a non-mod user. Admin replies are human.
-    if (!isMod) {
-      try {
-        const { data: ai } = await supabase.functions.invoke("ai-support", { body: { subject: ticket.subject, message: content } });
-        if (ai?.reply) await supabase.from("ticket_messages").insert({ ticket_id: ticket.id, user_id: userId, content: ai.reply, is_ai: true });
-      } catch {/*ignore*/}
-    }
+    if (error) { toast.error(error.message); }
     setSending(false);
   }
+
 
   async function pickImage(file: File) {
     const path = `${ticket.id}/${Date.now()}-${file.name}`;
@@ -488,15 +486,16 @@ function SupportTicketView({ ticket, userId, isMod }: { ticket: any; userId: str
         <Card className="glass mt-3 flex flex-col h-[60vh]">
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {msgs.map((m) => {
-              const mine = m.user_id === userId && !m.is_ai;
+              const mine = m.user_id === userId;
               const author = profiles[m.user_id]?.name ?? "User";
               return (
-                <div key={m.id} className={`flex ${m.is_ai ? "justify-start" : mine ? "justify-end" : "justify-start"} group`}>
-                  <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${m.is_ai ? "bg-accent/20 border border-accent/40" : mine ? "bg-primary/20 border border-primary/40" : "bg-secondary"}`}>
+                <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"} group`}>
+                  <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${mine ? "bg-primary/20 border border-primary/40" : "bg-secondary"}`}>
                     <div className="text-[10px] mb-1 opacity-70 flex items-center gap-1">
-                      {m.is_ai ? <><Sparkles className="h-3 w-3" />AI Assistant</> : author}
+                      {author}
                       <span className="ml-2">{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
+
                     {m.content && <div className="whitespace-pre-wrap">{m.content}</div>}
                     {m.image_url && <img src={m.image_url} alt="" className="mt-1 rounded max-h-64 border border-border" />}
                   </div>

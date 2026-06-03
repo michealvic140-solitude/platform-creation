@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import { Ticket as TicketIcon, ChevronRight, Wallet, UserCog, CreditCard, Coins, Tag, Trophy, ListChecks, Sparkles, Lock } from "lucide-react";
 import { ChallengesPanel } from "@/components/ChallengesPanel";
-import { ReferralCard, VipCard, UserAnalyticsDashboard, BetHistoryAdvanced, GangEmblemUpload } from "@/components/UserHubSections";
+import { VipCard, BetHistoryAdvanced, GangEmblemUpload } from "@/components/UserHubSections";
+
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -107,55 +108,18 @@ function Dashboard() {
           <ChallengesPanel />
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4 mb-10">
-          <VipCard />
-          <ReferralCard />
-        </div>
-
         <div className="mb-10">
-          <UserAnalyticsDashboard bets={bets} />
+          <VipCard />
         </div>
 
         <div className="mb-10">
           <GangEmblemUpload />
         </div>
 
-        <div className="mb-10">
-          <BetHistoryAdvanced bets={bets} />
+        <div id="bets" className="mb-10 scroll-mt-24">
+          <BetHistoryAdvanced bets={bets} onOpen={(b) => { window.location.href = `/ticket/${b.id}`; }} />
         </div>
 
-        <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><TicketIcon className="h-5 w-5 text-primary" />My Bet Tickets</h2>
-        <div id="bets" className="space-y-3 scroll-mt-24">
-          {bets.length === 0 && <p className="text-muted-foreground text-sm">No bets yet.</p>}
-          {bets.map((b) => (
-            <Link key={b.id} to="/ticket/$id" params={{ id: b.id }}>
-              <Card className="p-4 hover:border-primary/60 transition group">
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs text-primary">{b.tracking_id}</span>
-                      <span className="font-mono text-[10px] text-muted-foreground">· {b.booking_code}</span>
-                    </div>
-                    <div className="font-bold mt-1">{b.bet_selections?.length ?? 0} selection(s) · stake {b.stake.toLocaleString()}</div>
-                    <div className="text-xs text-muted-foreground truncate mt-0.5">
-                      {(b.bet_selections ?? []).map((s: any) => s.matches?.name || s.selection_label).join(" · ")}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <Badge variant="outline" className={
-                      b.status === 'won' ? 'border-emerald-500/50 text-emerald-300' :
-                      b.status === 'lost' ? 'border-destructive/50 text-destructive' :
-                      b.status === 'suspended' ? 'border-amber-500/50 text-amber-300' :
-                      'border-primary/50 text-primary'
-                    }>{b.status.toUpperCase()}</Badge>
-                    <div className="text-xs text-muted-foreground mt-1">Payout {b.potential_payout.toLocaleString()}</div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
-                </div>
-              </Card>
-            </Link>
-          ))}
-        </div>
 
         <div className="mt-10 flex items-center justify-between flex-wrap gap-2">
           <h2 className="text-xl font-bold flex items-center gap-2"><Wallet className="h-5 w-5 text-primary" />My Withdrawals</h2>

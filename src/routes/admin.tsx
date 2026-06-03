@@ -2924,7 +2924,7 @@ function LeaderboardAdminPanel() {
   }
   async function toggleHide(o: any) {
     const next = !o.is_hidden;
-    const { error } = await supabase.from("leaderboard_overrides").update({ is_hidden: next }).eq("id", o.id);
+    const { error } = await (supabase.from("leaderboard_overrides") as any).update({ is_hidden: next }).eq("id", o.id);
     if (error) { toast.error(error.message); return; }
     await logAudit(next ? "leaderboard_hide" : "leaderboard_unhide", "leaderboard_overrides", o.id, { name: o.name, kind: o.kind });
     toast.success(next ? `${o.name} hidden from leaderboard` : `${o.name} restored`);
