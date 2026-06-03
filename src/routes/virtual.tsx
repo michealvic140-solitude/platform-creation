@@ -33,26 +33,29 @@ function VirtualPage() {
   const [live, setLive] = useState<MatchRow[]>([]);
   const [upcoming, setUpcoming] = useState<MatchRow[]>([]);
   const [recent, setRecent] = useState<MatchRow[]>([]);
-  const [cycle, setCycle] = useState<{ running: boolean; animSec: number; durSec: number }>({ running: false, animSec: 30, durSec: 120 });
+  const [cycle, setCycle] = useState<{ running: boolean; animSec: number; durSec: number; maxOpen: number }>({ running: false, animSec: 30, durSec: 120, maxOpen: 4 });
 
   useEffect(() => {
     const load = async () => {
       await syncServerOffset();
       const [{ data: liveRows }, { data: upRows }, { data: recRows }, { data: cfg }] = await Promise.all([
-        supabase.from("matches").select(matchSelect).eq("is_virtual", true).eq("status", "live").order("start_time", { ascending: false }).limit(3),
-        supabase.from("matches").select(matchSelect).eq("is_virtual", true).eq("status", "scheduled").order("start_time", { ascending: true }).limit(6),
+        supabase.from("matches").select(matchSelect).eq("is_virtual", true).eq("status", "live").order("start_time", { ascending: false }).limit(8),
+        supabase.from("matches").select(matchSelect).eq("is_virtual", true).eq("status", "scheduled").order("start_time", { ascending: true }).limit(12),
         supabase.from("matches").select(matchSelect).eq("is_virtual", true).eq("status", "ended").order("settled_at", { ascending: false }).limit(8),
-        supabase.from("app_settings").select("virtual_cycle_running,virtual_animation_seconds,virtual_round_duration_seconds").eq("id", 1).maybeSingle(),
+        supabase.from("app_settings").select("virtual_cycle_running,virtual_animation_seconds,virtual_round_duration_seconds,virtual_concurrent_rounds").eq("id", 1).maybeSingle(),
       ]);
+      const maxOpen = Number((cfg as any)?.virtual_concurrent_rounds ?? 4);
       setLive((liveRows ?? []) as unknown as MatchRow[]);
-      setUpcoming((upRows ?? []) as unknown as MatchRow[]);
+      setUpcoming(((upRows ?? []) as unknown as MatchRow[]).slice(0, maxOpen));
       setRecent((recRows ?? []) as unknown as MatchRow[]);
       if (cfg) setCycle({
         running: !!(cfg as any).virtual_cycle_running,
         animSec: Number((cfg as any).virtual_animation_seconds ?? 30),
         durSec: Number((cfg as any).virtual_round_duration_seconds ?? 120),
+        maxOpen,
       });
     };
+
     load();
     const t = setInterval(load, 3000);
     // Fallback ping while signed in, in case the scheduled backend tick lags.
