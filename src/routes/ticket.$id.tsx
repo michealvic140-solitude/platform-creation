@@ -482,15 +482,16 @@ function SupportTicketView({ ticket, userId, isMod }: { ticket: any; userId: str
         <Card className="glass mt-3 flex flex-col h-[60vh]">
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {msgs.map((m) => {
-              const mine = m.user_id === userId && !m.is_ai;
+              const mine = m.user_id === userId;
               const author = profiles[m.user_id]?.name ?? "User";
               return (
-                <div key={m.id} className={`flex ${m.is_ai ? "justify-start" : mine ? "justify-end" : "justify-start"} group`}>
-                  <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${m.is_ai ? "bg-accent/20 border border-accent/40" : mine ? "bg-primary/20 border border-primary/40" : "bg-secondary"}`}>
+                <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"} group`}>
+                  <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${mine ? "bg-primary/20 border border-primary/40" : "bg-secondary"}`}>
                     <div className="text-[10px] mb-1 opacity-70 flex items-center gap-1">
-                      {m.is_ai ? <><Sparkles className="h-3 w-3" />AI Assistant</> : author}
+                      {author}
                       <span className="ml-2">{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
+
                     {m.content && <div className="whitespace-pre-wrap">{m.content}</div>}
                     {m.image_url && <img src={m.image_url} alt="" className="mt-1 rounded max-h-64 border border-border" />}
                   </div>
