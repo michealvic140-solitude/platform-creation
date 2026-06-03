@@ -234,7 +234,8 @@ function VirtualRoundCard({ match, animSec }: { match: MatchRow & { lock_time?: 
         ) : playing ? (
           <span className="text-destructive font-bold flex items-center justify-center gap-1 animate-pulse"><Crosshair className="h-3 w-3" />Match in progress…</span>
         ) : locked ? (
-          <span className="text-destructive font-bold flex items-center justify-center gap-1"><Lock className="h-3 w-3" />Locking…</span>
+          <span className="text-destructive font-bold flex items-center justify-center gap-1 animate-pulse"><Crosshair className="h-3 w-3" />Match in progress…</span>
+
         ) : (
           <div className="flex items-center justify-center gap-2">
             <span className="text-muted-foreground text-[10px] uppercase tracking-widest">Locks in</span>
