@@ -5,7 +5,7 @@ import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dice5, Lock, Flame, Trophy, Clock, History, Crosshair, Zap, CheckCircle2, PauseCircle, Sparkles } from "lucide-react";
+import { Dice5, Flame, Trophy, Clock, History, Crosshair, Zap, CheckCircle2, PauseCircle, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { TeamLogo } from "@/components/TeamLogo";
 import type { MatchRow } from "@/lib/queries";
