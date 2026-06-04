@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
-import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,7 +67,6 @@ function Page() {
 
   return (
     <Layout>
-      <PageShell tone="wallet">
       <div className="container py-10 max-w-3xl">
         <div className="flex items-center gap-2 mb-2"><Wallet className="h-7 w-7 text-primary" /><h1 className="text-3xl font-bold gradient-gold-text">Withdraw Tokens</h1></div>
         <p className="text-muted-foreground text-sm">Available balance: <span className="font-bold text-primary">{(profile?.token_balance ?? 0).toLocaleString()}</span> tokens</p>
@@ -119,7 +117,6 @@ function Page() {
           </div>
         </DialogContent>
       </Dialog>
-      </PageShell>
     </Layout>
   );
 }

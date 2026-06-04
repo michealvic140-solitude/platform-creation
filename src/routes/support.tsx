@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/Layout";
-import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -71,7 +70,6 @@ function SupportPage() {
 
   return (
     <Layout>
-      <PageShell tone="social">
       <div className="container py-10 max-w-3xl">
         <h1 className="text-3xl font-bold gradient-gold-text flex items-center gap-2"><LifeBuoy className="h-6 w-6" />Support</h1>
         <p className="text-muted-foreground text-sm mt-1">Open a ticket and our AI assistant will reply instantly while a human reviews.</p>
@@ -111,7 +109,6 @@ function SupportPage() {
           ))}
         </div>
       </div>
-      </PageShell>
     </Layout>
   );
 }

@@ -36,6 +36,7 @@ export interface Profile {
   profile_banner_url?: string | null;
   profile_title?: string | null;
   showcase_achievement_ids?: string[];
+  force_logout_at?: string | null;
 }
 
 interface AuthCtx {
@@ -91,17 +92,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         (payload) => {
           const next = payload.new as Profile;
           setProfile((prev) => ({ ...(prev as Profile), ...next }));
-          // Auto kick-out if user just got banned
-          if (next?.is_banned) {
+          // Auto kick-out if user just got banned or an admin forces a session reset.
+          const wasKicked = !!next?.force_logout_at && next.force_logout_at !== (profile as any)?.force_logout_at;
+          if (next?.is_banned || wasKicked) {
             supabase.auth.signOut().then(() => {
-              if (typeof window !== "undefined") window.location.href = "/login?banned=1";
+              if (typeof window !== "undefined") window.location.href = next?.is_banned ? "/login?banned=1" : "/login?kicked=1";
             });
           }
         })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "token_transactions", filter: `user_id=eq.${user.id}` },
+        () => loadUserData(user.id))
       .on("postgres_changes", { event: "*", schema: "public", table: "user_roles", filter: `user_id=eq.${user.id}` },
         () => loadUserData(user.id))
       .subscribe();
     return () => { supabase.removeChannel(ch); };
+  }, [user?.id]);
+
+  // Heartbeat: keep user_sessions fresh so the admin "Online Users" panel works.
+  useEffect(() => {
+    if (!user || typeof window === "undefined") return;
+    let stopped = false;
+    const ping = async () => {
+      if (stopped) return;
+      try {
+        await supabase.from("user_sessions").upsert({
+          user_id: user.id,
+          last_seen: new Date().toISOString(),
+          route: window.location.pathname,
+          user_agent: navigator.userAgent.slice(0, 255),
+        }, { onConflict: "user_id" });
+      } catch {}
+    };
+    ping();
+    const iv = window.setInterval(ping, 60_000);
+    const onVis = () => { if (document.visibilityState === "visible") ping(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { stopped = true; window.clearInterval(iv); document.removeEventListener("visibilitychange", onVis); };
   }, [user?.id]);
 
   const signOut = async () => {

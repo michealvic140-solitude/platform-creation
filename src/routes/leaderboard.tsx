@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
-import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy } from "lucide-react";
@@ -44,8 +43,12 @@ function Page() {
 
   useEffect(() => {
     (async () => {
-      // matches finished
-      const { data: matches } = await supabase.from("matches").select("home_team_id,away_team_id,home_score,away_score,winner_team_id,status").eq("status", "ended");
+      // Real (non-virtual) finished matches only — virtual rounds never count.
+      const { data: matches } = await supabase
+        .from("matches")
+        .select("home_team_id,away_team_id,home_score,away_score,winner_team_id,status,is_virtual")
+        .eq("status", "ended")
+        .eq("is_virtual", false);
       const { data: teams } = await supabase.from("teams").select("id,name");
       const { data: players } = await supabase.from("players").select("id,name,team_id");
       const { data: overrides } = await supabase.from("leaderboard_overrides").select("*");
@@ -81,9 +84,13 @@ function Page() {
         }
       });
 
-      // apply overrides
+      // Apply manual overrides + honour hidden entries (admin can remove a team/shooter).
       (overrides ?? []).forEach((o: any) => {
         const target = o.kind === "gang" ? gangAgg : playerAgg;
+        if (o.is_hidden) {
+          target.delete(o.name);
+          return;
+        }
         target.set(o.name, {
           name: o.name, top_player: o.top_player ?? undefined,
           W: o.wins, L: o.losses, D: o.draws, P: o.played, PTS: o.points,
@@ -104,7 +111,6 @@ function Page() {
 
   return (
     <Layout>
-      <PageShell tone="social">
       <div className="container py-10">
         <div className="flex items-center gap-2 mb-6">
           <Trophy className="h-7 w-7 text-primary" />
@@ -171,7 +177,6 @@ function Page() {
           </TabsContent>
         </Tabs>
       </div>
-      </PageShell>
     </Layout>
   );
 }

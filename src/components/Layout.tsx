@@ -20,6 +20,40 @@ function useRegisterServiceWorker() {
   }, []);
 }
 
+// Site-wide background ticker so virtual rounds keep advancing even when
+// no one is on /virtual. Any authenticated client pings every 15s.
+function useVirtualHeartbeat() {
+  const { user } = useAuth();
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    const ping = () => { supabase.rpc("virtual_tick").then(() => {}, () => {}); };
+    ping();
+    const t = setInterval(() => { if (alive) ping(); }, 15000);
+    return () => { alive = false; clearInterval(t); };
+  }, [user]);
+}
+
+// Admin "Broadcast reload" — every active browser refreshes when force_reload_at bumps.
+function useForceReloadBroadcast() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const KEY = "lsl-last-force-reload";
+    let seen = localStorage.getItem(KEY) ?? "";
+    supabase.from("app_settings").select("force_reload_at").eq("id", 1).maybeSingle().then(({ data }) => {
+      const v = (data as any)?.force_reload_at as string | null;
+      if (v && !seen) { localStorage.setItem(KEY, v); seen = v; }
+    });
+    const ch = supabase.channel("force-reload")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "app_settings" }, (p: any) => {
+        const v = p.new?.force_reload_at as string | null;
+        if (v && v !== seen) { localStorage.setItem(KEY, v); window.location.reload(); }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+}
+
 function useChatUnread() {
   const { user } = useAuth();
   const loc = useLocation();
@@ -45,10 +79,12 @@ function useChatUnread() {
 }
 
 export const Layout = ({ children }: { children: ReactNode }) => {
-  const { user, profile, roles, isAdmin, signOut } = useAuth();
+  const { user, profile, roles, isAdmin, isMod, signOut } = useAuth();
   const nav = useNavigate();
   const chatUnread = useChatUnread();
   useRegisterServiceWorker();
+  useVirtualHeartbeat();
+  useForceReloadBroadcast();
 
   return (
     <div className="relative min-h-screen">
@@ -75,7 +111,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
             {user && <NavLink to="/withdraw" icon={Wallet} label="Withdraw" />}
             {user && <NavLink to="/support" icon={LifeBuoy} label="Support" />}
             {user && <NavLink to="/settings" icon={SettingsIcon} label="Settings" />}
-            {isAdmin && <NavLink to="/admin" icon={Shield} label="Admin" danger />}
+            {(isAdmin || isMod) && <NavLink to="/admin" icon={Shield} label={isAdmin ? "Admin" : "Mod"} danger />}
           </nav>
           <div className="flex items-center gap-2 shrink-0 ml-auto lg:ml-0">
             {user && profile ? (
@@ -130,13 +166,13 @@ export const Layout = ({ children }: { children: ReactNode }) => {
             <MobLink to="/virtual" icon={Dice5} label="Virtual" />
             <MobLink to="/leaderboard" icon={Trophy} label="Top" />
             {user && <>
-              <MobLink to="/dashboard" icon={Ticket} label="ME" />
+              <MobLink to="/dashboard" icon={Ticket} label="Bets" />
               <MobLink to="/chat" icon={MessageSquare} label="Chat" badge={chatUnread} />
               <MobLink to="/profile" icon={UserIcon} label="Profile" />
               <MobLink to="/settings" icon={SettingsIcon} label="Settings" />
               <MobLink to="/support" icon={LifeBuoy} label="Help" />
             </>}
-            {isAdmin && <MobLink to="/admin" icon={Shield} label="Admin" />}
+            {(isAdmin || isMod) && <MobLink to="/admin" icon={Shield} label={isAdmin ? "Admin" : "Mod"} />}
           </div>
         </div>
       </nav>

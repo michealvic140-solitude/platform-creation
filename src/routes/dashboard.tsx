@@ -11,10 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Ticket as TicketIcon, ChevronRight, Wallet, UserCog, CreditCard, Coins, Tag, Trophy, ListChecks, Sparkles, Lock } from "lucide-react";
+import { Ticket as TicketIcon, ChevronRight, Wallet, UserCog, CreditCard, Coins, Tag, Trophy, ListChecks, Sparkles, Lock, History as HistoryIcon } from "lucide-react";
 import { ChallengesPanel } from "@/components/ChallengesPanel";
-import { VipCard, BetHistoryAdvanced, GangEmblemUpload } from "@/components/UserHubSections";
-
+import { VipCard } from "@/components/UserHubSections";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -40,22 +39,14 @@ function Dashboard() {
   useEffect(() => {
     if (!user) return;
     const load = () => supabase.from("bets")
-      .select("*, bet_selections(*, matches!match_id(name, status, is_virtual))")
+      .select("*, bet_selections(*, matches!match_id(name))")
       .eq("user_id", user.id).order("created_at", { ascending: false })
       .then(({ data }) => setBets(data ?? []));
     load();
     const ch = supabase.channel(`my-bets-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "bets", filter: `user_id=eq.${user.id}` }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "bet_selections" }, load)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "matches" }, load)
       .subscribe();
-    // Polling fallback: while any pending bet exists, refresh every 10s so vouchers
-    // settle in the UI even if realtime is delayed after a virtual round ends.
-    const poll = setInterval(() => {
-      // Re-read latest state via closure-free check by always loading; cheap query.
-      load();
-    }, 10000);
-    return () => { supabase.removeChannel(ch); clearInterval(poll); };
+    return () => { supabase.removeChannel(ch); };
   }, [user?.id]);
 
   useEffect(() => {
@@ -74,7 +65,7 @@ function Dashboard() {
 
   return (
     <Layout>
-      <PageShell tone="default">
+      <PageShell tone="wallet">
       <div className="container mx-auto px-4 py-10">
         <div className="mb-8">
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Welcome back</p>
@@ -112,14 +103,38 @@ function Dashboard() {
           <VipCard />
         </div>
 
-        <div className="mb-10">
-          <GangEmblemUpload />
+        <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><HistoryIcon className="h-5 w-5 text-primary" />Bet History</h2>
+        <div id="bets" className="space-y-3 scroll-mt-24">
+          {bets.length === 0 && <p className="text-muted-foreground text-sm">No bets yet.</p>}
+          {bets.map((b) => (
+            <Link key={b.id} to="/ticket/$id" params={{ id: b.id }}>
+              <Card className="p-3 hover:border-primary/60 transition group cursor-pointer">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-primary">{b.tracking_id}</span>
+                      <span className="font-mono text-[10px] text-muted-foreground">· {b.booking_code}</span>
+                    </div>
+                    <div className="font-bold mt-0.5 text-sm">{b.bet_selections?.length ?? 0} selection(s) · stake {b.stake.toLocaleString()}</div>
+                    <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                      {(b.bet_selections ?? []).map((s: any) => s.matches?.name || s.selection_label).join(" · ")}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant="outline" className={
+                      b.status === 'won' ? 'border-emerald-500/50 text-emerald-300' :
+                      b.status === 'lost' ? 'border-destructive/50 text-destructive' :
+                      b.status === 'suspended' ? 'border-amber-500/50 text-amber-300' :
+                      'border-primary/50 text-primary'
+                    }>{b.status.toUpperCase()}</Badge>
+                    <div className="text-[11px] text-muted-foreground mt-1">Payout {b.potential_payout.toLocaleString()}</div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
+                </div>
+              </Card>
+            </Link>
+          ))}
         </div>
-
-        <div id="bets" className="mb-10 scroll-mt-24">
-          <BetHistoryAdvanced bets={bets} onOpen={(b) => { window.location.href = `/ticket/${b.id}`; }} />
-        </div>
-
 
         <div className="mt-10 flex items-center justify-between flex-wrap gap-2">
           <h2 className="text-xl font-bold flex items-center gap-2"><Wallet className="h-5 w-5 text-primary" />My Withdrawals</h2>
