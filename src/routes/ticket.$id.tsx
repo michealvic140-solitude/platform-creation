@@ -3,16 +3,17 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/Layout";
+import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TeamLogo } from "@/components/TeamLogo";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { Sparkles, Send, ArrowLeft, Ticket as TicketIcon, Copy, Check, X, Image as ImageIcon, Share2, Trash2, Lock as LockIcon, Clock as ClockIcon, ShieldCheck, Trophy, Coins, TrendingUp, Gem, Calendar, CalendarCheck, ShieldAlert, Printer } from "lucide-react";
+import { Sparkles, Send, ArrowLeft, Ticket as TicketIcon, Copy, Check, X, Image as ImageIcon, Share2, Trash2, Lock as LockIcon, Clock as ClockIcon, ShieldCheck, Trophy, Coins, TrendingUp, Gem, Calendar, CalendarCheck, ShieldAlert } from "lucide-react";
 import { GangLogo } from "@/components/GangLogo";
-import lslLogo from "@/assets/lsl-logo.png";
 import { toast } from "sonner";
+import lslLogo from "@/assets/lsl-logo.png";
 
 export const Route = createFileRoute("/ticket/$id")({
   head: () => ({ meta: [{ title: "Ticket — LSL" }] }),
@@ -30,33 +31,25 @@ function TicketPage() {
     loadBet();
     const ch = supabase.channel(`item-${id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "bets", filter: `id=eq.${id}` }, loadBet)
-      .on("postgres_changes", { event: "*", schema: "public", table: "bet_selections", filter: `bet_id=eq.${id}` }, loadBet)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "matches" }, loadBet)
+      .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, loadBet)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "support_tickets", filter: `id=eq.${id}` },
         (p) => setTicket(p.new))
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "support_tickets", filter: `id=eq.${id}` },
         () => setTicket(null))
       .subscribe();
-    // Polling fallback ensures the voucher reflects settlement promptly even
-    // if realtime publication is delayed after a virtual round ends.
-    const poll = setInterval(loadBet, 8000);
-    return () => { supabase.removeChannel(ch); clearInterval(poll); };
+    return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   async function loadBet() {
-    // Safety net: ensure virtual selections reflect settled results, in case
-    // realtime missed the update from resolve_virtual_round.
-    try { await (supabase as any).rpc("refresh_virtual_selection_results", { _match_id: null }); } catch {/*ignore*/}
     const { data, error } = await supabase.from("bets")
-      .select("*, bet_selections(*, matches!match_id(name, status, home_score, away_score, home_team:teams!home_team_id(name,logo_url), away_team:teams!away_team_id(name,logo_url)), markets!market_id(name))")
+      .select("*, bet_selections(*, matches!match_id(name, status, home_score, away_score, is_virtual, home_team:teams!home_team_id(name,logo_url), away_team:teams!away_team_id(name,logo_url)), markets!market_id(name))")
       .eq("id", id).maybeSingle();
     if (error) { console.error("loadBet error", error); return; }
     if (!data) return;
     const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", data.user_id).maybeSingle();
     setBet({ ...data, profiles: prof });
   }
-
 
   if (!user) return <Layout><div className="container py-10"><Link to="/login" className="text-primary underline">Sign in</Link> to view tickets.</div></Layout>;
   if (bet) return <BetTicket bet={bet} viewerId={user.id} />;
@@ -85,23 +78,18 @@ function BetTicket({ bet, viewerId }: { bet: any; viewerId: string }) {
 
   return (
     <Layout>
+      <PageShell tone="wallet">
       <div className="w-full max-w-xl px-3 py-6 md:ml-0 md:mr-auto">
-        <div className="flex items-center justify-between mb-3 print-hide">
-          <Link to="/dashboard" className="text-muted-foreground text-sm flex items-center gap-1 hover:text-primary"><ArrowLeft className="h-4 w-4" />My bets</Link>
-          <Button size="sm" variant="outline" onClick={() => window.print()} className="gap-1.5">
-            <Printer className="h-4 w-4" /> Print
-          </Button>
-        </div>
-        <div className="printable-voucher">
-          <BetVoucher bet={bet} sels={sels} statusBadge={statusBadge} allWon={allWon} copy={copy} shareCode={shareCode} />
-        </div>
+        <Link to="/dashboard" className="text-muted-foreground text-sm flex items-center gap-1 hover:text-primary mb-3"><ArrowLeft className="h-4 w-4" />My bets</Link>
+        <BetVoucher bet={bet} sels={sels} statusBadge={statusBadge} allWon={allWon} copy={copy} shareCode={shareCode} />
 
         {!isOwner && (
-          <Card className="glass mt-4 p-3 text-xs text-muted-foreground print-hide">
+          <Card className="glass mt-4 p-3 text-xs text-muted-foreground">
             Viewing a shared booking. Use the booking code on the home page to copy these picks to your own slip.
           </Card>
         )}
       </div>
+      </PageShell>
     </Layout>
   );
 }
@@ -112,6 +100,7 @@ export function BetVoucher({ bet, sels, statusBadge, allWon, copy, shareCode }: 
   copy: (t: string) => void; shareCode: () => void;
 }) {
   const status = bet.status as string;
+  const isVirtualTicket = sels.some((s: any) => s.matches?.is_virtual);
   const statusBarCls =
     status === "won" || status === "cashed_out" ? "voucher-status-bar-won"
     : status === "lost" ? "voucher-status-bar-lost"
@@ -135,6 +124,13 @@ export function BetVoucher({ bet, sels, statusBadge, allWon, copy, shareCode }: 
       <div className="absolute -inset-6 rounded-[40px] bg-[radial-gradient(circle_at_30%_20%,oklch(0.85_0.22_152/0.30),transparent_60%),radial-gradient(circle_at_80%_80%,oklch(0.82_0.17_90/0.22),transparent_60%)] blur-3xl pointer-events-none" />
 
       <div className="relative rounded-[28px] voucher-frame voucher-bg overflow-hidden transition-transform duration-500 hover:[transform:perspective(1600px)_rotateX(0.6deg)_rotateY(-0.6deg)_translateY(-2px)]">
+        {/* LSL logo watermark behind everything */}
+        <div
+          className="pointer-events-none absolute inset-0 grid place-items-center opacity-[0.08]"
+          aria-hidden
+        >
+          <img src={lslLogo} alt="" className="w-2/3 max-w-[420px] object-contain mix-blend-screen" />
+        </div>
         {/* Holographic corner patches (4 corners like reference) */}
         <div className="absolute left-0 top-0 w-16 h-16 rounded-br-2xl overflow-hidden pointer-events-none">
           <div className="absolute inset-0 voucher-holo" />
@@ -151,20 +147,7 @@ export function BetVoucher({ bet, sels, statusBadge, allWon, copy, shareCode }: 
         {/* Circuit pattern */}
         <div className="absolute inset-0 voucher-circuit pointer-events-none" />
 
-        {/* Platform logo watermark — visible on all states + print */}
-        <div className="voucher-watermark absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden z-0">
-          <img
-            src={lslLogo}
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-            className="voucher-watermark-img w-[78%] max-w-[540px] aspect-square object-contain"
-          />
-        </div>
-        {/* Subtle vignette to keep content legible over watermark */}
-        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,transparent_50%,oklch(0.10_0.04_60/0.65)_100%)] z-0" />
-
-        <div className="relative z-10 px-3 sm:px-5 pt-6 pb-5 space-y-4">
+        <div className="relative px-3 sm:px-5 pt-6 pb-5 space-y-4">
           {/* HEADER */}
           <div className="text-center space-y-2">
             <div className="flex items-center justify-center gap-2">
@@ -176,6 +159,9 @@ export function BetVoucher({ bet, sels, statusBadge, allWon, copy, shareCode }: 
                 <span className="gold-foil">BET</span> <span className="gold-foil">VOUCHER</span>
               <Sparkles className="inline h-4 w-4 text-primary ml-2 -mt-2" />
             </h2>
+            <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary uppercase tracking-[0.22em] text-[10px]">
+              {isVirtualTicket ? "Virtual Matches Voucher" : "Real Matches Voucher"}
+            </Badge>
           </div>
 
           {/* CODES */}
@@ -333,6 +319,11 @@ export function BetVoucher({ bet, sels, statusBadge, allWon, copy, shareCode }: 
               <LockIcon className="h-3 w-3" />Awaiting match settlement. Cash-out unlocks when every selection wins.
             </div>
           )}
+          {isVirtualTicket && status === "won" && (
+            <Link to="/virtual/history" className="w-full rounded-xl py-3 btn-luxury font-black tracking-widest text-base flex items-center justify-center gap-2">
+              <Trophy className="h-5 w-5" />Claim virtual payout
+            </Link>
+          )}
 
           {/* BARCODE */}
           <div className="space-y-2 pt-1">
@@ -425,10 +416,9 @@ function SupportTicketView({ ticket, userId, isMod }: { ticket: any; userId: str
     if (!text.trim() || ticket.status === "closed") return;
     const content = text.trim(); setText(""); setSending(true);
     const { error } = await supabase.from("ticket_messages").insert({ ticket_id: ticket.id, user_id: userId, content });
-    if (error) { toast.error(error.message); }
+    if (error) { toast.error(error.message); setSending(false); return; }
     setSending(false);
   }
-
 
   async function pickImage(file: File) {
     const path = `${ticket.id}/${Date.now()}-${file.name}`;
@@ -486,16 +476,15 @@ function SupportTicketView({ ticket, userId, isMod }: { ticket: any; userId: str
         <Card className="glass mt-3 flex flex-col h-[60vh]">
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {msgs.map((m) => {
-              const mine = m.user_id === userId;
+              const mine = m.user_id === userId && !m.is_ai;
               const author = profiles[m.user_id]?.name ?? "User";
               return (
-                <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"} group`}>
-                  <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${mine ? "bg-primary/20 border border-primary/40" : "bg-secondary"}`}>
+                <div key={m.id} className={`flex ${m.is_ai ? "justify-start" : mine ? "justify-end" : "justify-start"} group`}>
+                  <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${m.is_ai ? "bg-accent/20 border border-accent/40" : mine ? "bg-primary/20 border border-primary/40" : "bg-secondary"}`}>
                     <div className="text-[10px] mb-1 opacity-70 flex items-center gap-1">
-                      {author}
+                      {m.is_ai ? <><Sparkles className="h-3 w-3" />AI Assistant</> : author}
                       <span className="ml-2">{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
-
                     {m.content && <div className="whitespace-pre-wrap">{m.content}</div>}
                     {m.image_url && <img src={m.image_url} alt="" className="mt-1 rounded max-h-64 border border-border" />}
                   </div>

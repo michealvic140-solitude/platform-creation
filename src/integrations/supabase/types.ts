@@ -544,32 +544,84 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           content: string | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          edited_at: string | null
           id: string
           image_url: string | null
+          reply_to_id: string | null
           room: Database["public"]["Enums"]["chat_room"]
           user_id: string
         }
         Insert: {
           content?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          edited_at?: string | null
           id?: string
           image_url?: string | null
+          reply_to_id?: string | null
           room: Database["public"]["Enums"]["chat_room"]
           user_id: string
         }
         Update: {
           content?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          edited_at?: string | null
           id?: string
           image_url?: string | null
+          reply_to_id?: string | null
           room?: Database["public"]["Enums"]["chat_room"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       events: {
         Row: {
@@ -1115,6 +1167,7 @@ export type Database = {
         Row: {
           draws: number
           id: string
+          is_hidden: boolean
           kind: string
           losses: number
           manual_rank: number | null
@@ -1128,6 +1181,7 @@ export type Database = {
         Insert: {
           draws?: number
           id?: string
+          is_hidden?: boolean
           kind: string
           losses?: number
           manual_rank?: number | null
@@ -1141,6 +1195,7 @@ export type Database = {
         Update: {
           draws?: number
           id?: string
+          is_hidden?: boolean
           kind?: string
           losses?: number
           manual_rank?: number | null
@@ -1716,6 +1771,36 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_redemptions: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          referee_bonus: number
+          referrer_bonus: number
+          referrer_id: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          referee_bonus?: number
+          referrer_bonus?: number
+          referrer_id: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          referee_bonus?: number
+          referrer_bonus?: number
+          referrer_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       referrals: {
         Row: {
           created_at: string
@@ -2132,20 +2217,38 @@ export type Database = {
       }
       user_sessions: {
         Row: {
+          browser: string | null
+          device_type: string | null
+          ip_address: string | null
           last_seen: string
+          os: string | null
           route: string | null
+          session_start: string
+          signed_in_at: string | null
           user_agent: string | null
           user_id: string
         }
         Insert: {
+          browser?: string | null
+          device_type?: string | null
+          ip_address?: string | null
           last_seen?: string
+          os?: string | null
           route?: string | null
+          session_start?: string
+          signed_in_at?: string | null
           user_agent?: string | null
           user_id: string
         }
         Update: {
+          browser?: string | null
+          device_type?: string | null
+          ip_address?: string | null
           last_seen?: string
+          os?: string | null
           route?: string | null
+          session_start?: string
+          signed_in_at?: string | null
           user_agent?: string | null
           user_id?: string
         }
@@ -2457,9 +2560,14 @@ export type Database = {
         Args: { _body: string; _link: string; _segment: string; _title: string }
         Returns: Json
       }
+      admin_clear_leaderboard: { Args: never; Returns: Json }
       admin_delete_bet: {
         Args: { _bet_id: string; _reason?: string; _refund?: boolean }
         Returns: undefined
+      }
+      admin_delete_leaderboard_override: {
+        Args: { _id: string }
+        Returns: Json
       }
       admin_exposure_per_match: {
         Args: never
@@ -2491,6 +2599,21 @@ export type Database = {
         Returns: undefined
       }
       admin_unsuspend_bet: { Args: { _bet_id: string }; Returns: undefined }
+      admin_upsert_leaderboard_override: {
+        Args: {
+          _draws: number
+          _id: string
+          _kind: string
+          _losses: number
+          _manual_rank: number
+          _name: string
+          _played: number
+          _points: number
+          _top_player: string
+          _wins: number
+        }
+        Returns: Json
+      }
       apply_imported_profile: {
         Args: { _email: string; _user_id: string }
         Returns: boolean
@@ -2550,6 +2673,7 @@ export type Database = {
       }
       recalc_vip_tier: { Args: { _user_id: string }; Returns: string }
       redeem_promo_code: { Args: { _code: string }; Returns: Json }
+      redeem_referral_code: { Args: { _code: string }; Returns: Json }
       refresh_virtual_selection_results: {
         Args: { _match_id?: string }
         Returns: number

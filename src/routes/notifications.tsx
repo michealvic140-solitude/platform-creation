@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/Layout";
-import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 
 export const Route = createFileRoute("/notifications")({ component: NotificationsPage });
@@ -20,7 +19,6 @@ function NotificationsPage() {
   if (!user) return <Layout><div className="container mx-auto p-10">Sign in</div></Layout>;
   return (
     <Layout>
-      <PageShell tone="default">
       <div className="container mx-auto px-4 py-10 max-w-3xl">
         <h1 className="text-3xl font-bold text-primary mb-6">Notifications</h1>
         <div className="space-y-2">
@@ -34,7 +32,6 @@ function NotificationsPage() {
           ))}
         </div>
       </div>
-      </PageShell>
     </Layout>
   );
 }
