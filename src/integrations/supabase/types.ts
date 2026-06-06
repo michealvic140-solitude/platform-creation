@@ -83,6 +83,7 @@ export type Database = {
           daily_login_max_streak: number
           emblem_auto_approve: boolean
           exposure_warn_pct: number
+          force_reload_at: string | null
           friends_enabled: boolean
           gift_daily_limit: number
           gift_enabled: boolean
@@ -124,6 +125,8 @@ export type Database = {
           virtual_concurrent_rounds: number
           virtual_cycle_last_tick: string | null
           virtual_cycle_running: boolean
+          virtual_lock_window_seconds: number
+          virtual_matches_per_round: number
           virtual_max_payout: number | null
           virtual_max_score: number
           virtual_max_selections: number
@@ -154,6 +157,7 @@ export type Database = {
           daily_login_max_streak?: number
           emblem_auto_approve?: boolean
           exposure_warn_pct?: number
+          force_reload_at?: string | null
           friends_enabled?: boolean
           gift_daily_limit?: number
           gift_enabled?: boolean
@@ -195,6 +199,8 @@ export type Database = {
           virtual_concurrent_rounds?: number
           virtual_cycle_last_tick?: string | null
           virtual_cycle_running?: boolean
+          virtual_lock_window_seconds?: number
+          virtual_matches_per_round?: number
           virtual_max_payout?: number | null
           virtual_max_score?: number
           virtual_max_selections?: number
@@ -225,6 +231,7 @@ export type Database = {
           daily_login_max_streak?: number
           emblem_auto_approve?: boolean
           exposure_warn_pct?: number
+          force_reload_at?: string | null
           friends_enabled?: boolean
           gift_daily_limit?: number
           gift_enabled?: boolean
@@ -266,6 +273,8 @@ export type Database = {
           virtual_concurrent_rounds?: number
           virtual_cycle_last_tick?: string | null
           virtual_cycle_running?: boolean
+          virtual_lock_window_seconds?: number
+          virtual_matches_per_round?: number
           virtual_max_payout?: number | null
           virtual_max_score?: number
           virtual_max_selections?: number
@@ -1273,6 +1282,8 @@ export type Database = {
           status: Database["public"]["Enums"]["match_status"]
           updated_at: string
           virtual_first_blood_team_id: string | null
+          virtual_round_batch_id: string | null
+          virtual_round_id: string | null
           winner_team_id: string | null
         }
         Insert: {
@@ -1298,6 +1309,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["match_status"]
           updated_at?: string
           virtual_first_blood_team_id?: string | null
+          virtual_round_batch_id?: string | null
+          virtual_round_id?: string | null
           winner_team_id?: string | null
         }
         Update: {
@@ -1323,6 +1336,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["match_status"]
           updated_at?: string
           virtual_first_blood_team_id?: string | null
+          virtual_round_batch_id?: string | null
+          virtual_round_id?: string | null
           winner_team_id?: string | null
         }
         Relationships: [
