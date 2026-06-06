@@ -2556,18 +2556,24 @@ function AnalyticsPanel() {
 
       {/* ROW 8 — Event Countdown | Broadcast Center | Quick Actions */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <PanelBlock title="EVENT COUNTDOWN" onView={() => setActiveTabFromAnalytics(nav, "events")}>
+        <PanelBlock title="EVENT COUNTDOWN" compact onView={() => setActiveTabFromAnalytics(nav, "events")}>
           {event ? (
-            <button onClick={() => setActiveTabFromAnalytics(nav, "events")} className="w-full text-left hover:bg-primary/5 rounded p-1 transition space-y-1">
-              <div className="text-[9px] sm:text-xs font-bold text-primary truncate">{event.title}</div>
-              <div className="text-[10px] sm:text-sm font-mono text-amber-300"><Countdown target={event.ends_at ?? event.starts_at} /></div>
-              <div className="text-[7px] sm:text-[9px] text-muted-foreground">{new Date(event.starts_at ?? event.ends_at).toLocaleString()}</div>
+            <button onClick={() => setActiveTabFromAnalytics(nav, "events")} className="relative w-full text-left rounded p-1 transition space-y-1 overflow-hidden">
+              {event.banner_url && (
+                <>
+                  <img src={event.banner_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70 rounded" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background/85 via-background/40 to-background/20 rounded" />
+                </>
+              )}
+              <div className="relative text-[9px] sm:text-xs font-bold text-primary truncate drop-shadow">{event.title}</div>
+              <div className="relative text-[10px] sm:text-sm font-mono text-amber-300 drop-shadow"><Countdown target={event.ends_at ?? event.starts_at} /></div>
+              <div className="relative text-[7px] sm:text-[9px] text-muted-foreground tabular-nums">{(() => { const d = new Date(event.starts_at ?? event.ends_at); const p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}:${p(d.getMonth()+1)}:${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; })()}</div>
             </button>
           ) : (
             <div className="text-[10px] text-muted-foreground">No active event</div>
           )}
         </PanelBlock>
-        <PanelBlock title="BROADCAST CENTER" onView={() => setActiveTabFromAnalytics(nav, "broadcast")}>
+        <PanelBlock title="BROADCAST CENTER" compact onView={() => setActiveTabFromAnalytics(nav, "broadcast")}>
           {broadcasts.length === 0 && <div className="text-[10px] text-muted-foreground">No broadcasts</div>}
           {broadcasts.map((b) => (
             <button key={b.id} onClick={() => setActiveTabFromAnalytics(nav, "broadcast")} className="w-full text-left text-[9px] sm:text-xs py-1 border-b border-primary/10 last:border-0 hover:bg-primary/5 rounded px-1 transition">
@@ -2577,8 +2583,8 @@ function AnalyticsPanel() {
             </button>
           ))}
         </PanelBlock>
-        <PanelBlock title="QUICK ACTIONS">
-          <div className="max-h-[260px] sm:max-h-[320px] overflow-y-auto pr-1 -mr-1">
+        <PanelBlock title="QUICK ACTIONS" compact>
+          <div className="max-h-[120px] sm:max-h-[140px] overflow-y-auto pr-1 -mr-1">
             <div className="grid grid-cols-3 gap-1">
               {[
                 { i: BarChart3, l: "Analytics", t: "analytics" },
@@ -2640,8 +2646,10 @@ function AnalyticsPanel() {
           { l: "HOUSE WALLET", s: "Manage platform funds", t: "housewallet", img: tileHousewallet },
         ].map((m) => (
           <Card key={m.l} className="border-primary/20 bg-card/60 p-2 sm:p-3 flex flex-col">
-            <button type="button" onClick={() => setActiveTabFromAnalytics(nav, m.t)} className="aspect-square w-full mb-1 rounded overflow-hidden border border-primary/20 hover:border-primary/60 transition active:scale-95">
+            <button type="button" onClick={() => setActiveTabFromAnalytics(nav, m.t)} className="relative aspect-square w-full mb-1 rounded overflow-hidden border border-primary/20 hover:border-primary/60 transition active:scale-95">
               <img src={m.img} alt={m.l} loading="lazy" width={512} height={512} className="w-full h-full object-cover" />
+              <img src={lslLogo} alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 m-auto h-1/2 w-1/2 object-contain opacity-15 mix-blend-screen drop-shadow-[0_4px_18px_rgba(0,0,0,0.65)]" />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
             </button>
             <div className="text-[8px] sm:text-[10px] font-bold text-primary leading-tight">{m.l}</div>
             <div className="text-[6px] sm:text-[8px] text-muted-foreground leading-tight mt-0.5 line-clamp-2">{m.s}</div>
@@ -2703,7 +2711,7 @@ function MetricSquare({ icon: Icon, value, title, sub, tone, compact, onClick }:
   );
 }
 
-function PanelBlock({ title, onView, children, accent }: { title: string; onView?: () => void; children: React.ReactNode; accent?: "sky" | "rose" | "violet" | "amber" | "emerald" }) {
+function PanelBlock({ title, onView, children, accent, compact }: { title: string; onView?: () => void; children: React.ReactNode; accent?: "sky" | "rose" | "violet" | "amber" | "emerald"; compact?: boolean }) {
   const accents: Record<string, { ring: string; title: string; link: string; glow: string }> = {
     sky:     { ring: "border-sky-500/30",     title: "text-sky-300",     link: "text-sky-300/80 hover:text-sky-200",     glow: "shadow-[0_0_30px_-12px_rgba(56,189,248,0.5)]" },
     rose:    { ring: "border-rose-500/30",    title: "text-rose-300",    link: "text-rose-300/80 hover:text-rose-200",    glow: "shadow-[0_0_30px_-12px_rgba(244,63,94,0.5)]" },
@@ -2714,7 +2722,7 @@ function PanelBlock({ title, onView, children, accent }: { title: string; onView
   };
   const a = accents[accent ?? "primary"];
   return (
-    <Card className={`bg-card/60 p-2 sm:p-3 flex flex-col min-h-[140px] ${a.ring} ${a.glow}`}>
+    <Card className={`bg-card/60 p-2 sm:p-3 flex flex-col ${compact ? "min-h-0 max-h-[170px]" : "min-h-[140px]"} ${a.ring} ${a.glow}`}>
       <div className="relative flex items-center justify-between mb-1.5">
         <div className={`text-[8px] sm:text-[11px] font-bold tracking-widest ${a.title}`}>{title}</div>
         {onView && (
@@ -2953,23 +2961,59 @@ function LeaderboardAdminPanel() {
   }
   async function clearAll() {
     if (!await confirm({
-      title: `Clear ALL ${list.length} leaderboard entries?`,
-      description: "This permanently removes every manual leaderboard override. Auto-computed stats from match results are unaffected.",
+      title: `Wipe entire Leaderboard?`,
+      description: "Hides every manual override AND every auto-computed gang/shooter row generated from past match results. Match history itself is preserved — new finished matches after this moment will start a fresh leaderboard.",
       tone: "danger", confirmText: "Clear leaderboard",
     })) return;
-    const { error } = await supabase.from("leaderboard_overrides").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-    if (error) { toast.error(error.message); return; }
-    await logAudit("leaderboard_clear_all", "leaderboard_overrides", undefined, { previous_count: list.length });
+    const now = new Date().toISOString();
+    const { error: delErr } = await supabase.from("leaderboard_overrides").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    if (delErr) { toast.error(delErr.message); return; }
+    const { error: setErr } = await supabase.from("app_settings").update({
+      leaderboard_gangs_reset_at: now,
+      leaderboard_shooters_reset_at: now,
+    } as any).eq("id", 1);
+    if (setErr) { toast.error(setErr.message); return; }
+    await logAudit("leaderboard_clear_all", "leaderboard_overrides", undefined, { previous_count: list.length, reset_at: now });
     toast.success("Leaderboard cleared");
+    load();
+  }
+  async function wipeKind(kind: "gang" | "shooter", label: string) {
+    const rows = list.filter((o) => o.kind === kind);
+    if (!await confirm({
+      title: `Wipe ${label}?`,
+      description: `Hides every ${label} row — both manual overrides (${rows.length}) and the auto-computed rows from past matches/bets. New activity after this moment starts a fresh list.`,
+      tone: "danger", confirmText: `Wipe ${label}`,
+    })) return;
+    const now = new Date().toISOString();
+    const { error } = await supabase.from("leaderboard_overrides").delete().eq("kind", kind);
+    if (error) { toast.error(error.message); return; }
+    const patch: Record<string, string> =
+      kind === "gang"
+        ? { leaderboard_gangs_reset_at: now, hall_of_fame_reset_at: now }
+        : { leaderboard_shooters_reset_at: now };
+    const { error: setErr } = await supabase.from("app_settings").update(patch as any).eq("id", 1);
+    if (setErr) { toast.error(setErr.message); return; }
+    await logAudit("leaderboard_wipe_kind", "leaderboard_overrides", undefined, { kind, previous_count: rows.length, reset_at: now });
+    toast.success(`${label} wiped`);
     load();
   }
   return (
     <div className="space-y-3">
+      <Card className="glass-strong p-3 flex flex-wrap items-center gap-2 border-destructive/40">
+        <div className="text-xs font-bold tracking-widest text-destructive mr-1">DANGER ZONE</div>
+        <Button variant="destructive" size="sm" onClick={clearAll}>
+          <Trash2 className="h-3 w-3 mr-1" />Wipe Leaderboard
+        </Button>
+        <Button variant="destructive" size="sm" onClick={() => wipeKind("shooter", "Shooters")}>
+          <Trash2 className="h-3 w-3 mr-1" />Wipe Shooters
+        </Button>
+        <Button variant="destructive" size="sm" onClick={() => wipeKind("gang", "Hall of Fame")}>
+          <Trash2 className="h-3 w-3 mr-1" />Wipe Hall of Fame
+        </Button>
+        <span className="text-[10px] text-muted-foreground ml-auto">Wipes auto-computed rows AND manual overrides. Match history is preserved.</span>
+      </Card>
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="text-xs text-muted-foreground">{list.length} manual override{list.length === 1 ? "" : "s"}</div>
-        <Button variant="destructive" size="sm" onClick={clearAll} disabled={list.length === 0}>
-          <Trash2 className="h-3 w-3 mr-1" />Clear Leaderboard
-        </Button>
       </div>
       <Card className="glass-strong p-4 space-y-2">
         <div className="font-bold flex items-center gap-2">
