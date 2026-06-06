@@ -35,6 +35,7 @@ export function VirtualAdminPanel() {
   const [lockConfirm, setLockConfirm] = useState<Round | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [actors, setActors] = useState<Record<string, string>>({});
+  const confirm = useConfirm();
 
   const reload = async () => {
     const [{ data: ts }, { data: rs }, { data: al }] = await Promise.all([
@@ -133,7 +134,8 @@ export function VirtualAdminPanel() {
                     </>
                   )}
                   <Button size="sm" variant="ghost" onClick={async () => {
-                    if (!confirm("Delete this round?")) return;
+                    const ok = await confirm({ title: "Delete this round?", description: `${r.home_team?.name} vs ${r.away_team?.name} will be removed permanently.`, confirmText: "Delete", tone: "danger" });
+                    if (!ok) return;
                     await supabase.from("markets").delete().eq("match_id", r.id);
                     await supabase.from("matches").delete().eq("id", r.id);
                     toast.success("Deleted");
