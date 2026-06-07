@@ -83,8 +83,8 @@ export function AdminSidebar({
   const items = NAV.filter((n) => (n.admin ? isAdmin : true) || (n.modOk && (isAdmin || isMod)));
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-primary/20">
-      <SidebarHeader className="border-b border-primary/15 px-2 py-3">
+    <Sidebar collapsible="icon" className="admin-side-nav border-r-0 bg-transparent shadow-none [&_[data-sidebar=sidebar]]:bg-transparent">
+      <SidebarHeader className="border-b-0 px-2 py-3">
         <div className="flex items-center gap-2">
           <div className="h-9 w-9 rounded-xl bg-gradient-gold grid place-items-center shadow-gold overflow-hidden ring-1 ring-primary/40 shrink-0">
             <img src={lslLogo} alt="LSL" className="h-7 w-7 object-contain" />
@@ -114,7 +114,7 @@ export function AdminSidebar({
                         onSelect(item.key);
                         if (isMobile) setOpenMobile(false);
                       }}
-                      className={`text-[12px] ${active ? "bg-primary/15 text-primary border-l-2 border-primary" : ""}`}
+                      className={`text-[12px] border border-border/60 bg-background/70 backdrop-blur-xl text-foreground shadow-[0_8px_22px_-14px_oklch(0_0_0/0.9)] hover:border-primary/45 hover:bg-background/85 ${active ? "!bg-primary/20 !text-primary border-primary/60 shadow-gold" : ""}`}
                       tooltip={collapsed ? item.label : undefined}
                     >
                       <Icon className="h-4 w-4" />
