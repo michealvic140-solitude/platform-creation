@@ -61,6 +61,12 @@ const matchSelect = `
   markets(id,name,is_open,odds(id,label,value,is_winner,market_id))
 `;
 
+const resultSelect = `
+  id,name,status,start_time,location,is_featured,home_score,away_score,is_virtual,lock_time,locked_at,virtual_round_batch_id,
+  home_team:teams!home_team_id(id,name,logo_url,gang_type),
+  away_team:teams!away_team_id(id,name,logo_url,gang_type)
+`;
+
 function VirtualPage() {
   const [live, setLive] = useState<MatchRow[]>([]);
   const [upcoming, setUpcoming] = useState<MatchRow[]>([]);
@@ -79,6 +85,7 @@ function VirtualPage() {
     let queued = false;
     let debounce: ReturnType<typeof setTimeout> | undefined;
     let lastServerSync = 0;
+    let lastRecentSync = 0;
 
     const load = async () => {
       if (inFlight) { queued = true; return; }
@@ -89,6 +96,8 @@ function VirtualPage() {
           lastServerSync = now;
           await syncServerOffset();
         }
+        const includeRecent = now - lastRecentSync > 20000;
+        if (includeRecent) lastRecentSync = now;
       const [{ data: liveRows }, { data: upRows }, { data: recRows }, { data: cfg }] =
         await Promise.all([
           supabase
@@ -105,13 +114,13 @@ function VirtualPage() {
             .eq("status", "scheduled")
             .order("start_time", { ascending: true })
             .limit(40),
-          supabase
+          includeRecent ? supabase
             .from("matches")
-            .select(matchSelect)
+            .select(resultSelect)
             .eq("is_virtual", true)
             .eq("status", "ended")
             .order("settled_at", { ascending: false })
-            .limit(16),
+            .limit(16) : Promise.resolve({ data: null }),
           supabase
             .from("app_settings")
             .select(
@@ -126,7 +135,7 @@ function VirtualPage() {
       const batchIsLive = activeBatch.some((m) => m.status === "live");
       setLive(batchIsLive ? activeBatch.map((m) => ({ ...m, status: "live" })) : []);
       setUpcoming(batchIsLive ? [] : activeBatch.filter((m) => m.status === "scheduled"));
-      setRecent((recRows ?? []) as unknown as VirtualMatch[]);
+      if (recRows) setRecent((recRows ?? []) as unknown as VirtualMatch[]);
       if (cfg) {
         const settings = cfg as VirtualSettings;
         setCycle({
