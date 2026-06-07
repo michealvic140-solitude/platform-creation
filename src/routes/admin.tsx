@@ -19,11 +19,11 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import lslLogo from "@/assets/lsl-logo.png";
-import tileVirtual from "@/assets/tile-virtual.jpg";
-import tileVip from "@/assets/tile-vip.jpg";
-import tileChallenges from "@/assets/tile-challenges.jpg";
-import tileReferrals from "@/assets/tile-referrals.jpg";
-import tileHousewallet from "@/assets/tile-housewallet.jpg";
+import tileVirtual from "@/assets/tile-virtual.jpg.asset.json";
+import tileVip from "@/assets/tile-vip.jpg.asset.json";
+import tileChallenges from "@/assets/tile-challenges.jpg.asset.json";
+import tileReferrals from "@/assets/tile-referrals.jpg.asset.json";
+import tileHousewallet from "@/assets/tile-housewallet.jpg.asset.json";
 import leagueSkullFire from "@/assets/league-skull-fire.jpg";
 import { Countdown } from "@/components/Countdown";
 import { useAuth, ROLE_LABELS, type AppRole } from "@/contexts/AuthContext";
@@ -2647,7 +2647,7 @@ function AnalyticsPanel() {
         ].map((m) => (
           <Card key={m.l} className="border-primary/20 bg-card/60 p-2 sm:p-3 flex flex-col">
             <button type="button" onClick={() => setActiveTabFromAnalytics(nav, m.t)} className="relative aspect-square w-full mb-1 rounded overflow-hidden border border-primary/20 hover:border-primary/60 transition active:scale-95">
-              <img src={m.img} alt={m.l} loading="lazy" width={512} height={512} className="w-full h-full object-cover" />
+              <img src={m.img.url} alt={m.l} loading="lazy" width={1024} height={768} className="w-full h-full object-cover" />
               <img src={lslLogo} alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 m-auto h-1/2 w-1/2 object-contain opacity-15 mix-blend-screen drop-shadow-[0_4px_18px_rgba(0,0,0,0.65)]" />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
             </button>
