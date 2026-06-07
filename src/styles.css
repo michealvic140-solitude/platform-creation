@@ -632,25 +632,33 @@
   animation: shimmer 7s ease-in-out infinite;
 }
 
-/* Admin scope — red/green/white text scheme */
-.admin-scope { color: #ffffff; }
-.admin-scope h1, .admin-scope h2, .admin-scope h3, .admin-scope h4, .admin-scope h5, .admin-scope h6 { color: #ffffff; }
-.admin-scope .text-muted-foreground { color: #d4d4d8 !important; }
+/* Admin scope — white for normal text, green for positive (+), red for negative (-) */
+.admin-scope,
+.admin-scope h1, .admin-scope h2, .admin-scope h3,
+.admin-scope h4, .admin-scope h5, .admin-scope h6,
+.admin-scope p, .admin-scope span, .admin-scope label,
+.admin-scope th, .admin-scope td, .admin-scope li,
+.admin-scope .text-muted-foreground,
 .admin-scope .text-primary,
-.admin-scope .gradient-gold-text { color: #22c55e !important; background: none !important; -webkit-text-fill-color: #22c55e !important; }
-.admin-scope .text-destructive,
-.admin-scope .text-red-300,
-.admin-scope .text-red-400,
-.admin-scope .text-red-500 { color: #ef4444 !important; }
+.admin-scope .text-amber-200, .admin-scope .text-amber-300, .admin-scope .text-amber-400,
+.admin-scope .text-yellow-300, .admin-scope .text-yellow-400 { color: #ffffff !important; }
+.admin-scope .gradient-gold-text {
+  color: #ffffff !important; background: none !important; -webkit-text-fill-color: #ffffff !important;
+}
+/* Positive (+) → green */
 .admin-scope .text-emerald-200,
 .admin-scope .text-emerald-300,
 .admin-scope .text-emerald-400,
 .admin-scope .text-emerald-500,
 .admin-scope .text-green-300,
 .admin-scope .text-green-400,
-.admin-scope .text-green-500 { color: #22c55e !important; }
-.admin-scope .text-amber-200,
-.admin-scope .text-amber-300,
-.admin-scope .text-amber-400,
-.admin-scope .text-yellow-300,
-.admin-scope .text-yellow-400 { color: #ffffff !important; }
+.admin-scope .text-green-500,
+.admin-scope .text-positive,
+.admin-scope [data-sign="positive"] { color: #22c55e !important; }
+/* Negative (-) → red */
+.admin-scope .text-destructive,
+.admin-scope .text-red-300,
+.admin-scope .text-red-400,
+.admin-scope .text-red-500,
+.admin-scope .text-negative,
+.admin-scope [data-sign="negative"] { color: #ef4444 !important; }
