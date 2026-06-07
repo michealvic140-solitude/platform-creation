@@ -61,6 +61,12 @@ const matchSelect = `
   markets(id,name,is_open,odds(id,label,value,is_winner,market_id))
 `;
 
+const resultSelect = `
+  id,name,status,start_time,location,is_featured,home_score,away_score,is_virtual,lock_time,locked_at,virtual_round_batch_id,
+  home_team:teams!home_team_id(id,name,logo_url,gang_type),
+  away_team:teams!away_team_id(id,name,logo_url,gang_type)
+`;
+
 function VirtualPage() {
   const [live, setLive] = useState<MatchRow[]>([]);
   const [upcoming, setUpcoming] = useState<MatchRow[]>([]);
@@ -74,8 +80,24 @@ function VirtualPage() {
   });
 
   useEffect(() => {
+    let cancelled = false;
+    let inFlight = false;
+    let queued = false;
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+    let lastServerSync = 0;
+    let lastRecentSync = 0;
+
     const load = async () => {
-      await syncServerOffset();
+      if (inFlight) { queued = true; return; }
+      inFlight = true;
+      try {
+        const now = Date.now();
+        if (now - lastServerSync > 30000) {
+          lastServerSync = now;
+          await syncServerOffset();
+        }
+        const includeRecent = now - lastRecentSync > 20000;
+        if (includeRecent) lastRecentSync = now;
       const [{ data: liveRows }, { data: upRows }, { data: recRows }, { data: cfg }] =
         await Promise.all([
           supabase
@@ -92,13 +114,13 @@ function VirtualPage() {
             .eq("status", "scheduled")
             .order("start_time", { ascending: true })
             .limit(40),
-          supabase
+          includeRecent ? supabase
             .from("matches")
-            .select(matchSelect)
+            .select(resultSelect)
             .eq("is_virtual", true)
             .eq("status", "ended")
             .order("settled_at", { ascending: false })
-            .limit(16),
+            .limit(16) : Promise.resolve({ data: null }),
           supabase
             .from("app_settings")
             .select(
@@ -107,12 +129,13 @@ function VirtualPage() {
             .eq("id", 1)
             .maybeSingle(),
         ]);
+      if (cancelled) return;
       const activeRows = [...((liveRows ?? []) as unknown as VirtualMatch[]), ...((upRows ?? []) as unknown as VirtualMatch[])];
       const activeBatch = newestVirtualBatch(activeRows);
       const batchIsLive = activeBatch.some((m) => m.status === "live");
       setLive(batchIsLive ? activeBatch.map((m) => ({ ...m, status: "live" })) : []);
       setUpcoming(batchIsLive ? [] : activeBatch.filter((m) => m.status === "scheduled"));
-      setRecent((recRows ?? []) as unknown as VirtualMatch[]);
+      if (recRows) setRecent((recRows ?? []) as unknown as VirtualMatch[]);
       if (cfg) {
         const settings = cfg as VirtualSettings;
         setCycle({
@@ -123,30 +146,37 @@ function VirtualPage() {
           maxScore: Number(settings.virtual_max_score ?? 8),
         });
       }
+      } finally {
+        inFlight = false;
+        if (queued && !cancelled) {
+          queued = false;
+          debounce = setTimeout(load, 250);
+        }
+      }
+    };
+    const scheduleLoad = () => {
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(load, 350);
     };
     load();
-    const t = setInterval(load, 1000);
-    // Fallback ping while signed in, in case the scheduled backend tick lags.
+    const t = setInterval(load, 5000);
+    // Fallback heartbeat through the public route; return immediately and let the UI poll calmly.
     const ping = setInterval(() => {
-      supabase.rpc("virtual_tick").then(
-        () => {},
-        () => {},
-      );
-    }, 8000);
-    supabase.rpc("virtual_tick").then(
-      () => {},
-      () => {},
-    );
+      fetch("/api/public/virtual-tick", { cache: "no-store" }).then(scheduleLoad, () => {});
+    }, 15000);
+    fetch("/api/public/virtual-tick", { cache: "no-store" }).then(scheduleLoad, () => {});
     const ch = supabase
       .channel("virtual-rounds-v2")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "matches", filter: "is_virtual=eq.true" },
-        load,
+        scheduleLoad,
       )
-      .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, scheduleLoad)
       .subscribe();
     return () => {
+      cancelled = true;
+      if (debounce) clearTimeout(debounce);
       clearInterval(t);
       clearInterval(ping);
       supabase.removeChannel(ch);
@@ -764,10 +794,13 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
   const [tracers, setTracers] = useState<Tracer[]>([]);
   const [blasts, setBlasts] = useState<Blast[]>([]);
   const fightersRef = useRef(fighters);
+  const frameRef = useRef(0);
 
   useEffect(() => {
     const tick = () => {
       const now = serverNow();
+      frameRef.current += 1;
+      const frame = frameRef.current;
       const ratio = Math.min(1, Math.max(0, (now - lockMs) / Math.max(1, endMs - lockMs)));
       setProgress(ratio);
       const { h: fh, a: fa } = progressiveScore(
@@ -780,8 +813,8 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
       // Move fighters through the block, exchange fire, and drop casualties as the simulated score climbs.
       setFighters((prev) => {
         const next = prev.map((f, idx) => {
-          const jitterX = (Math.random() - 0.5) * 0.85;
-          const jitterY = (Math.random() - 0.5) * 0.95;
+          const jitterX = (seedRand(match.id, frame * 37 + idx) - 0.5) * 0.42;
+          const jitterY = (seedRand(match.id, frame * 53 + idx) - 0.5) * 0.48;
           const targetAlive =
             f.side === "h" ? Math.max(0, 8 - Math.min(8, fa)) : Math.max(0, 8 - Math.min(8, fh));
           const sideArr = prev.filter((p) => p.side === f.side);
@@ -802,7 +835,7 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
             vx: nvx,
             vy: nvy,
             alive: stillAlive,
-            flash: Math.max(0, f.flash - 0.18 + (stillAlive && Math.random() < 0.18 ? 1 : 0)),
+            flash: Math.max(0, f.flash - 0.25 + (stillAlive && seedRand(match.id, frame * 71 + idx) < 0.16 ? 1 : 0)),
           };
         });
         fightersRef.current = next;
@@ -810,27 +843,27 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
       });
 
       // Spawn tracer between random alive opponents.
-      if (Math.random() < 0.55) {
+      if (seedRand(match.id, frame * 89) < 0.42) {
         setTracers((prev) => {
           const alive = fightersRef.current.filter((f) => f.alive);
           if (alive.length < 2) return prev;
-          const a = alive[Math.floor(Math.random() * alive.length)];
+          const a = alive[Math.floor(seedRand(match.id, frame * 97) * alive.length)];
           const enemies = alive.filter((f) => f.side !== a.side);
           if (!enemies.length) return prev;
-          const b = enemies[Math.floor(Math.random() * enemies.length)];
+          const b = enemies[Math.floor(seedRand(match.id, frame * 101) * enemies.length)];
           const next = [...prev, { x1: a.x, y1: a.y, x2: b.x, y2: b.y, side: a.side, born: now }];
-          if (Math.random() < 0.18)
+          if (seedRand(match.id, frame * 109) < 0.14)
             setBlasts((old) =>
-              [...old, { x: b.x, y: b.y, born: now, size: 18 + Math.random() * 18 }]
-                .filter((v) => now - v.born < 900)
+              [...old, { x: b.x, y: b.y, born: now, size: 18 + seedRand(match.id, frame * 113) * 18 }]
+                .filter((v) => now - v.born < 1100)
                 .slice(-5),
             );
-          return next.filter((t) => now - t.born < 450).slice(-8);
+          return next.filter((t) => now - t.born < 650).slice(-6);
         });
       } else {
-        setTracers((prev) => prev.filter((t) => now - t.born < 450));
+        setTracers((prev) => prev.filter((t) => now - t.born < 650));
       }
-      setBlasts((prev) => prev.filter((b) => now - b.born < 900));
+      setBlasts((prev) => prev.filter((b) => now - b.born < 1100));
 
       const surfaced: string[] = [];
       for (let i = 0; i < fh; i++) {
@@ -850,9 +883,9 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
       setFeed(surfaced.slice(0, 4));
     };
     tick();
-    const t = setInterval(tick, 220);
+    const t = setInterval(tick, 500);
     return () => clearInterval(t);
-  }, [lockMs, endMs, match.id, match.status, match.home_team?.name, match.away_team?.name]);
+  }, [lockMs, endMs, match.id, match.status, match.home_score, match.away_score, match.home_team?.name, match.away_team?.name]);
 
   const homeName = match.home_team?.name ?? "Gang A";
   const awayName = match.away_team?.name ?? "Gang B";
