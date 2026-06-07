@@ -785,10 +785,13 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
   const [tracers, setTracers] = useState<Tracer[]>([]);
   const [blasts, setBlasts] = useState<Blast[]>([]);
   const fightersRef = useRef(fighters);
+  const frameRef = useRef(0);
 
   useEffect(() => {
     const tick = () => {
       const now = serverNow();
+      frameRef.current += 1;
+      const frame = frameRef.current;
       const ratio = Math.min(1, Math.max(0, (now - lockMs) / Math.max(1, endMs - lockMs)));
       setProgress(ratio);
       const { h: fh, a: fa } = progressiveScore(
@@ -801,8 +804,8 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
       // Move fighters through the block, exchange fire, and drop casualties as the simulated score climbs.
       setFighters((prev) => {
         const next = prev.map((f, idx) => {
-          const jitterX = (Math.random() - 0.5) * 0.85;
-          const jitterY = (Math.random() - 0.5) * 0.95;
+          const jitterX = (seedRand(match.id, frame * 37 + idx) - 0.5) * 0.42;
+          const jitterY = (seedRand(match.id, frame * 53 + idx) - 0.5) * 0.48;
           const targetAlive =
             f.side === "h" ? Math.max(0, 8 - Math.min(8, fa)) : Math.max(0, 8 - Math.min(8, fh));
           const sideArr = prev.filter((p) => p.side === f.side);
@@ -823,7 +826,7 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
             vx: nvx,
             vy: nvy,
             alive: stillAlive,
-            flash: Math.max(0, f.flash - 0.18 + (stillAlive && Math.random() < 0.18 ? 1 : 0)),
+            flash: Math.max(0, f.flash - 0.25 + (stillAlive && seedRand(match.id, frame * 71 + idx) < 0.16 ? 1 : 0)),
           };
         });
         fightersRef.current = next;
@@ -831,27 +834,27 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
       });
 
       // Spawn tracer between random alive opponents.
-      if (Math.random() < 0.55) {
+      if (seedRand(match.id, frame * 89) < 0.42) {
         setTracers((prev) => {
           const alive = fightersRef.current.filter((f) => f.alive);
           if (alive.length < 2) return prev;
-          const a = alive[Math.floor(Math.random() * alive.length)];
+          const a = alive[Math.floor(seedRand(match.id, frame * 97) * alive.length)];
           const enemies = alive.filter((f) => f.side !== a.side);
           if (!enemies.length) return prev;
-          const b = enemies[Math.floor(Math.random() * enemies.length)];
+          const b = enemies[Math.floor(seedRand(match.id, frame * 101) * enemies.length)];
           const next = [...prev, { x1: a.x, y1: a.y, x2: b.x, y2: b.y, side: a.side, born: now }];
-          if (Math.random() < 0.18)
+          if (seedRand(match.id, frame * 109) < 0.14)
             setBlasts((old) =>
-              [...old, { x: b.x, y: b.y, born: now, size: 18 + Math.random() * 18 }]
-                .filter((v) => now - v.born < 900)
+              [...old, { x: b.x, y: b.y, born: now, size: 18 + seedRand(match.id, frame * 113) * 18 }]
+                .filter((v) => now - v.born < 1100)
                 .slice(-5),
             );
-          return next.filter((t) => now - t.born < 450).slice(-8);
+          return next.filter((t) => now - t.born < 650).slice(-6);
         });
       } else {
-        setTracers((prev) => prev.filter((t) => now - t.born < 450));
+        setTracers((prev) => prev.filter((t) => now - t.born < 650));
       }
-      setBlasts((prev) => prev.filter((b) => now - b.born < 900));
+      setBlasts((prev) => prev.filter((b) => now - b.born < 1100));
 
       const surfaced: string[] = [];
       for (let i = 0; i < fh; i++) {
@@ -871,9 +874,9 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
       setFeed(surfaced.slice(0, 4));
     };
     tick();
-    const t = setInterval(tick, 220);
+    const t = setInterval(tick, 500);
     return () => clearInterval(t);
-  }, [lockMs, endMs, match.id, match.status, match.home_team?.name, match.away_team?.name]);
+  }, [lockMs, endMs, match.id, match.status, match.home_score, match.away_score, match.home_team?.name, match.away_team?.name]);
 
   const homeName = match.home_team?.name ?? "Gang A";
   const awayName = match.away_team?.name ?? "Gang B";
