@@ -148,18 +148,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
       </header>
       <main className="relative lg:pl-0 pl-14">{children}</main>
       <LevelUpModal />
-      <nav
-        className="lg:hidden fixed left-0 inset-y-0 pt-16 z-40 w-14 backdrop-blur-2xl border-r overflow-y-auto"
-        style={{
-          background:
-            "linear-gradient(180deg, oklch(0.18 0.08 158 / 0.98) 0%, oklch(0.16 0.07 140 / 0.98) 45%, oklch(0.26 0.10 80 / 0.98) 100%)",
-          borderColor: "oklch(0.62 0.14 80 / 0.55)",
-          boxShadow:
-            "8px 0 32px -10px oklch(0 0 0 / 0.7), inset -1px 0 0 oklch(0.95 0.08 92 / 0.10), 4px 0 24px -6px oklch(0.55 0.14 158 / 0.35)",
-        }}
-      >
-        <div className="pointer-events-none absolute inset-y-0 -right-px w-px bg-gradient-to-b from-transparent via-primary to-emerald/70" />
-        <div className="pointer-events-none absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_top,oklch(0.65_0.17_158/0.18),transparent_65%)]" />
+      <nav className="lg:hidden fixed left-0 inset-y-0 pt-16 z-40 w-14 overflow-y-auto bg-transparent border-0 shadow-none">
         <div className="flex flex-col items-stretch gap-0.5 py-2 px-1">
           <button
             type="button"
@@ -169,7 +158,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
             className="group relative flex flex-col items-center justify-center gap-0.5 px-0 py-2 rounded-xl text-[9px] font-semibold tracking-wide text-primary transition-all hover:text-foreground active:scale-95"
             title="Menu"
           >
-            <span className="relative grid place-items-center h-9 w-9 rounded-xl bg-gradient-to-br from-primary/25 to-primary/5 shadow-[0_0_18px_-4px_rgba(212,175,55,0.55)]">
+            <span className="relative grid place-items-center h-9 w-9 rounded-xl border border-primary/35 bg-background/80 backdrop-blur-xl shadow-gold">
               <SettingsIcon className={`h-[18px] w-[18px] transition-transform ${railOpen ? "rotate-180" : ""}`} />
             </span>
             <span className="leading-none text-[8px]">{railOpen ? "Less" : "More"}</span>
