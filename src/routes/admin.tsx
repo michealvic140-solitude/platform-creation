@@ -19,11 +19,6 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import lslLogo from "@/assets/lsl-logo.png";
-import tileVirtual from "@/assets/tile-virtual.jpg.asset.json";
-import tileVip from "@/assets/tile-vip.jpg.asset.json";
-import tileChallenges from "@/assets/tile-challenges.jpg.asset.json";
-import tileReferrals from "@/assets/tile-referrals.jpg.asset.json";
-import tileHousewallet from "@/assets/tile-housewallet.jpg.asset.json";
 import leagueSkullFire from "@/assets/league-skull-fire.jpg";
 import { Countdown } from "@/components/Countdown";
 import { useAuth, ROLE_LABELS, type AppRole } from "@/contexts/AuthContext";
@@ -37,6 +32,12 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { SpotlightsAdminPanel } from "@/components/Spotlight";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+
+const tileVirtual = "/__l5e/assets-v1/a6cb9974-8c12-48b4-ae39-3e297ea09573/tile-virtual.jpg";
+const tileVip = "/__l5e/assets-v1/bc494917-64b0-4e91-9ae5-cc26eed300ec/tile-vip.jpg";
+const tileChallenges = "/__l5e/assets-v1/2dd7baf3-410f-49fd-8d6d-7c3cb4e512e7/tile-challenges.jpg";
+const tileReferrals = "/__l5e/assets-v1/2ad774f7-37ed-4fa4-a153-27e4e3c8eb09/tile-referrals.jpg";
+const tileHousewallet = "/__l5e/assets-v1/62dc3cf0-3db2-4757-8b57-0bcf73582243/tile-housewallet.jpg";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — LSL" }, { name: "description", content: "League administration dashboard." }] }),
@@ -2647,7 +2648,7 @@ function AnalyticsPanel() {
         ].map((m) => (
           <Card key={m.l} className="border-primary/20 bg-card/60 p-2 sm:p-3 flex flex-col">
             <button type="button" onClick={() => setActiveTabFromAnalytics(nav, m.t)} className="relative aspect-square w-full mb-1 rounded overflow-hidden border border-primary/20 hover:border-primary/60 transition active:scale-95">
-              <img src={m.img.url} alt={m.l} loading="lazy" width={1024} height={768} className="w-full h-full object-cover" />
+              <img src={m.img} alt={m.l} loading="lazy" width={1024} height={768} className="w-full h-full object-cover" />
               <img src={lslLogo} alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 m-auto h-1/2 w-1/2 object-contain opacity-15 mix-blend-screen drop-shadow-[0_4px_18px_rgba(0,0,0,0.65)]" />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
             </button>
