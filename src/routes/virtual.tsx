@@ -74,8 +74,21 @@ function VirtualPage() {
   });
 
   useEffect(() => {
+    let cancelled = false;
+    let inFlight = false;
+    let queued = false;
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+    let lastServerSync = 0;
+
     const load = async () => {
-      await syncServerOffset();
+      if (inFlight) { queued = true; return; }
+      inFlight = true;
+      try {
+        const now = Date.now();
+        if (now - lastServerSync > 30000) {
+          lastServerSync = now;
+          await syncServerOffset();
+        }
       const [{ data: liveRows }, { data: upRows }, { data: recRows }, { data: cfg }] =
         await Promise.all([
           supabase
@@ -107,6 +120,7 @@ function VirtualPage() {
             .eq("id", 1)
             .maybeSingle(),
         ]);
+      if (cancelled) return;
       const activeRows = [...((liveRows ?? []) as unknown as VirtualMatch[]), ...((upRows ?? []) as unknown as VirtualMatch[])];
       const activeBatch = newestVirtualBatch(activeRows);
       const batchIsLive = activeBatch.some((m) => m.status === "live");
@@ -123,30 +137,37 @@ function VirtualPage() {
           maxScore: Number(settings.virtual_max_score ?? 8),
         });
       }
+      } finally {
+        inFlight = false;
+        if (queued && !cancelled) {
+          queued = false;
+          debounce = setTimeout(load, 250);
+        }
+      }
+    };
+    const scheduleLoad = () => {
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(load, 350);
     };
     load();
-    const t = setInterval(load, 1000);
-    // Fallback ping while signed in, in case the scheduled backend tick lags.
+    const t = setInterval(load, 5000);
+    // Fallback heartbeat through the public route; return immediately and let the UI poll calmly.
     const ping = setInterval(() => {
-      supabase.rpc("virtual_tick").then(
-        () => {},
-        () => {},
-      );
-    }, 8000);
-    supabase.rpc("virtual_tick").then(
-      () => {},
-      () => {},
-    );
+      fetch("/api/public/virtual-tick", { cache: "no-store" }).then(scheduleLoad, () => {});
+    }, 15000);
+    fetch("/api/public/virtual-tick", { cache: "no-store" }).then(scheduleLoad, () => {});
     const ch = supabase
       .channel("virtual-rounds-v2")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "matches", filter: "is_virtual=eq.true" },
-        load,
+        scheduleLoad,
       )
-      .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, scheduleLoad)
       .subscribe();
     return () => {
+      cancelled = true;
+      if (debounce) clearTimeout(debounce);
       clearInterval(t);
       clearInterval(ping);
       supabase.removeChannel(ch);
