@@ -21,15 +21,18 @@ function useRegisterServiceWorker() {
 }
 
 // Site-wide background ticker so virtual rounds keep advancing even when
-// no one is on /virtual. Any authenticated client pings every 15s.
+// no one is on /virtual. Keep this light so live pages do not stutter.
 function useVirtualHeartbeat() {
   const { user } = useAuth();
   useEffect(() => {
     if (!user) return;
     let alive = true;
-    const ping = () => { supabase.rpc("virtual_tick").then(() => {}, () => {}); };
+    const ping = () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      fetch("/api/public/virtual-tick", { cache: "no-store" }).then(() => {}, () => {});
+    };
     ping();
-    const t = setInterval(() => { if (alive) ping(); }, 15000);
+    const t = setInterval(() => { if (alive) ping(); }, 30000);
     return () => { alive = false; clearInterval(t); };
   }, [user]);
 }
