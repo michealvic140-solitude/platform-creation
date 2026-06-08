@@ -2131,14 +2131,18 @@ function AuditPanel() {
   const [actionFilter, setActionFilter] = useState<string>("all");
 
   useEffect(() => {
-    supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(500).then(async ({ data }) => {
+    const load = async () => {
+      const { data, error } = await supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(800);
+      if (error) { toast.error(`Audit logs unavailable: ${error.message}`); return; }
       setLogs(data ?? []);
       const ids = new Set<string>();
       (data ?? []).forEach((x: any) => {
         if (x.actor_id) ids.add(x.actor_id);
+        if (x.metadata?.actor_id) ids.add(x.metadata.actor_id);
         const tu = x.metadata?.target_user_id;
         if (tu) ids.add(tu);
         if (x.target_type === "user" && x.target_id) ids.add(x.target_id);
+        if (x.target_type === "profiles" && x.target_id) ids.add(x.target_id);
       });
       if (ids.size) {
         const { data: p } = await supabase.from("profiles").select("id,full_name,email").in("id", Array.from(ids));
@@ -2146,26 +2150,29 @@ function AuditPanel() {
         (p ?? []).forEach((x: any) => { m[x.id] = x; });
         setProfiles(m);
       }
-    });
+    };
+    load();
+    const ch = supabase.channel("admin-audit-live")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "audit_logs" }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   const filtered = useMemo(() => {
     return logs.filter((l) => {
-      if (actionFilter !== "all" && !l.action.startsWith(actionFilter)) return false;
+      const action = String(l.action ?? "");
+      if (/^virtual_round_auto_|^virtual_tick|^virtual_match_auto/i.test(action)) return false;
+      if (actionFilter !== "all" && !auditCategoryFor(action, l.target_type).includes(actionFilter)) return false;
       if (!q) return true;
-      const actor = profiles[l.actor_id]?.full_name ?? "";
+      const actor = profiles[l.actor_id]?.full_name ?? l.metadata?.actor_email ?? "";
       const targetUserId = l.metadata?.target_user_id ?? (l.target_type === "user" ? l.target_id : null);
-      const target = targetUserId ? (profiles[targetUserId]?.full_name ?? "") : "";
+      const target = targetUserId ? (profiles[targetUserId]?.full_name ?? "") : (l.metadata?.target_name ?? "");
       const hay = `${l.action} ${l.target_type} ${l.target_id ?? ""} ${actor} ${target} ${JSON.stringify(l.metadata ?? {})}`.toLowerCase();
       return hay.includes(q.toLowerCase());
     });
   }, [logs, q, actionFilter, profiles]);
 
-  const actionPrefixes = useMemo(() => {
-    const set = new Set<string>();
-    logs.forEach((l) => set.add(l.action.split("_")[0]));
-    return Array.from(set).sort();
-  }, [logs]);
+  const actionPrefixes = ["add", "admin", "ai", "announcements", "approve", "banned", "decline", "delete", "emergency", "event", "grant", "house", "kick", "match", "notify", "promo", "refund", "remove", "restrict", "revoke", "settings", "suspension", "token", "unsuspend", "withdrawal"];
 
   return (
     <div className="space-y-3">
@@ -2179,7 +2186,8 @@ function AuditPanel() {
             {actionPrefixes.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Badge variant="outline" className="ml-auto">{filtered.length} of {logs.length}</Badge>
+        <Button size="sm" variant="outline" onClick={() => { setQ(""); setActionFilter("all"); }}><RotateCw className="h-3 w-3 mr-1" />Reset</Button>
+        <Badge variant="outline" className="ml-auto">{filtered.length} visible</Badge>
       </Card>
 
       {filtered.length === 0 && <p className="text-sm text-muted-foreground">No audit entries match.</p>}
