@@ -2603,6 +2603,15 @@ export type Database = {
         }[]
       }
       admin_lock_virtual_round: { Args: { _match_id: string }; Returns: Json }
+      admin_log_action: {
+        Args: {
+          _action: string
+          _metadata?: Json
+          _target_id?: string
+          _target_type?: string
+        }
+        Returns: string
+      }
       admin_mark_task_completed: {
         Args: { _task_id: string }
         Returns: undefined
@@ -2688,6 +2697,7 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_mod_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_staff: { Args: { _user_id: string }; Returns: boolean }
       place_virtual_bet: {
         Args: { _match_id: string; _odd_id: string; _stake: number }
         Returns: Json
@@ -2696,6 +2706,7 @@ export type Database = {
         Args: { _selections: Json; _stake: number }
         Returns: Json
       }
+      primary_role: { Args: { _user_id: string }; Returns: string }
       recalc_vip_tier: { Args: { _user_id: string }; Returns: string }
       redeem_promo_code: { Args: { _code: string }; Returns: Json }
       redeem_referral_code: { Args: { _code: string }; Returns: Json }

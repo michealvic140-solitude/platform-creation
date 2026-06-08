@@ -19,12 +19,12 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import lslLogo from "@/assets/lsl-logo.png";
-import tileBattleAsset from "@/assets/tile-battle.jpg.asset.json";
 import tileVirtualAsset from "@/assets/tile-virtual.jpg.asset.json";
 import tileChallengesAsset from "@/assets/tile-challenges.jpg.asset.json";
-import tileReferrals from "@/assets/tile-referrals.jpg";
-import tileUsersAsset from "@/assets/tile-users.jpg.asset.json";
+import tileReferralsAsset from "@/assets/tile-referrals.jpg.asset.json";
 import leagueSkullFire from "@/assets/league-skull-fire.jpg";
+import adminBattleTile from "@/assets/admin-battle-tile.jpg";
+import adminUsersTile from "@/assets/admin-users-tile.jpg";
 import { Countdown } from "@/components/Countdown";
 import { useAuth, ROLE_LABELS, type AppRole } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -189,14 +189,19 @@ function AdminPage() {
 async function logAudit(action: string, target_type: string, target_id?: string, metadata?: any) {
   const u = (await supabase.auth.getUser()).data.user;
   if (!u) return;
+  const dedupeSource = `${action}|${target_type}|${target_id ?? ""}|${JSON.stringify(metadata ?? {})}`;
   const enriched: any = {
     ...(metadata ?? {}),
+    actor_email: u.email,
+    actor_id: u.id,
     user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
     route: typeof window !== "undefined" ? window.location.pathname + window.location.search : null,
     origin: typeof window !== "undefined" ? window.location.origin : null,
     locale: typeof navigator !== "undefined" ? navigator.language : null,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     source: "admin_panel",
+    audit_source: "admin_panel",
+    dedupe_key: dedupeSource,
   };
   if (target_type === "user" && target_id) enriched.target_user_id = target_id;
   const { error } = await (supabase as any).rpc("admin_log_action", {
@@ -2126,14 +2131,18 @@ function AuditPanel() {
   const [actionFilter, setActionFilter] = useState<string>("all");
 
   useEffect(() => {
-    supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(500).then(async ({ data }) => {
+    const load = async () => {
+      const { data, error } = await supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(800);
+      if (error) { toast.error(`Audit logs unavailable: ${error.message}`); return; }
       setLogs(data ?? []);
       const ids = new Set<string>();
       (data ?? []).forEach((x: any) => {
         if (x.actor_id) ids.add(x.actor_id);
+        if (x.metadata?.actor_id) ids.add(x.metadata.actor_id);
         const tu = x.metadata?.target_user_id;
         if (tu) ids.add(tu);
         if (x.target_type === "user" && x.target_id) ids.add(x.target_id);
+        if (x.target_type === "profiles" && x.target_id) ids.add(x.target_id);
       });
       if (ids.size) {
         const { data: p } = await supabase.from("profiles").select("id,full_name,email").in("id", Array.from(ids));
@@ -2141,26 +2150,29 @@ function AuditPanel() {
         (p ?? []).forEach((x: any) => { m[x.id] = x; });
         setProfiles(m);
       }
-    });
+    };
+    load();
+    const ch = supabase.channel("admin-audit-live")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "audit_logs" }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   const filtered = useMemo(() => {
     return logs.filter((l) => {
-      if (actionFilter !== "all" && !l.action.startsWith(actionFilter)) return false;
+      const action = String(l.action ?? "");
+      if (/^virtual_round_auto_|^virtual_tick|^virtual_match_auto/i.test(action)) return false;
+      if (actionFilter !== "all" && !auditCategoryFor(action, l.target_type).includes(actionFilter)) return false;
       if (!q) return true;
-      const actor = profiles[l.actor_id]?.full_name ?? "";
+      const actor = profiles[l.actor_id]?.full_name ?? l.metadata?.actor_email ?? "";
       const targetUserId = l.metadata?.target_user_id ?? (l.target_type === "user" ? l.target_id : null);
-      const target = targetUserId ? (profiles[targetUserId]?.full_name ?? "") : "";
+      const target = targetUserId ? (profiles[targetUserId]?.full_name ?? "") : (l.metadata?.target_name ?? "");
       const hay = `${l.action} ${l.target_type} ${l.target_id ?? ""} ${actor} ${target} ${JSON.stringify(l.metadata ?? {})}`.toLowerCase();
       return hay.includes(q.toLowerCase());
     });
   }, [logs, q, actionFilter, profiles]);
 
-  const actionPrefixes = useMemo(() => {
-    const set = new Set<string>();
-    logs.forEach((l) => set.add(l.action.split("_")[0]));
-    return Array.from(set).sort();
-  }, [logs]);
+  const actionPrefixes = ["add", "admin", "ai", "announcements", "approve", "banned", "decline", "delete", "emergency", "event", "grant", "house", "kick", "match", "notify", "promo", "refund", "remove", "restrict", "revoke", "settings", "suspension", "token", "unsuspend", "withdrawal"];
 
   return (
     <div className="space-y-3">
@@ -2174,7 +2186,8 @@ function AuditPanel() {
             {actionPrefixes.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Badge variant="outline" className="ml-auto">{filtered.length} of {logs.length}</Badge>
+        <Button size="sm" variant="outline" onClick={() => { setQ(""); setActionFilter("all"); }}><RotateCw className="h-3 w-3 mr-1" />Reset</Button>
+        <Badge variant="outline" className="ml-auto">{filtered.length} visible</Badge>
       </Card>
 
       {filtered.length === 0 && <p className="text-sm text-muted-foreground">No audit entries match.</p>}
@@ -2184,6 +2197,8 @@ function AuditPanel() {
           const meta = l.metadata ?? {};
           const targetUserId = meta.target_user_id ?? (l.target_type === "user" ? l.target_id : null);
           const targetUser = targetUserId ? profiles[targetUserId] : null;
+          const actorName = actor?.full_name ?? meta.actor_email ?? (l.actor_id ? `Staff ${String(l.actor_id).slice(0, 8)}` : "System");
+          const targetName = targetUser?.full_name ?? meta.target_name ?? l.target_id ?? "record";
           const ts = new Date(l.created_at);
           const action = humanize(l.action);
           const tone = /(ban|revoke|deny|delete|wipe|restrict|mute)/i.test(l.action) ? "destructive"
@@ -2194,7 +2209,7 @@ function AuditPanel() {
                         : "border-primary/30 bg-primary/5";
           const dotCls = tone === "destructive" ? "bg-destructive" : tone === "emerald" ? "bg-emerald-400" : "bg-primary";
           // Strip enrichment keys from "extra" rendering
-          const standardKeys = new Set(["actor_email", "user_agent", "route", "origin", "locale", "timezone", "timestamp_iso", "target_user_id"]);
+          const standardKeys = new Set(["actor_email", "actor_id", "actor_role", "user_agent", "route", "origin", "locale", "timezone", "timestamp_iso", "target_user_id", "target_name", "reason", "audit_source", "source", "dedupe_key", "where"]);
           const extras = Object.entries(meta).filter(([k]) => !standardKeys.has(k));
           return (
             <Card key={l.id} className={`glass p-4 border ${toneCls}`}>
@@ -2202,21 +2217,20 @@ function AuditPanel() {
                 <span className={`mt-1 h-2.5 w-2.5 rounded-full shrink-0 ${dotCls} shadow-[0_0_10px_currentColor]`} />
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="font-bold text-primary">{actor?.full_name ?? "System"}</span>
+                    <span className="font-bold text-primary">{actorName}</span>
                     <span className="text-muted-foreground">{action}</span>
                     <span className="text-muted-foreground">on</span>
                     <Badge variant="outline" className="capitalize">{l.target_type ?? "—"}</Badge>
-                    {targetUser && (
-                      <>
-                        <span className="text-muted-foreground">→</span>
-                        <span className="font-bold text-emerald-300">{targetUser.full_name}</span>
-                      </>
-                    )}
+                    <span className="text-muted-foreground">→</span>
+                    <span className="font-bold text-emerald-300">{targetName}</span>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                    {actor?.email && <Detail icon={Users} label="By"><span className="font-mono">{actor.email}</span></Detail>}
+                    {(actor?.email || meta.actor_email) && <Detail icon={Users} label="By"><span className="font-mono">{actor?.email ?? meta.actor_email}</span></Detail>}
+                    {meta.actor_role && <Detail icon={Shield} label="Role"><span className="capitalize">{meta.actor_role}</span></Detail>}
                     {targetUser?.email && <Detail icon={Users} label="To"><span className="font-mono">{targetUser.email}</span></Detail>}
                     {l.target_id && l.target_type !== "user" && <Detail icon={Tag} label="Target ID"><span className="font-mono break-all">{l.target_id}</span></Detail>}
+                    {meta.reason && <Detail icon={AlertTriangle} label="Reason"><span>{meta.reason}</span></Detail>}
+                    {meta.where && <Detail icon={MapPin} label="Where"><span className="font-mono">{meta.where}</span></Detail>}
                     {meta.route && <Detail icon={MapPin} label="From route"><span className="font-mono">{meta.route}</span></Detail>}
                     {meta.origin && <Detail icon={Globe} label="Origin"><span className="font-mono">{meta.origin}</span></Detail>}
                     {meta.user_agent && <Detail icon={Smartphone} label="Device"><span className="font-mono truncate inline-block max-w-[260px] align-bottom">{summariseUA(meta.user_agent)}</span></Detail>}
@@ -2265,6 +2279,36 @@ function Detail({ icon: Icon, label, children }: { icon: any; label: string; chi
       <span className="truncate">{children}</span>
     </div>
   );
+}
+function auditCategoryFor(action: string, targetType?: string | null) {
+  const hay = `${action} ${targetType ?? ""}`.toLowerCase();
+  const categories: string[] = [];
+  if (/(^|_)add|insert|create|role/.test(hay)) categories.push("add");
+  if (/admin/.test(hay)) categories.push("admin");
+  if (/ai|copilot/.test(hay)) categories.push("ai");
+  if (/announcement|content|highlight|spotlight|broadcast/.test(hay)) categories.push("announcements");
+  if (/approve|approved/.test(hay)) categories.push("approve");
+  if (/ban|banned/.test(hay)) categories.push("banned");
+  if (/decline|denied|deny/.test(hay)) categories.push("decline");
+  if (/delete|deleted|wipe|void/.test(hay)) categories.push("delete");
+  if (/emergency|reload|force|maintenance/.test(hay)) categories.push("emergency");
+  if (/event/.test(hay)) categories.push("event");
+  if (/grant|credit|approved|won/.test(hay)) categories.push("grant");
+  if (/house|wallet|payout/.test(hay)) categories.push("house");
+  if (/kick|logout/.test(hay)) categories.push("kick");
+  if (/match|settle|score|leaderboard|virtual_round_locked|virtual_round_resolved|virtual_round_created/.test(hay)) categories.push("match");
+  if (/notify|notification|broadcast/.test(hay)) categories.push("notify");
+  if (/promo/.test(hay)) categories.push("promo");
+  if (/refund|refunded/.test(hay)) categories.push("refund");
+  if (/remove|removed|revoke|debit/.test(hay)) categories.push("remove");
+  if (/restrict/.test(hay)) categories.push("restrict");
+  if (/revoke|debit/.test(hay)) categories.push("revoke");
+  if (/setting|config|cycle|rules/.test(hay)) categories.push("settings");
+  if (/suspend|muted|mute/.test(hay)) categories.push("suspension");
+  if (/token/.test(hay)) categories.push("token");
+  if (/unsuspend|unmute|lift/.test(hay)) categories.push("unsuspend");
+  if (/withdrawal/.test(hay)) categories.push("withdrawal");
+  return categories.length ? categories : [action.split("_")[0] || "other"];
 }
 function humanize(action: string) { return action.replace(/_/g, " "); }
 
@@ -2661,10 +2705,10 @@ function AnalyticsPanel() {
       <div className="grid grid-cols-5 gap-2 sm:gap-3">
         {[
           { l: "VIRTUAL", s: "Manage virtual matches and rounds", t: "virtual", img: tileVirtualAsset.url },
-          { l: "BATTLE", s: "Manage matches, fixtures and outcomes", t: "matches", img: tileBattleAsset.url },
+          { l: "BATTLE", s: "Manage matches, fixtures and outcomes", t: "matches", img: adminBattleTile },
           { l: "CHALLENGES", s: "Create and manage gang challenges", t: "challenges", img: tileChallengesAsset.url },
-          { l: "REFERRALS", s: "Manage referrals and commissions", t: "referrals", img: tileReferrals },
-          { l: "USERS", s: "Manage users, profiles and access", t: "users", img: tileUsersAsset.url },
+          { l: "REFERRALS", s: "Manage referrals and commissions", t: "referrals", img: tileReferralsAsset.url },
+          { l: "USERS", s: "Manage users, profiles and access", t: "users", img: adminUsersTile },
         ].map((m) => (
           <Card key={m.l} className="border-primary/20 bg-card/60 p-2 sm:p-3 flex flex-col">
             <button type="button" onClick={() => setActiveTabFromAnalytics(nav, m.t)} className="relative aspect-square w-full mb-1 rounded overflow-hidden border border-primary/20 hover:border-primary/60 transition active:scale-95">
@@ -3120,11 +3164,18 @@ function BetTrackerPanel() {
 
   async function load() {
     let qb = supabase.from("bets")
-      .select("*, profiles!user_id(full_name,email,ingame_name), bet_selections(*, matches!match_id(name))")
+      .select("*, bet_selections(id,match_id,market_id,odd_id,locked_odds,selection_label,result,created_at, matches!bet_selections_match_id_fkey(id,name,status,home_score,away_score), markets!bet_selections_market_id_fkey(name))")
       .order("created_at", { ascending: false }).limit(200);
     if (filter !== "all") qb = qb.eq("status", filter as any);
-    const { data } = await qb;
-    setBets(data ?? []);
+    const { data, error } = await qb;
+    if (error) { toast.error(`Bet tracker unavailable: ${error.message}`); setBets([]); return; }
+    const userIds = Array.from(new Set((data ?? []).map((b: any) => b.user_id).filter(Boolean)));
+    const profilesById: Record<string, any> = {};
+    if (userIds.length) {
+      const { data: profs } = await supabase.from("profiles").select("id,full_name,email,ingame_name").in("id", userIds);
+      (profs ?? []).forEach((p: any) => { profilesById[p.id] = p; });
+    }
+    setBets((data ?? []).map((b: any) => ({ ...b, profiles: profilesById[b.user_id] ?? null })));
   }
   useEffect(() => { load(); }, [filter]);
   useEffect(() => {
@@ -3182,14 +3233,17 @@ function BetTrackerPanel() {
   const filtered = bets.filter((b) => {
     if (!q) return true;
     const s = q.toLowerCase();
-    return b.tracking_id?.toLowerCase().includes(s) || b.booking_code?.toLowerCase().includes(s) || b.profiles?.email?.toLowerCase().includes(s) || b.profiles?.full_name?.toLowerCase().includes(s);
+    return b.tracking_id?.toLowerCase().includes(s) || b.booking_code?.toLowerCase().includes(s) || b.profiles?.email?.toLowerCase().includes(s) || b.profiles?.full_name?.toLowerCase().includes(s) || b.profiles?.ingame_name?.toLowerCase().includes(s);
   });
+  const statusCounts = bets.reduce((acc: Record<string, number>, b: any) => { acc[b.status] = (acc[b.status] ?? 0) + 1; return acc; }, {});
 
   return (
     <div className="space-y-3">
       <Card className="glass p-3 flex flex-wrap items-center gap-2">
         <ClipboardList className="h-4 w-4 text-primary" />
         <div className="font-bold text-sm">Bet Ticket Tracker</div>
+        <Badge variant="outline">{bets.length} loaded</Badge>
+        {Object.entries(statusCounts).slice(0, 4).map(([s, n]) => <Badge key={s} variant="outline" className="capitalize text-[10px]">{s}: {n}</Badge>)}
         <div className="flex-1" />
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tracking, code, user…" className="w-full md:max-w-xs" />
         <Button size="sm" variant="outline" onClick={load}><RotateCw className="h-3 w-3 mr-1" />Refresh</Button>
