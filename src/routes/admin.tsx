@@ -2197,6 +2197,8 @@ function AuditPanel() {
           const meta = l.metadata ?? {};
           const targetUserId = meta.target_user_id ?? (l.target_type === "user" ? l.target_id : null);
           const targetUser = targetUserId ? profiles[targetUserId] : null;
+          const actorName = actor?.full_name ?? meta.actor_email ?? (l.actor_id ? `Staff ${String(l.actor_id).slice(0, 8)}` : "System");
+          const targetName = targetUser?.full_name ?? meta.target_name ?? l.target_id ?? "record";
           const ts = new Date(l.created_at);
           const action = humanize(l.action);
           const tone = /(ban|revoke|deny|delete|wipe|restrict|mute)/i.test(l.action) ? "destructive"
@@ -2207,7 +2209,7 @@ function AuditPanel() {
                         : "border-primary/30 bg-primary/5";
           const dotCls = tone === "destructive" ? "bg-destructive" : tone === "emerald" ? "bg-emerald-400" : "bg-primary";
           // Strip enrichment keys from "extra" rendering
-          const standardKeys = new Set(["actor_email", "user_agent", "route", "origin", "locale", "timezone", "timestamp_iso", "target_user_id"]);
+          const standardKeys = new Set(["actor_email", "actor_id", "actor_role", "user_agent", "route", "origin", "locale", "timezone", "timestamp_iso", "target_user_id", "target_name", "reason", "audit_source", "source", "dedupe_key", "where"]);
           const extras = Object.entries(meta).filter(([k]) => !standardKeys.has(k));
           return (
             <Card key={l.id} className={`glass p-4 border ${toneCls}`}>
@@ -2215,21 +2217,20 @@ function AuditPanel() {
                 <span className={`mt-1 h-2.5 w-2.5 rounded-full shrink-0 ${dotCls} shadow-[0_0_10px_currentColor]`} />
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="font-bold text-primary">{actor?.full_name ?? "System"}</span>
+                    <span className="font-bold text-primary">{actorName}</span>
                     <span className="text-muted-foreground">{action}</span>
                     <span className="text-muted-foreground">on</span>
                     <Badge variant="outline" className="capitalize">{l.target_type ?? "—"}</Badge>
-                    {targetUser && (
-                      <>
-                        <span className="text-muted-foreground">→</span>
-                        <span className="font-bold text-emerald-300">{targetUser.full_name}</span>
-                      </>
-                    )}
+                    <span className="text-muted-foreground">→</span>
+                    <span className="font-bold text-emerald-300">{targetName}</span>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                    {actor?.email && <Detail icon={Users} label="By"><span className="font-mono">{actor.email}</span></Detail>}
+                    {(actor?.email || meta.actor_email) && <Detail icon={Users} label="By"><span className="font-mono">{actor?.email ?? meta.actor_email}</span></Detail>}
+                    {meta.actor_role && <Detail icon={Shield} label="Role"><span className="capitalize">{meta.actor_role}</span></Detail>}
                     {targetUser?.email && <Detail icon={Users} label="To"><span className="font-mono">{targetUser.email}</span></Detail>}
                     {l.target_id && l.target_type !== "user" && <Detail icon={Tag} label="Target ID"><span className="font-mono break-all">{l.target_id}</span></Detail>}
+                    {meta.reason && <Detail icon={AlertTriangle} label="Reason"><span>{meta.reason}</span></Detail>}
+                    {meta.where && <Detail icon={MapPin} label="Where"><span className="font-mono">{meta.where}</span></Detail>}
                     {meta.route && <Detail icon={MapPin} label="From route"><span className="font-mono">{meta.route}</span></Detail>}
                     {meta.origin && <Detail icon={Globe} label="Origin"><span className="font-mono">{meta.origin}</span></Detail>}
                     {meta.user_agent && <Detail icon={Smartphone} label="Device"><span className="font-mono truncate inline-block max-w-[260px] align-bottom">{summariseUA(meta.user_agent)}</span></Detail>}
