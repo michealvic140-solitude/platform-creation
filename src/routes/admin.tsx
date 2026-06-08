@@ -3165,10 +3165,11 @@ function BetTrackerPanel() {
 
   async function load() {
     let qb = supabase.from("bets")
-      .select("*, profiles!user_id(full_name,email,ingame_name), bet_selections(*, matches!match_id(name))")
+      .select("*, profiles!user_id(id,full_name,email,ingame_name), bet_selections(id,match_id,market_id,odd_id,locked_odds,selection_label,result,created_at, matches!bet_selections_match_id_fkey(id,name,status,home_score,away_score), markets!bet_selections_market_id_fkey(name))")
       .order("created_at", { ascending: false }).limit(200);
     if (filter !== "all") qb = qb.eq("status", filter as any);
-    const { data } = await qb;
+    const { data, error } = await qb;
+    if (error) { toast.error(`Bet tracker unavailable: ${error.message}`); setBets([]); return; }
     setBets(data ?? []);
   }
   useEffect(() => { load(); }, [filter]);
@@ -3227,14 +3228,17 @@ function BetTrackerPanel() {
   const filtered = bets.filter((b) => {
     if (!q) return true;
     const s = q.toLowerCase();
-    return b.tracking_id?.toLowerCase().includes(s) || b.booking_code?.toLowerCase().includes(s) || b.profiles?.email?.toLowerCase().includes(s) || b.profiles?.full_name?.toLowerCase().includes(s);
+    return b.tracking_id?.toLowerCase().includes(s) || b.booking_code?.toLowerCase().includes(s) || b.profiles?.email?.toLowerCase().includes(s) || b.profiles?.full_name?.toLowerCase().includes(s) || b.profiles?.ingame_name?.toLowerCase().includes(s);
   });
+  const statusCounts = bets.reduce((acc: Record<string, number>, b: any) => { acc[b.status] = (acc[b.status] ?? 0) + 1; return acc; }, {});
 
   return (
     <div className="space-y-3">
       <Card className="glass p-3 flex flex-wrap items-center gap-2">
         <ClipboardList className="h-4 w-4 text-primary" />
         <div className="font-bold text-sm">Bet Ticket Tracker</div>
+        <Badge variant="outline">{bets.length} loaded</Badge>
+        {Object.entries(statusCounts).slice(0, 4).map(([s, n]) => <Badge key={s} variant="outline" className="capitalize text-[10px]">{s}: {n}</Badge>)}
         <div className="flex-1" />
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tracking, code, user…" className="w-full md:max-w-xs" />
         <Button size="sm" variant="outline" onClick={load}><RotateCw className="h-3 w-3 mr-1" />Refresh</Button>
