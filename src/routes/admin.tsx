@@ -2668,7 +2668,7 @@ function AnalyticsPanel() {
           { l: "VIRTUAL", s: "Manage virtual matches and rounds", t: "virtual", img: tileVirtualAsset.url },
           { l: "BATTLE", s: "Manage matches, fixtures and outcomes", t: "matches", img: tileBattleAsset.url },
           { l: "CHALLENGES", s: "Create and manage gang challenges", t: "challenges", img: tileChallengesAsset.url },
-          { l: "REFERRALS", s: "Manage referrals and commissions", t: "referrals", img: tileReferrals },
+          { l: "REFERRALS", s: "Manage referrals and commissions", t: "referrals", img: tileReferralsAsset.url },
           { l: "USERS", s: "Manage users, profiles and access", t: "users", img: tileUsersAsset.url },
         ].map((m) => (
           <Card key={m.l} className="border-primary/20 bg-card/60 p-2 sm:p-3 flex flex-col">
