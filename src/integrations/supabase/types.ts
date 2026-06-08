@@ -2670,6 +2670,7 @@ export type Database = {
         Args: { _id: string; _note?: string }
         Returns: undefined
       }
+      fix_pending_virtual_bets: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
