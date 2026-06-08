@@ -22,7 +22,7 @@ import lslLogo from "@/assets/lsl-logo.png";
 import tileBattleAsset from "@/assets/tile-battle.jpg.asset.json";
 import tileVirtualAsset from "@/assets/tile-virtual.jpg.asset.json";
 import tileChallengesAsset from "@/assets/tile-challenges.jpg.asset.json";
-import tileReferrals from "@/assets/tile-referrals.jpg";
+import tileReferralsAsset from "@/assets/tile-referrals.jpg.asset.json";
 import tileUsersAsset from "@/assets/tile-users.jpg.asset.json";
 import leagueSkullFire from "@/assets/league-skull-fire.jpg";
 import { Countdown } from "@/components/Countdown";
@@ -189,14 +189,19 @@ function AdminPage() {
 async function logAudit(action: string, target_type: string, target_id?: string, metadata?: any) {
   const u = (await supabase.auth.getUser()).data.user;
   if (!u) return;
+  const dedupeSource = `${action}|${target_type}|${target_id ?? ""}|${JSON.stringify(metadata ?? {})}`;
   const enriched: any = {
     ...(metadata ?? {}),
+    actor_email: u.email,
+    actor_id: u.id,
     user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
     route: typeof window !== "undefined" ? window.location.pathname + window.location.search : null,
     origin: typeof window !== "undefined" ? window.location.origin : null,
     locale: typeof navigator !== "undefined" ? navigator.language : null,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     source: "admin_panel",
+    audit_source: "admin_panel",
+    dedupe_key: dedupeSource,
   };
   if (target_type === "user" && target_id) enriched.target_user_id = target_id;
   const { error } = await (supabase as any).rpc("admin_log_action", {
