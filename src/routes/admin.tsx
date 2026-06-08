@@ -19,11 +19,9 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import lslLogo from "@/assets/lsl-logo.png";
-import tileBattleAsset from "@/assets/tile-battle.jpg.asset.json";
 import tileVirtualAsset from "@/assets/tile-virtual.jpg.asset.json";
 import tileChallengesAsset from "@/assets/tile-challenges.jpg.asset.json";
 import tileReferralsAsset from "@/assets/tile-referrals.jpg.asset.json";
-import tileUsersAsset from "@/assets/tile-users.jpg.asset.json";
 import leagueSkullFire from "@/assets/league-skull-fire.jpg";
 import adminBattleTile from "@/assets/admin-battle-tile.jpg";
 import adminUsersTile from "@/assets/admin-users-tile.jpg";
