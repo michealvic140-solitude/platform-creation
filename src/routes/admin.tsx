@@ -2279,6 +2279,36 @@ function Detail({ icon: Icon, label, children }: { icon: any; label: string; chi
     </div>
   );
 }
+function auditCategoryFor(action: string, targetType?: string | null) {
+  const hay = `${action} ${targetType ?? ""}`.toLowerCase();
+  const categories: string[] = [];
+  if (/(^|_)add|insert|create|role/.test(hay)) categories.push("add");
+  if (/admin/.test(hay)) categories.push("admin");
+  if (/ai|copilot/.test(hay)) categories.push("ai");
+  if (/announcement|content|highlight|spotlight|broadcast/.test(hay)) categories.push("announcements");
+  if (/approve|approved/.test(hay)) categories.push("approve");
+  if (/ban|banned/.test(hay)) categories.push("banned");
+  if (/decline|denied|deny/.test(hay)) categories.push("decline");
+  if (/delete|deleted|wipe|void/.test(hay)) categories.push("delete");
+  if (/emergency|reload|force|maintenance/.test(hay)) categories.push("emergency");
+  if (/event/.test(hay)) categories.push("event");
+  if (/grant|credit|approved|won/.test(hay)) categories.push("grant");
+  if (/house|wallet|payout/.test(hay)) categories.push("house");
+  if (/kick|logout/.test(hay)) categories.push("kick");
+  if (/match|settle|score|leaderboard|virtual_round_locked|virtual_round_resolved|virtual_round_created/.test(hay)) categories.push("match");
+  if (/notify|notification|broadcast/.test(hay)) categories.push("notify");
+  if (/promo/.test(hay)) categories.push("promo");
+  if (/refund|refunded/.test(hay)) categories.push("refund");
+  if (/remove|removed|revoke|debit/.test(hay)) categories.push("remove");
+  if (/restrict/.test(hay)) categories.push("restrict");
+  if (/revoke|debit/.test(hay)) categories.push("revoke");
+  if (/setting|config|cycle|rules/.test(hay)) categories.push("settings");
+  if (/suspend|muted|mute/.test(hay)) categories.push("suspension");
+  if (/token/.test(hay)) categories.push("token");
+  if (/unsuspend|unmute|lift/.test(hay)) categories.push("unsuspend");
+  if (/withdrawal/.test(hay)) categories.push("withdrawal");
+  return categories.length ? categories : [action.split("_")[0] || "other"];
+}
 function humanize(action: string) { return action.replace(/_/g, " "); }
 
 function humanizeKind(kind: string) {
