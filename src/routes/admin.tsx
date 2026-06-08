@@ -25,6 +25,8 @@ import tileChallengesAsset from "@/assets/tile-challenges.jpg.asset.json";
 import tileReferralsAsset from "@/assets/tile-referrals.jpg.asset.json";
 import tileUsersAsset from "@/assets/tile-users.jpg.asset.json";
 import leagueSkullFire from "@/assets/league-skull-fire.jpg";
+import adminBattleTile from "@/assets/admin-battle-tile.jpg";
+import adminUsersTile from "@/assets/admin-users-tile.jpg";
 import { Countdown } from "@/components/Countdown";
 import { useAuth, ROLE_LABELS, type AppRole } from "@/contexts/AuthContext";
 import { toast } from "sonner";
