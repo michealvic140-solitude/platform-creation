@@ -3164,12 +3164,18 @@ function BetTrackerPanel() {
 
   async function load() {
     let qb = supabase.from("bets")
-      .select("*, profiles!user_id(id,full_name,email,ingame_name), bet_selections(id,match_id,market_id,odd_id,locked_odds,selection_label,result,created_at, matches!bet_selections_match_id_fkey(id,name,status,home_score,away_score), markets!bet_selections_market_id_fkey(name))")
+      .select("*, bet_selections(id,match_id,market_id,odd_id,locked_odds,selection_label,result,created_at, matches!bet_selections_match_id_fkey(id,name,status,home_score,away_score), markets!bet_selections_market_id_fkey(name))")
       .order("created_at", { ascending: false }).limit(200);
     if (filter !== "all") qb = qb.eq("status", filter as any);
     const { data, error } = await qb;
     if (error) { toast.error(`Bet tracker unavailable: ${error.message}`); setBets([]); return; }
-    setBets(data ?? []);
+    const userIds = Array.from(new Set((data ?? []).map((b: any) => b.user_id).filter(Boolean)));
+    const profilesById: Record<string, any> = {};
+    if (userIds.length) {
+      const { data: profs } = await supabase.from("profiles").select("id,full_name,email,ingame_name").in("id", userIds);
+      (profs ?? []).forEach((p: any) => { profilesById[p.id] = p; });
+    }
+    setBets((data ?? []).map((b: any) => ({ ...b, profiles: profilesById[b.user_id] ?? null })));
   }
   useEffect(() => { load(); }, [filter]);
   useEffect(() => {
