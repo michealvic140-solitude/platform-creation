@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Dice5, Plus, Lock, Trophy, Trash2, RefreshCw, Settings2, ShieldAlert, Coins, History } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
-import { useConfirm } from "@/components/ConfirmDialog";
 
 const DEFAULT_SCORES = ["0:0", "1:0", "0:1", "1:1", "2:0", "0:2", "2:1", "1:2", "2:2", "3:0", "0:3", "3:1", "1:3", "3:2", "2:3", "3:3"];
 
@@ -35,7 +34,6 @@ export function VirtualAdminPanel() {
   const [lockConfirm, setLockConfirm] = useState<Round | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [actors, setActors] = useState<Record<string, string>>({});
-  const confirm = useConfirm();
 
   const reload = async () => {
     const [{ data: ts }, { data: rs }, { data: al }] = await Promise.all([
@@ -134,8 +132,7 @@ export function VirtualAdminPanel() {
                     </>
                   )}
                   <Button size="sm" variant="ghost" onClick={async () => {
-                    const ok = await confirm({ title: "Delete this round?", description: `${r.home_team?.name} vs ${r.away_team?.name} will be removed permanently.`, confirmText: "Delete", tone: "danger" });
-                    if (!ok) return;
+                    if (!confirm("Delete this round?")) return;
                     await supabase.from("markets").delete().eq("match_id", r.id);
                     await supabase.from("matches").delete().eq("id", r.id);
                     toast.success("Deleted");

@@ -21,18 +21,15 @@ function useRegisterServiceWorker() {
 }
 
 // Site-wide background ticker so virtual rounds keep advancing even when
-// no one is on /virtual. Keep this light so live pages do not stutter.
+// no one is on /virtual. Any authenticated client pings every 15s.
 function useVirtualHeartbeat() {
   const { user } = useAuth();
   useEffect(() => {
     if (!user) return;
     let alive = true;
-    const ping = () => {
-      if (typeof document !== "undefined" && document.hidden) return;
-      fetch("/api/public/virtual-tick", { cache: "no-store" }).then(() => {}, () => {});
-    };
+    const ping = () => { supabase.rpc("virtual_tick").then(() => {}, () => {}); };
     ping();
-    const t = setInterval(() => { if (alive) ping(); }, 30000);
+    const t = setInterval(() => { if (alive) ping(); }, 15000);
     return () => { alive = false; clearInterval(t); };
   }, [user]);
 }
@@ -151,7 +148,9 @@ export const Layout = ({ children }: { children: ReactNode }) => {
       </header>
       <main className="relative lg:pl-0 pl-14">{children}</main>
       <LevelUpModal />
-      <nav className="lg:hidden fixed left-0 inset-y-0 pt-16 z-40 w-14 overflow-y-auto bg-transparent border-0 shadow-none">
+      <nav
+        className="lg:hidden fixed left-0 inset-y-0 pt-16 z-40 w-14 overflow-y-auto bg-transparent border-0 shadow-none"
+      >
         <div className="flex flex-col items-stretch gap-0.5 py-2 px-1">
           <button
             type="button"
@@ -161,7 +160,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
             className="group relative flex flex-col items-center justify-center gap-0.5 px-0 py-2 rounded-xl text-[9px] font-semibold tracking-wide text-primary transition-all hover:text-foreground active:scale-95"
             title="Menu"
           >
-            <span className="relative grid place-items-center h-9 w-9 rounded-xl border border-primary/35 bg-background/80 backdrop-blur-xl shadow-gold">
+            <span className="relative grid place-items-center h-9 w-9 rounded-xl bg-gradient-to-br from-primary/25 to-primary/5 shadow-[0_0_18px_-4px_rgba(212,175,55,0.55)]">
               <SettingsIcon className={`h-[18px] w-[18px] transition-transform ${railOpen ? "rotate-180" : ""}`} />
             </span>
             <span className="leading-none text-[8px]">{railOpen ? "Less" : "More"}</span>
@@ -236,11 +235,11 @@ function MobLink({ to, icon: Icon, label, badge }: { to: string; icon: any; labe
     <Link
       to={to}
       activeProps={{ className: "active" }}
-      className="group relative flex flex-col items-center justify-center gap-0.5 px-0 py-2 rounded-xl text-[9px] font-semibold tracking-wide text-foreground transition-all duration-200 hover:text-primary active:scale-95 [&.active]:text-primary"
+      className="group relative flex flex-col items-center justify-center gap-0.5 px-0 py-2 rounded-xl text-[9px] font-semibold tracking-wide text-muted-foreground transition-all duration-200 hover:text-foreground active:scale-95 [&.active]:text-primary"
       title={label}
     >
       <span className="pointer-events-none absolute left-0 inset-y-2 w-[2px] rounded-full bg-gradient-to-b from-transparent via-primary to-transparent opacity-0 group-[.active]:opacity-100 transition-opacity" />
-      <span className="relative grid place-items-center h-9 w-9 rounded-xl border border-border/70 bg-background/80 backdrop-blur-xl shadow-[0_8px_22px_-12px_oklch(0_0_0/0.9)] transition-all group-hover:border-primary/45 group-[.active]:border-primary/55 group-[.active]:bg-primary/20 group-[.active]:shadow-gold">
+      <span className="relative grid place-items-center h-9 w-9 rounded-xl transition-all group-[.active]:bg-gradient-to-br group-[.active]:from-primary/25 group-[.active]:to-primary/5 group-[.active]:shadow-[0_0_18px_-4px_rgba(212,175,55,0.55)]">
         <Icon className="h-[18px] w-[18px] transition-transform group-[.active]:scale-110" />
         {badge && badge > 0 ? (
           <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-black grid place-items-center ring-2 ring-card animate-pulse">

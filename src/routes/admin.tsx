@@ -19,6 +19,11 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import lslLogo from "@/assets/lsl-logo.png";
+import tileBattleAsset from "@/assets/tile-battle.jpg.asset.json";
+import tileVirtualAsset from "@/assets/tile-virtual.jpg.asset.json";
+import tileChallengesAsset from "@/assets/tile-challenges.jpg.asset.json";
+import tileReferrals from "@/assets/tile-referrals.jpg";
+import tileUsersAsset from "@/assets/tile-users.jpg.asset.json";
 import leagueSkullFire from "@/assets/league-skull-fire.jpg";
 import { Countdown } from "@/components/Countdown";
 import { useAuth, ROLE_LABELS, type AppRole } from "@/contexts/AuthContext";
@@ -32,12 +37,6 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { SpotlightsAdminPanel } from "@/components/Spotlight";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-
-const tileVirtual = "/__l5e/assets-v1/a6cb9974-8c12-48b4-ae39-3e297ea09573/tile-virtual.jpg";
-const tileVip = "/__l5e/assets-v1/bc494917-64b0-4e91-9ae5-cc26eed300ec/tile-vip.jpg";
-const tileChallenges = "/__l5e/assets-v1/2dd7baf3-410f-49fd-8d6d-7c3cb4e512e7/tile-challenges.jpg";
-const tileReferrals = "/__l5e/assets-v1/2ad774f7-37ed-4fa4-a153-27e4e3c8eb09/tile-referrals.jpg";
-const tileHousewallet = "/__l5e/assets-v1/62dc3cf0-3db2-4757-8b57-0bcf73582243/tile-housewallet.jpg";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — LSL" }, { name: "description", content: "League administration dashboard." }] }),
@@ -99,7 +98,7 @@ function AdminPage() {
 
   return (
     <Layout>
-      <main className="admin-scope w-full min-h-[calc(100vh-3.5rem)]">
+      <main className="w-full min-h-[calc(100vh-3.5rem)]">
         <div className={`mx-auto w-full ${activeTab === "analytics" ? "max-w-[1600px]" : "max-w-[1080px]"} px-3 sm:px-4 py-4 sm:py-6 space-y-4`}>
           <div className="relative overflow-hidden rounded-2xl p-4 border border-primary/30 shadow-luxury bg-gradient-to-br from-card/90 via-card/70 to-primary/10 backdrop-blur-xl">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-gold" />
@@ -116,10 +115,10 @@ function AdminPage() {
               </button>
               <div>
                 <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Command center</p>
-                <h1 className="text-2xl sm:text-3xl font-bold gradient-gold-text">Admin Console</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold gradient-gold-text">{isAdmin ? "Super Admin Console" : "Admin Panel"}</h1>
               </div>
               <Badge variant="outline" className={`ml-auto ${isAdmin ? "border-accent/50 text-accent" : "border-primary/50 text-primary"}`}>
-                {isAdmin ? "Admin" : "Moderator"}
+                {isAdmin ? "Super Admin" : "Admin"}
               </Badge>
               {isAdmin && (
                 <div className="flex items-center gap-1 w-full sm:w-auto sm:ml-2">
@@ -236,7 +235,7 @@ function AdminSectionRail({ alerts, onOpen }: { alerts: Record<string, number>; 
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-gold" />
           <item.icon className="h-4 w-4 text-primary mb-2" />
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{item.label}</div>
-          <div className="mt-1 text-2xl font-black gradient-gold-text">{item.count}</div>
+          <div className={`mt-1 text-2xl font-black ${item.count > 0 ? "text-emerald-400" : item.count < 0 ? "text-red-400" : "text-foreground"}`}>{item.count}</div>
           {item.count > 0 && <span className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-background" />}
         </button>
       ))}
@@ -311,7 +310,7 @@ function Stats() {
       {items.map((x) => (
         <Card key={x.label} className="glass p-4">
           <x.icon className="h-5 w-5 text-primary mb-2" />
-          <div className="text-2xl font-bold gradient-gold-text">{x.value}</div>
+          <div className="text-2xl font-bold text-emerald-400">{x.value}</div>
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{x.label}</div>
         </Card>
       ))}
@@ -690,13 +689,12 @@ function UserEditDialog({ user, roles, onClose }: { user: any; roles: string[]; 
 
           <Tabs value={tab} onValueChange={setTab} className="mt-4">
             <TabsList className="bg-transparent w-full justify-start gap-4 border-b border-border rounded-none p-0 h-auto">
-              {[
+              {([
                 ["profile", "Profile"],
-                ["tokens", "Tokens"],
-                ["roles", "Roles"],
+                ...(isAdmin ? [["tokens", "Tokens"], ["roles", "Roles"]] as const : [] as const),
                 ["actions", "Actions"],
                 ["history", "History"],
-              ].map(([v, l]) => (
+              ] as ReadonlyArray<readonly [string, string]>).map(([v, l]) => (
                 <TabsTrigger
                   key={v}
                   value={v}
@@ -1470,6 +1468,7 @@ function EventsPanel() {
 
 /* ============================ TOKENS ============================ */
 function TokensPanel() {
+  const { isAdmin } = useAuth();
   const [reqs, setReqs] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
   const confirm = useConfirm();
@@ -1518,10 +1517,14 @@ function TokensPanel() {
           </div>
           <Badge variant="outline" className="capitalize">{r.status}</Badge>
           {r.status === "pending" && (
-            <div className="flex gap-1">
-              <Button size="sm" variant="outline" onClick={() => reject(r)}>Deny</Button>
-              <Button size="sm" className="btn-luxury" onClick={() => approve(r)}>Approve</Button>
-            </div>
+            isAdmin ? (
+              <div className="flex gap-1">
+                <Button size="sm" variant="outline" onClick={() => reject(r)}>Deny</Button>
+                <Button size="sm" className="btn-luxury" onClick={() => approve(r)}>Approve</Button>
+              </div>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">Super Admin only</Badge>
+            )
           )}
         </Card>
       ))}
@@ -2626,12 +2629,29 @@ function AnalyticsPanel() {
                 { i: Wallet, l: "Withdrawals", t: "withdrawals" },
                 { i: Trophy, l: "Won Bets", t: "wonbets" },
                 { i: X, l: "Lost Bets", t: "lostbets" },
-              ].map((q) => (
-                <button key={q.l} onClick={() => setActiveTabFromAnalytics(nav, q.t)} className="flex flex-col items-center gap-0.5 p-1 rounded border border-primary/20 hover:border-primary/50 hover:bg-primary/10 active:scale-95 transition">
-                  <q.i className="h-3 w-3 text-primary" />
-                  <span className="text-[7px] sm:text-[9px] text-foreground text-center leading-tight">{q.l}</span>
-                </button>
-              ))}
+              ].map((q, idx) => {
+                const palette = [
+                  { ic: "text-emerald-400", bd: "border-emerald-500/30 hover:border-emerald-400/70 hover:bg-emerald-500/10" },
+                  { ic: "text-sky-400",     bd: "border-sky-500/30 hover:border-sky-400/70 hover:bg-sky-500/10" },
+                  { ic: "text-rose-400",    bd: "border-rose-500/30 hover:border-rose-400/70 hover:bg-rose-500/10" },
+                  { ic: "text-amber-400",   bd: "border-amber-500/30 hover:border-amber-400/70 hover:bg-amber-500/10" },
+                  { ic: "text-violet-400",  bd: "border-violet-500/30 hover:border-violet-400/70 hover:bg-violet-500/10" },
+                  { ic: "text-fuchsia-400", bd: "border-fuchsia-500/30 hover:border-fuchsia-400/70 hover:bg-fuchsia-500/10" },
+                  { ic: "text-cyan-400",    bd: "border-cyan-500/30 hover:border-cyan-400/70 hover:bg-cyan-500/10" },
+                  { ic: "text-lime-400",    bd: "border-lime-500/30 hover:border-lime-400/70 hover:bg-lime-500/10" },
+                  { ic: "text-orange-400",  bd: "border-orange-500/30 hover:border-orange-400/70 hover:bg-orange-500/10" },
+                  { ic: "text-pink-400",    bd: "border-pink-500/30 hover:border-pink-400/70 hover:bg-pink-500/10" },
+                  { ic: "text-teal-400",    bd: "border-teal-500/30 hover:border-teal-400/70 hover:bg-teal-500/10" },
+                  { ic: "text-indigo-400",  bd: "border-indigo-500/30 hover:border-indigo-400/70 hover:bg-indigo-500/10" },
+                ];
+                const c = palette[idx % palette.length];
+                return (
+                  <button key={q.l} onClick={() => setActiveTabFromAnalytics(nav, q.t)} className={`flex flex-col items-center gap-0.5 p-1 rounded border active:scale-95 transition ${c.bd}`}>
+                    <q.i className={`h-3 w-3 ${c.ic}`} />
+                    <span className="text-[7px] sm:text-[9px] text-foreground text-center leading-tight">{q.l}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </PanelBlock>
@@ -2640,15 +2660,15 @@ function AnalyticsPanel() {
       {/* ROW 9 — 5 module tiles */}
       <div className="grid grid-cols-5 gap-2 sm:gap-3">
         {[
-          { l: "VIRTUAL", s: "Manage virtual matches and rounds", t: "virtual", img: tileVirtual },
-          { l: "VIP PROGRAM", s: "Manage VIP tiers and rewards", t: "vip", img: tileVip },
-          { l: "CHALLENGES", s: "Create and manage gang challenges", t: "challenges", img: tileChallenges },
+          { l: "VIRTUAL", s: "Manage virtual matches and rounds", t: "virtual", img: tileVirtualAsset.url },
+          { l: "BATTLE", s: "Manage matches, fixtures and outcomes", t: "matches", img: tileBattleAsset.url },
+          { l: "CHALLENGES", s: "Create and manage gang challenges", t: "challenges", img: tileChallengesAsset.url },
           { l: "REFERRALS", s: "Manage referrals and commissions", t: "referrals", img: tileReferrals },
-          { l: "HOUSE WALLET", s: "Manage platform funds", t: "housewallet", img: tileHousewallet },
+          { l: "USERS", s: "Manage users, profiles and access", t: "users", img: tileUsersAsset.url },
         ].map((m) => (
           <Card key={m.l} className="border-primary/20 bg-card/60 p-2 sm:p-3 flex flex-col">
             <button type="button" onClick={() => setActiveTabFromAnalytics(nav, m.t)} className="relative aspect-square w-full mb-1 rounded overflow-hidden border border-primary/20 hover:border-primary/60 transition active:scale-95">
-              <img src={m.img} alt={m.l} loading="lazy" width={1024} height={768} className="w-full h-full object-cover" />
+              <img src={m.img} alt={m.l} loading="lazy" width={512} height={512} className="w-full h-full object-cover" />
               <img src={lslLogo} alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 m-auto h-1/2 w-1/2 object-contain opacity-15 mix-blend-screen drop-shadow-[0_4px_18px_rgba(0,0,0,0.65)]" />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
             </button>
@@ -2682,13 +2702,24 @@ function setActiveTabFromAnalytics(_nav: any, _tab: string) {
 }
 
 function MetricSquare({ icon: Icon, value, title, sub, tone, compact, onClick }: { icon: any; value: any; title: string; sub?: string; tone?: string; compact?: boolean; onClick?: () => void }) {
-  const valueClass = tone === "gold-lg"
-    ? "text-[10px] sm:text-base font-black text-primary leading-tight"
-    : tone === "amber"
-    ? "text-base sm:text-xl font-black text-amber-400 leading-none"
+  // Parse the raw value to decide colour: positive => green, negative => red, otherwise white.
+  const numeric = (() => {
+    if (typeof value === "number") return value;
+    if (typeof value === "string") {
+      const cleaned = value.replace(/[, _]/g, "").replace(/[a-zA-Z%$₦]/g, "");
+      const n = parseFloat(cleaned);
+      return Number.isFinite(n) ? n : null;
+    }
+    return null;
+  })();
+  const toneColor =
+    numeric == null ? "text-foreground" : numeric > 0 ? "text-emerald-400" : numeric < 0 ? "text-red-400" : "text-foreground";
+  const sizeCls = tone === "gold-lg"
+    ? "text-[10px] sm:text-base leading-tight"
     : compact
-    ? "text-xs sm:text-lg font-black text-primary leading-none"
-    : "text-base sm:text-2xl font-black text-primary leading-none";
+    ? "text-xs sm:text-lg leading-none"
+    : "text-base sm:text-2xl leading-none";
+  const valueClass = `${sizeCls} font-black ${toneColor}`;
   const content = (
     <>
       <Icon className="h-2.5 w-2.5 sm:h-4 sm:w-4 text-primary/70 mb-0.5" />
