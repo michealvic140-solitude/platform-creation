@@ -15,8 +15,8 @@ export function Countdown({ target }: { target: string }) {
   if (diff === 0) return <span className="text-emerald font-bold">Starting…</span>;
   return (
     <span className="font-mono tabular-nums">
-      {h > 0 && <>{h}h </>}
-      {m.toString().padStart(2, "0")}m {s.toString().padStart(2, "0")}s
+      {h > 0 ? `${h.toString().padStart(2, "0")}:` : ""}
+      {m.toString().padStart(2, "0")}:{s.toString().padStart(2, "0")}
     </span>
   );
 }
