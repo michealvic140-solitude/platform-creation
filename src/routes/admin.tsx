@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
@@ -15,16 +16,23 @@ import { Switch } from "@/components/ui/switch";
 import {
   Shield, Users, Trophy, Coins, Megaphone, Settings as SettingsIcon, Ticket, AlertTriangle,
   Calendar, Tag, Image as ImageIcon, BarChart3, History, Send, Plus, Trash2, Pencil, ChevronRight, ChevronLeft, Wallet, ListOrdered, Sparkles, ClipboardList, Lock, Pause, Play, Check, X, MessageSquare, Eye, RotateCw, Copy, Globe, MapPin, Smartphone, Clock, Filter,
-  Dice5, LogOut,
+  Dice5, LogOut, Crosshair, Target, Flame,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import lslLogo from "@/assets/lsl-logo.png";
-import tileVirtualAsset from "@/assets/tile-virtual.jpg.asset.json";
-import tileChallengesAsset from "@/assets/tile-challenges.jpg.asset.json";
-import tileReferralsAsset from "@/assets/tile-referrals.jpg.asset.json";
+import tileBattle from "@/assets/tile-battle.jpg";
+import tileVirtual from "@/assets/tile-virtual.jpg";
+import tileChallenges from "@/assets/tile-challenges.jpg";
+import tileReferrals from "@/assets/tile-referrals.jpg";
+import tileUsers from "@/assets/tile-users.jpg";
+import tileClans from "@/assets/tile-clans.jpg";
+const tileBattleAsset = { url: tileBattle };
+const tileVirtualAsset = { url: tileVirtual };
+const tileChallengesAsset = { url: tileChallenges };
+const tileUsersAsset = { url: tileUsers };
+const tileClansAsset = { url: tileClans };
+import consoleHeaderBgAsset from "@/assets/console-header-bg.jpg.asset.json";
 import leagueSkullFire from "@/assets/league-skull-fire.jpg";
-import adminBattleTile from "@/assets/admin-battle-tile.jpg";
-import adminUsersTile from "@/assets/admin-users-tile.jpg";
 import { Countdown } from "@/components/Countdown";
 import { useAuth, ROLE_LABELS, type AppRole } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -36,7 +44,12 @@ import {
 import { useConfirm } from "@/components/ConfirmDialog";
 import { SpotlightsAdminPanel } from "@/components/Spotlight";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { ClansAdminPanel } from "@/components/admin/ClansAdminPanel";
+import { TopBetsPanel } from "@/components/admin/TopBetsPanel";
+import { TournamentAdminPanel } from "@/components/admin/TournamentAdminPanel";
+import { seedLegacyUsers } from "@/lib/seed-users.functions";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { loadStandings, type LbRow } from "@/lib/leaderboard";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — LSL" }, { name: "description", content: "League administration dashboard." }] }),
@@ -98,12 +111,14 @@ function AdminPage() {
 
   return (
     <Layout>
-      <main className="w-full min-h-[calc(100vh-3.5rem)]">
-        <div className={`mx-auto w-full ${activeTab === "analytics" ? "max-w-[1600px]" : "max-w-[1080px]"} px-3 sm:px-4 py-4 sm:py-6 space-y-4`}>
-          <div className="relative overflow-hidden rounded-2xl p-4 border border-primary/30 shadow-luxury bg-gradient-to-br from-card/90 via-card/70 to-primary/10 backdrop-blur-xl">
+      <main className="w-full min-h-[calc(100vh-3.5rem)] overflow-x-hidden">
+        <div className="mx-auto w-full max-w-[1280px] px-3 sm:px-4 py-4 sm:py-6 space-y-4">
+
+          <div
+            className="relative overflow-hidden rounded-2xl p-4 border border-primary/40 shadow-luxury bg-card"
+            style={{ backgroundImage: `linear-gradient(90deg, rgba(8,14,10,0.95) 0%, rgba(8,14,10,0.78) 45%, rgba(8,14,10,0.25) 100%), url(${consoleHeaderBgAsset.url})`, backgroundSize: "cover", backgroundPosition: "center right" }}
+          >
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-gold" />
-            <div className="absolute -top-20 -right-20 h-64 w-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-accent/10 blur-3xl pointer-events-none" />
             <div className="relative flex items-center gap-3 flex-wrap">
               <button
                 type="button"
@@ -145,6 +160,7 @@ function AdminPage() {
             <TabsContent value="bannedusers" className="mt-4"><BannedUsersPanel /></TabsContent>
             <TabsContent value="virtual" className="mt-4"><VirtualAdminPanel /></TabsContent>
             <TabsContent value="matches" className="mt-4"><MatchesPanel /></TabsContent>
+            <TabsContent value="futures" className="mt-4"><FuturesAdminPanel /></TabsContent>
             <TabsContent value="events" className="mt-4"><EventsPanel /></TabsContent>
             <TabsContent value="tokens" className="mt-4"><TokensPanel /></TabsContent>
             <TabsContent value="tokenmovement" className="mt-4"><TokenMovementPanel /></TabsContent>
@@ -179,6 +195,10 @@ function AdminPage() {
             <TabsContent value="emblems" className="mt-4"><EmblemModerationPanel /></TabsContent>
             <TabsContent value="vip" className="mt-4"><VipAdminPanel /></TabsContent>
             <TabsContent value="spotlights" className="mt-4"><SpotlightsAdminPanel /></TabsContent>
+            <TabsContent value="clans" className="mt-4"><ClansAdminPanel /></TabsContent>
+            <TabsContent value="topbets" className="mt-4"><TopBetsPanel /></TabsContent>
+            <TabsContent value="tournaments" className="mt-4"><TournamentAdminPanel /></TabsContent>
+            <TabsContent value="attendance" className="mt-4"><AttendancePanel /></TabsContent>
           </Tabs>
         </div>
       </main>
@@ -189,19 +209,14 @@ function AdminPage() {
 async function logAudit(action: string, target_type: string, target_id?: string, metadata?: any) {
   const u = (await supabase.auth.getUser()).data.user;
   if (!u) return;
-  const dedupeSource = `${action}|${target_type}|${target_id ?? ""}|${JSON.stringify(metadata ?? {})}`;
   const enriched: any = {
     ...(metadata ?? {}),
-    actor_email: u.email,
-    actor_id: u.id,
     user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
     route: typeof window !== "undefined" ? window.location.pathname + window.location.search : null,
     origin: typeof window !== "undefined" ? window.location.origin : null,
     locale: typeof navigator !== "undefined" ? navigator.language : null,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     source: "admin_panel",
-    audit_source: "admin_panel",
-    dedupe_key: dedupeSource,
   };
   if (target_type === "user" && target_id) enriched.target_user_id = target_id;
   const { error } = await (supabase as any).rpc("admin_log_action", {
@@ -325,8 +340,13 @@ function Stats() {
 
 /* ============================ USERS ============================ */
 function UsersPanel() {
+  const confirm = useConfirm();
+  const runSeed = useServerFn(seedLegacyUsers);
+  const [seeding, setSeeding] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [rolesByUser, setRolesByUser] = useState<Record<string, string[]>>({});
+  const [kycByUser, setKycByUser] = useState<Record<string, boolean>>({});
+  const [betsByUser, setBetsByUser] = useState<Record<string, number>>({});
   const [q, setQ] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -334,17 +354,41 @@ function UsersPanel() {
   const [edit, setEdit] = useState<any | null>(null);
 
   async function load() {
-    const { data: u } = await supabase.from("profiles").select("*").order("created_at", { ascending: false }).limit(500);
-    setUsers(u ?? []);
-    const { data: r } = await supabase.from("user_roles").select("user_id,role").in("user_id", (u ?? []).map((x: any) => x.id));
+    const { data: rich } = await (supabase as any).rpc("admin_list_users_with_kyc");
+    const fallback = !rich || rich.length === 0;
+    let u: any[] = rich ?? [];
+    if (fallback) {
+      const r = await supabase.from("profiles").select("*").order("created_at", { ascending: false }).limit(500);
+      u = r.data ?? [];
+    }
+    setUsers(u);
+    const kyc: Record<string, boolean> = {};
+    const bets: Record<string, number> = {};
+    u.forEach((x: any) => { kyc[x.id] = !!x.email_confirmed; bets[x.id] = Number(x.total_bets ?? 0); });
+    setKycByUser(kyc); setBetsByUser(bets);
+    const { data: r } = await supabase.from("user_roles").select("user_id,role").in("user_id", u.map((x: any) => x.id));
     const m: Record<string, string[]> = {};
     (r ?? []).forEach((x: any) => { (m[x.user_id] ??= []).push(x.role); });
     setRolesByUser(m);
   }
   useEffect(() => { load(); }, []);
 
+  async function restoreLegacy() {
+    const ok = await confirm({ title: "Restore legacy member accounts?", description: "Recreates the imported members' login accounts (email-confirmed) and restores their profile data so they can use 'forgot password' to regain access. Existing accounts are left untouched.", confirmText: "Restore accounts" });
+    if (!ok) return;
+    setSeeding(true);
+    try {
+      const res: any = await runSeed();
+      toast.success(`Done — ${res.created} created, ${res.restored} profiles restored, ${res.skipped} already existed`);
+      if (res.errors?.length) toast.error(`Some rows had issues: ${res.errors[0]}`);
+      load();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Seeding failed");
+    } finally { setSeeding(false); }
+  }
+
   const filtered = useMemo(() => {
-    let out = users.filter((u) => !q || u.full_name?.toLowerCase().includes(q.toLowerCase()) || u.email?.toLowerCase().includes(q.toLowerCase()) || u.gang_name?.toLowerCase().includes(q.toLowerCase()));
+    let out = users.filter((u) => !q || u.full_name?.toLowerCase().includes(q.toLowerCase()) || u.email?.toLowerCase().includes(q.toLowerCase()) || u.gang_name?.toLowerCase().includes(q.toLowerCase()) || u.discord_username?.toLowerCase().includes(q.toLowerCase()) || u.discord_full_name?.toLowerCase().includes(q.toLowerCase()));
     if (filterRole !== "all") out = out.filter((u) => (rolesByUser[u.id] ?? []).includes(filterRole));
     if (filterStatus === "banned") out = out.filter((u) => u.is_banned);
     if (filterStatus === "muted") out = out.filter((u) => u.is_muted);
@@ -382,6 +426,9 @@ function UsersPanel() {
               <div className="text-[10px] uppercase tracking-[0.32em] text-primary/80">Member Registry</div>
               <div className="text-xl font-display admin-user-foil">Users Panel</div>
             </div>
+            <Button size="sm" variant="outline" className="ml-2" disabled={seeding} onClick={restoreLegacy}>
+              {seeding ? "Restoring…" : "Restore Legacy Accounts"}
+            </Button>
           </div>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
             {[
@@ -406,7 +453,7 @@ function UsersPanel() {
         <div className="relative md:col-span-1">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-primary/70" />
           <Input
-            placeholder="Search name, email, gang…"
+            placeholder="Search name, email, gang, Discord…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="pl-9 bg-background/40 border-primary/25 focus-visible:ring-primary/60"
@@ -447,7 +494,7 @@ function UsersPanel() {
         <span className="h-px flex-1 mx-3 bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 max-h-[80vh] overflow-y-auto pr-1">
         {filtered.map((u) => {
           const initials = (u.full_name ?? u.email ?? "U").split(/\s|@/).filter(Boolean).map((p: string) => p[0]).slice(0, 2).join("").toUpperCase();
           const userRoles = rolesByUser[u.id] ?? [];
@@ -489,6 +536,19 @@ function UsersPanel() {
                     {!u.is_banned && !u.is_muted && !u.is_restricted && <span className="badge-won text-[9px] px-1.5 py-0.5 rounded-full font-bold">ACTIVE</span>}
                   </div>
                   <div className="text-[11px] text-muted-foreground truncate">{u.email}</div>
+                  {u.phone && <div className="text-[10px] text-muted-foreground truncate">📞 {u.phone}</div>}
+                  {(u.discord_username || u.discord_full_name) && (
+                    <div className="text-[10px] text-[#5865F2] truncate" title="Discord">
+                      🎮 {u.discord_username || "—"}{u.discord_full_name && u.discord_username ? ` · ${u.discord_full_name}` : (u.discord_full_name ?? "")}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {kycByUser[u.id]
+                      ? <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold border border-emerald-400/60 text-emerald-300 bg-emerald-500/10">VERIFIED</span>
+                      : <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold border border-amber-400/60 text-amber-300 bg-amber-500/10">UNVERIFIED</span>}
+                    {kycByUser[u.id] && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold border border-sky-400/60 text-sky-300 bg-sky-500/10">KYC</span>}
+                    {(u.vip_tier ?? 0) > 0 && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold border border-primary/60 text-primary bg-primary/10">VIP</span>}
+                  </div>
                   <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
                     <Shield className="h-3 w-3 text-primary/70" />
                     <span className="truncate">{u.gang_name ?? "Independent"}{u.gang_type && ` · ${u.gang_type}`}</span>
@@ -522,8 +582,8 @@ function UsersPanel() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-[0.22em] text-muted-foreground">XP</div>
-                  <div className="text-sm font-black text-primary/90">{(u.xp ?? 0).toLocaleString()}</div>
+                  <div className="text-[9px] uppercase tracking-[0.22em] text-muted-foreground">Total Bets</div>
+                  <div className="text-sm font-black text-primary/90">{(betsByUser[u.id] ?? u.xp ?? 0).toLocaleString()}</div>
                 </div>
                 <div>
                   <div className="text-[9px] uppercase tracking-[0.22em] text-muted-foreground">Joined</div>
@@ -610,6 +670,7 @@ function UserEditDialog({ user, roles, onClose }: { user: any; roles: string[]; 
   async function saveProfile() {
     const { error } = await supabase.from("profiles").update({
       full_name: form.full_name, phone: form.phone, discord_username: form.discord_username,
+      discord_full_name: form.discord_full_name,
       country: form.country, gang_name: form.gang_name, gang_type: form.gang_type,
     }).eq("id", user.id);
     if (error) toast.error(error.message); else { toast.success("Saved"); logAudit("update_profile", "user", user.id); }
@@ -726,6 +787,9 @@ function UserEditDialog({ user, roles, onClose }: { user: any; roles: string[]; 
               </FieldLuxe>
               <FieldLuxe label="Discord">
                 <Input value={form.discord_username ?? ""} onChange={(e) => setForm({ ...form, discord_username: e.target.value })} />
+              </FieldLuxe>
+              <FieldLuxe label="Discord full name">
+                <Input value={form.discord_full_name ?? ""} onChange={(e) => setForm({ ...form, discord_full_name: e.target.value })} />
               </FieldLuxe>
               <FieldLuxe label="Country">
                 <Input value={form.country ?? ""} onChange={(e) => setForm({ ...form, country: e.target.value })} />
@@ -1057,9 +1121,10 @@ function MatchesPanel() {
   const confirm = useConfirm();
   const [matches, setMatches] = useState<any[]>([]);
   const [wizard, setWizard] = useState(false);
+  const [shooterWizard, setShooterWizard] = useState(false);
 
   async function load() {
-    const { data } = await supabase.from("matches").select("*, home_team:teams!home_team_id(name,logo_url), away_team:teams!away_team_id(name,logo_url)").eq("is_archived", false).order("start_time", { ascending: false });
+    const { data } = await (supabase as any).from("matches").select("*, markets(id,is_open), home_team:teams!home_team_id(name,logo_url), away_team:teams!away_team_id(name,logo_url), home_player:players!home_player_id(name,avatar_url), away_player:players!away_player_id(name,avatar_url)").eq("is_archived", false).neq("match_kind", "future").order("start_time", { ascending: false });
     setMatches(data ?? []);
   }
   useEffect(() => { load(); }, []);
@@ -1069,8 +1134,27 @@ function MatchesPanel() {
     await logAudit(`match_${status}`, "match", id);
     load();
   }
+  async function toggleOdds(m: any) {
+    const anyOpen = (m.markets ?? []).some((mk: any) => mk.is_open);
+    const next = !anyOpen;
+    const { error } = await supabase.from("markets").update({ is_open: next }).eq("match_id", m.id);
+    if (error) { toast.error(error.message); return; }
+    await logAudit(next ? "match_odds_unlock" : "match_odds_lock", "match", m.id);
+    toast.success(next ? "Odds unlocked — betting open" : "Odds locked — betting closed");
+    load();
+  }
+  async function togglePresence(m: any, side: "home" | "away") {
+    const field = side === "home" ? "home_present" : "away_present";
+    const current = m[field] === true;
+    const { error } = await supabase.from("matches").update({ [field]: !current } as any).eq("id", m.id);
+    if (error) { toast.error(error.message); return; }
+    await logAudit("match_presence", "match", m.id, { side, present: !current });
+    load();
+  }
   async function settle(m: any) {
-    const ok = await confirm({ title: "End match and settle bets?", description: `Final score will be ${m.home_team?.name} ${m.home_score}–${m.away_score} ${m.away_team?.name}. Suspended/refunded tickets will not be credited.`, confirmText: "Settle match" });
+    const homeLabel = m.match_kind === "shooter" ? m.home_player?.name : m.home_team?.name;
+    const awayLabel = m.match_kind === "shooter" ? m.away_player?.name : m.away_team?.name;
+    const ok = await confirm({ title: "End match and settle bets?", description: `Final score will be ${homeLabel} ${m.home_score}–${m.away_score} ${awayLabel}. Suspended/refunded tickets will not be credited.`, confirmText: "Settle match" });
     if (!ok) return;
     const hs = Number(m.home_score ?? 0), as = Number(m.away_score ?? 0);
     let winnerId = null;
@@ -1114,12 +1198,15 @@ function MatchesPanel() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <Button className="btn-luxury" onClick={() => setWizard(true)}><Plus className="h-4 w-4 mr-1" />New Match (Wizard)</Button>
+        <Button className="btn-luxury" onClick={() => setShooterWizard(true)}><Crosshair className="h-4 w-4 mr-1" />New Shooter Match</Button>
+        <Button className="btn-luxury" onClick={() => window.dispatchEvent(new CustomEvent("admin:set-tab", { detail: "futures" }))}><Target className="h-4 w-4 mr-1" />New Tournament Futures</Button>
         <Button variant="destructive" onClick={clearEnded}>
           <Trash2 className="h-4 w-4 mr-1" />Clear Ended Matches
         </Button>
         <Badge variant="outline" className="ml-auto text-[10px]">Bet history is preserved — only the panel list is cleared.</Badge>
       </div>
       {wizard && <MatchWizard onClose={() => { setWizard(false); load(); }} />}
+      {shooterWizard && <ShooterMatchWizard onClose={() => { setShooterWizard(false); load(); }} />}
 
       <div className="space-y-2">
         {matches.map((m: any) => (
@@ -1127,12 +1214,17 @@ function MatchesPanel() {
             <div className="min-w-0 flex items-center gap-2">
               {m.home_team?.logo_url && <img src={m.home_team.logo_url} alt="" className="h-8 w-8 rounded-full object-cover" />}
               <div>
-                <div className="font-bold truncate">{m.home_team?.name} vs {m.away_team?.name} {m.status === "ended" && <span className="text-xs text-muted-foreground">({m.home_score}–{m.away_score})</span>}</div>
-                <div className="text-xs text-muted-foreground">{m.name} · {m.start_time ? new Date(m.start_time).toLocaleString() : ""}</div>
+                <div className="font-bold truncate">{m.match_kind === "shooter" ? m.home_player?.name : m.home_team?.name} vs {m.match_kind === "shooter" ? m.away_player?.name : m.away_team?.name} {m.status === "ended" && <span className="text-xs text-muted-foreground">({m.home_score}–{m.away_score})</span>}</div>
+                <div className="text-xs text-muted-foreground">{m.name} · {m.start_time ? new Date(m.start_time).toLocaleString() : ""} {m.match_kind === "shooter" && <Badge variant="outline" className="ml-2 text-[9px] border-accent/40 text-accent">Shooter 1v1</Badge>}</div>
               </div>
             </div>
             <div className="flex gap-1 items-center flex-wrap">
               <Badge variant="outline" className="capitalize">{m.status}</Badge>
+              {(() => { const anyOpen = (m.markets ?? []).some((mk: any) => mk.is_open); return (
+                <Button size="sm" variant={anyOpen ? "outline" : "default"} onClick={() => toggleOdds(m)} title={anyOpen ? "Lock odds / close betting" : "Unlock odds / open betting"}>
+                  <Lock className="h-3 w-3 mr-1" />{anyOpen ? "Lock Odds" : "Odds Locked"}
+                </Button>
+              ); })()}
               {m.status === "live" && (
                 <LiveScoreEditor m={m} onSave={(hs, as) => updateLiveScore(m, hs, as)} />
               )}
@@ -1141,6 +1233,18 @@ function MatchesPanel() {
               <CorrectScoreManagerButton match={m} onSaved={load} />
               {m.status !== "cancelled" && m.status !== "ended" && <Button size="sm" variant="outline" onClick={() => setStatus(m.id, "cancelled")}>Cancel</Button>}
               <Button size="sm" variant="destructive" onClick={() => deleteMatch(m.id)} title="Delete match"><Trash2 className="h-3 w-3" /></Button>
+            </div>
+            <div className="w-full flex flex-wrap items-center gap-2 border-t border-border/40 pt-2 mt-1">
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Leaderboard attendance:</span>
+              <Button size="sm" variant={m.home_present === true ? "default" : "destructive"} onClick={() => togglePresence(m, "home")}>
+                {m.home_present === true ? <Check className="h-3 w-3 mr-1" /> : <X className="h-3 w-3 mr-1" />}
+                {(m.match_kind === "shooter" ? m.home_player?.name : m.home_team?.name) ?? "Home"}: {m.home_present === true ? "Present" : "Absent"}
+              </Button>
+              <Button size="sm" variant={m.away_present === true ? "default" : "destructive"} onClick={() => togglePresence(m, "away")}>
+                {m.away_present === true ? <Check className="h-3 w-3 mr-1" /> : <X className="h-3 w-3 mr-1" />}
+                {(m.match_kind === "shooter" ? m.away_player?.name : m.away_team?.name) ?? "Away"}: {m.away_present === true ? "Present" : "Absent"}
+              </Button>
+              <span className="text-[9px] text-muted-foreground">Only sides explicitly marked <b>Present</b> earn leaderboard stats when the match ends.</span>
             </div>
           </Card>
         ))}
@@ -1154,11 +1258,15 @@ async function settleBetsForMatch(matchId: string, winnerTeamId: string | null, 
   const { data: sels } = await supabase.from("bet_selections").select("*, markets!market_id(name), odds!odd_id(label)").eq("match_id", matchId);
   if (!sels || sels.length === 0) return;
   // Get team names for label comparison
-  const { data: match } = await supabase.from("matches").select("home_team_id, home_team:teams!home_team_id(name), away_team:teams!away_team_id(name), home_score, away_score").eq("id", matchId).single() as any;
+  const { data: match } = await (supabase as any).from("matches").select("home_team_id,away_team_id,home_player_id,away_player_id,match_kind,home_player:players!home_player_id(name),away_player:players!away_player_id(name),home_team:teams!home_team_id(name),away_team:teams!away_team_id(name),home_score,away_score").eq("id", matchId).single() as any;
   const hs = homeScore ?? Number(match?.home_score ?? 0);
   const as_ = awayScore ?? Number(match?.away_score ?? 0);
   const scoreLabel = `${hs}-${as_}`;
-  const winnerLabel = winnerTeamId === null ? "Draw" : (winnerTeamId === match?.home_team_id ? match?.home_team?.name : match?.away_team?.name);
+  const winnerLabel = winnerTeamId === null
+    ? "Draw"
+    : match?.match_kind === "shooter"
+    ? (winnerTeamId === match?.home_team_id ? match?.home_player?.name : match?.away_player?.name)
+    : (winnerTeamId === match?.home_team_id ? match?.home_team?.name : match?.away_team?.name);
   for (const s of sels) {
     const marketName = (s as any).markets?.name ?? "";
     const oddLabel = (s as any).odds?.label ?? "";
@@ -1168,7 +1276,9 @@ async function settleBetsForMatch(matchId: string, winnerTeamId: string | null, 
       const norm = (v: string) => v.replace(/[^0-9]/g, "-").replace(/-+/g, "-");
       result = norm(oddLabel) === norm(scoreLabel) ? "won" : "lost";
     } else {
-      result = oddLabel === winnerLabel ? "won" : "lost";
+      // Tolerant match: ignore case + surrounding whitespace so labels still settle.
+      const norm = (v: string) => (v ?? "").trim().toLowerCase();
+      result = winnerLabel != null && norm(oddLabel) === norm(winnerLabel) ? "won" : "lost";
     }
     await supabase.from("bet_selections").update({ result }).eq("id", s.id);
   }
@@ -1193,13 +1303,357 @@ async function settleBetsForMatch(matchId: string, winnerTeamId: string | null, 
   }
 }
 
+async function settleFutureBets(matchId: string, winningOddIds: string[], winningLabel: string) {
+  const { data: sels } = await supabase.from("bet_selections").select("*").eq("match_id", matchId);
+  if (!sels || sels.length === 0) return;
+  for (const s of sels) {
+    await supabase.from("bet_selections").update({ result: winningOddIds.includes(s.odd_id) ? "won" : "lost" }).eq("id", s.id);
+  }
+  const betIds = Array.from(new Set(sels.map((s: any) => s.bet_id)));
+  for (const bid of betIds) {
+    const { data: betSels } = await supabase.from("bet_selections").select("result").eq("bet_id", bid);
+    if (!betSels || betSels.some((s: any) => !s.result)) continue;
+    const allWon = betSels.every((s: any) => s.result === "won");
+    const { data: bet } = await supabase.from("bets").select("*").eq("id", bid).single();
+    if (!bet || ["suspended", "refunded", "void", "cashed_out"].includes(bet.status)) continue;
+    if (allWon) {
+      const { error } = await supabase.rpc("settle_pay_winning_bet", { _bet_id: bid });
+      if (error) toast.error(`Could not credit ${bet.tracking_id}: ${error.message}`);
+    } else {
+      await supabase.from("bets").update({ status: "lost", settled_at: new Date().toISOString() }).eq("id", bid);
+      await supabase.from("notifications").insert({ user_id: bet.user_id, title: "Future bet lost", body: `Your ticket ${bet.tracking_id} did not match ${winningLabel}.`, link: `/ticket/${bid}` });
+    }
+  }
+}
+
+function ShooterMatchWizard({ onClose }: { onClose: () => void }) {
+  const [players, setPlayers] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [form, setForm] = useState({ home_player_id: "", away_player_id: "", oddsA: 2, draw: 3.5, oddsB: 2, name: "", start_time: "", location: "", featured: true, marketing: true, homePresent: false, awayPresent: false, restrictRepeat: false });
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from("players").select("id,name,avatar_url,team_id,teams!team_id(name)").order("name"),
+      supabase.from("teams").select("id,name,logo_url").order("name"),
+    ]).then(([p, t]) => { setPlayers(p.data ?? []); setTeams(t.data ?? []); });
+  }, []);
+
+  async function create() {
+    if (!form.home_player_id || !form.away_player_id) { toast.error("Pick two shooters"); return; }
+    if (form.home_player_id === form.away_player_id) { toast.error("Choose two different shooters"); return; }
+    const home = players.find((p) => p.id === form.home_player_id);
+    const away = players.find((p) => p.id === form.away_player_id);
+    const homeTeamId = home?.team_id || teams[0]?.id;
+    const awayTeamId = away?.team_id || teams.find((t) => t.id !== homeTeamId)?.id || homeTeamId;
+    if (!homeTeamId || !awayTeamId) { toast.error("Create at least one team in Clan first, then seed shooters freely with or without team tag."); return; }
+    const { data: m, error } = await supabase.from("matches").insert({
+      name: form.name || `${home?.name} vs ${away?.name}`,
+      home_team_id: homeTeamId,
+      away_team_id: awayTeamId,
+      home_player_id: form.home_player_id,
+      away_player_id: form.away_player_id,
+      match_kind: "shooter",
+      marketing_enabled: form.marketing,
+      is_featured: form.featured,
+      location: form.location || "Shooter 1v1",
+      start_time: form.start_time ? new Date(form.start_time).toISOString() : new Date().toISOString(),
+      status: "scheduled",
+      home_present: form.homePresent, away_present: form.awayPresent, restrict_repeat_contender: form.restrictRepeat,
+    } as any).select().single();
+    if (error) { toast.error(error.message); return; }
+    const { data: market } = await supabase.from("markets").insert({ match_id: m.id, name: "Shooter Winner" }).select().single();
+    if (market) await supabase.from("odds").insert([
+      { market_id: market.id, label: home?.name ?? "Shooter A", value: form.oddsA },
+      { market_id: market.id, label: "Draw", value: form.draw },
+      { market_id: market.id, label: away?.name ?? "Shooter B", value: form.oddsB },
+    ]);
+    await logAudit("shooter_match_created", "match", m.id, { home_player: home?.name, away_player: away?.name, marketing: form.marketing });
+    toast.success("Shooter match posted with odds");
+    onClose();
+  }
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Crosshair className="h-5 w-5 text-primary" />Shooter Match — 1v1 Marketing Odds</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <ShooterSelect label="Shooter A" value={form.home_player_id} players={players} onChange={(v) => setForm({ ...form, home_player_id: v })} />
+            <ShooterSelect label="Shooter B" value={form.away_player_id} players={players} onChange={(v) => setForm({ ...form, away_player_id: v })} />
+            <div><label className="text-xs text-muted-foreground">Shooter A odds</label><Input type="number" step="0.01" min={1.01} value={form.oddsA} onChange={(e) => setForm({ ...form, oddsA: Number(e.target.value) })} /></div>
+            <div><label className="text-xs text-muted-foreground">Draw odds</label><Input type="number" step="0.01" min={1.01} value={form.draw} onChange={(e) => setForm({ ...form, draw: Number(e.target.value) })} /></div>
+            <div><label className="text-xs text-muted-foreground">Shooter B odds</label><Input type="number" step="0.01" min={1.01} value={form.oddsB} onChange={(e) => setForm({ ...form, oddsB: Number(e.target.value) })} /></div>
+            <div><label className="text-xs text-muted-foreground">Start time</label><Input type="datetime-local" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} /></div>
+          </div>
+          <Input placeholder="Marketing title (optional)" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Input placeholder="Location / stream / venue" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <label className="flex items-center gap-2 rounded-lg border border-primary/20 bg-card/60 p-3"><Switch checked={form.featured} onCheckedChange={(v) => setForm({ ...form, featured: v })} />Feature on homepage</label>
+            <label className="flex items-center gap-2 rounded-lg border border-accent/20 bg-card/60 p-3"><Switch checked={form.marketing} onCheckedChange={(v) => setForm({ ...form, marketing: v })} />Post for marketing</label>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <label className="flex items-center gap-2 rounded-lg border border-primary/20 bg-card/60 p-3"><Switch checked={form.homePresent} onCheckedChange={(v) => setForm({ ...form, homePresent: v })} />Shooter A present (counts on Leaderboard)</label>
+            <label className="flex items-center gap-2 rounded-lg border border-primary/20 bg-card/60 p-3"><Switch checked={form.awayPresent} onCheckedChange={(v) => setForm({ ...form, awayPresent: v })} />Shooter B present (counts on Leaderboard)</label>
+          </div>
+          <label className="flex items-center gap-2 rounded-lg border border-accent/20 bg-card/60 p-3 text-sm"><Switch checked={form.restrictRepeat} onCheckedChange={(v) => setForm({ ...form, restrictRepeat: v })} />Restrict repeat bets — one bet per contender on this match</label>
+        </div>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button className="btn-luxury" onClick={create}>Create Shooter Match</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ShooterSelect({ label, value, players, onChange }: { label: string; value: string; players: any[]; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="text-xs text-muted-foreground">{label}</label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger><SelectValue placeholder="Pick seeded shooter" /></SelectTrigger>
+        <SelectContent>
+          {players.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}{p.teams?.name ? ` · ${p.teams.name}` : " · Free agent"}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function FuturesAdminPanel() {
+  const confirm = useConfirm();
+  const [settings, setSettings] = useState({ futures_section_title: "TOURNAMENT FUTURES", futures_min_stake: 1, futures_max_payout: 100000000, futures_max_selections: 1 });
+  const [futures, setFutures] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [players, setPlayers] = useState<any[]>([]);
+  const [draft, setDraft] = useState({ title: "Gang Champion of the Season", opens_at: new Date().toISOString().slice(0, 16), closes_at: "", options: "", min_stake: 1, max_payout: 100000000, max_selections: 1, next_title: "Round 1" });
+
+  async function load() {
+    const [{ data: s }, { data: f }, { data: tm }, { data: pl }] = await Promise.all([
+      supabase.from("app_settings").select("futures_section_title,futures_min_stake,futures_max_payout,futures_max_selections").eq("id", 1).maybeSingle(),
+      supabase.from("matches").select("*, markets(id,name,is_open,odds(id,label,value,is_winner,market_id,future_candidate_type,future_emblem_url,future_status,future_next_title,future_next_at,future_progress))").eq("match_kind", "future").eq("is_archived", false).order("start_time", { ascending: false }),
+      supabase.from("teams").select("id,name,logo_url,gang_type").order("name"),
+      supabase.from("players").select("id,name,avatar_url,team_id,teams!team_id(name)").order("name"),
+    ]);
+    if (s) setSettings({ futures_section_title: (s as any).futures_section_title ?? "TOURNAMENT FUTURES", futures_min_stake: Number((s as any).futures_min_stake ?? 1), futures_max_payout: Number((s as any).futures_max_payout ?? 100000000), futures_max_selections: Number((s as any).futures_max_selections ?? 1) });
+    setFutures(f ?? []);
+    setTeams(tm ?? []);
+    setPlayers(pl ?? []);
+  }
+  useEffect(() => { load(); }, []);
+
+  async function ensureFutureTeams() {
+    const { data } = await supabase.from("teams").select("id,name").in("name", ["LSL Futures", "Season Field"]);
+    let a = data?.find((t) => t.name === "LSL Futures")?.id;
+    let b = data?.find((t) => t.name === "Season Field")?.id;
+    if (!a) { const { data: row } = await supabase.from("teams").insert({ name: "LSL Futures" }).select("id").single(); a = row?.id; }
+    if (!b) { const { data: row } = await supabase.from("teams").insert({ name: "Season Field" }).select("id").single(); b = row?.id; }
+    return { a, b };
+  }
+  async function saveSettings() {
+    const { error } = await supabase.from("app_settings").update(settings as any).eq("id", 1);
+    if (error) toast.error(error.message); else toast.success("Futures settings saved");
+  }
+  function addCandidate(label: string, odds = 5, type = "contender", emblem?: string | null) {
+    const row = [label, odds.toFixed(2), type, emblem ?? ""].join(" | ");
+    setDraft((d) => ({ ...d, options: `${d.options}${d.options.trim() ? "\n" : ""}${row}` }));
+  }
+  async function createFuture() {
+    const options = draft.options.split("\n").map((line) => {
+      const parts = line.includes("|") ? line.split("|").map((x) => x.trim()) : line.split(/[,@]/).map((x) => x.trim());
+      const [label, odd, type, emblem] = parts;
+      return { label, value: Number(odd), future_candidate_type: type || null, future_emblem_url: emblem || null };
+    }).filter((x) => x.label && Number.isFinite(x.value) && x.value >= 1.01);
+    if (!draft.title.trim() || !draft.closes_at || options.length < 2) { toast.error("Add title, close date, and at least two outcomes like: Spain, 5.50"); return; }
+    const ids = await ensureFutureTeams();
+    if (!ids.a || !ids.b) { toast.error("Could not prepare futures teams"); return; }
+    const { data: m, error } = await supabase.from("matches").insert({
+      name: draft.title.trim(), home_team_id: ids.a, away_team_id: ids.b, match_kind: "future", is_featured: true, marketing_enabled: true,
+      location: `Opens ${new Date(draft.opens_at).toLocaleString()} · ${draft.next_title || "Tournament"}`, start_time: new Date(draft.closes_at).toISOString(), lock_time: new Date(draft.opens_at).toISOString(), status: "scheduled",
+    } as any).select().single();
+    if (error) { toast.error(error.message); return; }
+    const { data: market } = await supabase.from("markets").insert({ match_id: m.id, name: draft.title.trim() }).select().single();
+    if (market) await supabase.from("odds").insert(options.map((o) => ({ market_id: market.id, label: o.label, value: o.value, future_candidate_type: o.future_candidate_type, future_emblem_url: o.future_emblem_url, future_next_title: draft.next_title || null, future_next_at: draft.opens_at ? new Date(draft.opens_at).toISOString() : null })) as any);
+    await supabase.from("app_settings").update({ futures_min_stake: draft.min_stake, futures_max_payout: draft.max_payout, futures_max_selections: draft.max_selections } as any).eq("id", 1);
+    await logAudit("future_market_created", "match", m.id, { title: draft.title, options: options.length });
+    toast.success("Futures market created");
+    setDraft({ title: "Gang Champion of the Season", opens_at: draft.opens_at, closes_at: "", options: "", min_stake: draft.min_stake, max_payout: draft.max_payout, max_selections: draft.max_selections, next_title: "Round 1" });
+    load();
+  }
+  async function updateOdd(oddId: string, value: number) {
+    await supabase.from("odds").update({ value } as any).eq("id", oddId);
+    load();
+  }
+  async function updateFutureStatus(odd: any, status: string, opts: { score?: string; opponent?: string; at?: string } = {}) {
+    const progress = Array.isArray(odd.future_progress) ? [...odd.future_progress] : [];
+    const completed = progress.filter((p: any) => p && p.round != null).length;
+    const round = completed + 1;
+    const entry = {
+      round,
+      status,
+      score: opts.score?.trim() || null,
+      opponent: opts.opponent?.trim() || null,
+      title: `Round ${round}`,
+      at: opts.at ? new Date(opts.at).toISOString() : new Date().toISOString(),
+    };
+    progress.push(entry);
+    // A "lost" round no longer eliminates the contender — they advance to the next round
+    // and the loss is shown on the bet voucher progress. Only "disqualified" removes them.
+    const advanced = status === "qualified" || status === "lost";
+    const { error } = await supabase.from("odds").update({
+      future_status: status,
+      // After qualifying a round, the contender automatically moves to the next round.
+      future_next_title: advanced ? `Round ${round + 1}` : null,
+      future_next_at: opts.at ? new Date(opts.at).toISOString() : null,
+      future_progress: progress,
+      is_winner: status === "winner" ? true : odd.is_winner,
+    } as any).eq("id", odd.id);
+    if (error) { toast.error(error.message); return; }
+    // Only a disqualification settles open tickets as lost. A "lost" round keeps tickets open.
+    if (status === "disqualified") await loseFutureSelection(odd);
+    await logAudit("future_status_changed", "odd", odd.id, { label: odd.label, status, round, score: entry.score, opponent: entry.opponent });
+    toast.success(
+      status === "qualified" ? `${odd.label} qualified — advanced to Round ${round + 1}`
+        : status === "winner" ? `${odd.label} crowned WINNER`
+        : status === "lost" ? `${odd.label} lost Round ${round} — still in, advanced to Round ${round + 1}`
+        : `${odd.label} disqualified and removed from the event`,
+    );
+    load();
+  }
+  async function loseFutureSelection(odd: any) {
+    const { data: sels } = await supabase.from("bet_selections").select("id,bet_id").eq("odd_id", odd.id).is("result", null);
+    if (!sels?.length) return;
+    await supabase.from("bet_selections").update({ result: "lost" }).eq("odd_id", odd.id).is("result", null);
+    const betIds = Array.from(new Set(sels.map((s: any) => s.bet_id)));
+    for (const bid of betIds) await supabase.from("bets").update({ status: "lost", settled_at: new Date().toISOString() } as any).eq("id", bid).eq("status", "open");
+  }
+  async function finalizeFuture(match: any) {
+    const winners = (match.markets ?? []).flatMap((m: any) => m.odds ?? []).filter((o: any) => o.future_status === "winner" || o.is_winner);
+    if (winners.length === 0) { toast.error("Mark at least one winner first"); return; }
+    if (!await confirm({ title: `Settle ${match.name}?`, description: `This finalises the futures market with ${winners.length} winner(s): ${winners.map((o: any) => o.label).join(", ")}. Winning tickets are paid out and the market closes.`, confirmText: "Settle futures" })) return;
+    await supabase.from("odds").update({ is_winner: false, future_status: "settled" } as any).in("market_id", (match.markets ?? []).map((m: any) => m.id));
+    await supabase.from("odds").update({ is_winner: true, future_status: "winner" } as any).in("id", winners.map((o: any) => o.id));
+    await supabase.from("markets").update({ is_open: false }).eq("match_id", match.id);
+    await supabase.from("matches").update({ status: "ended", settled_at: new Date().toISOString() } as any).eq("id", match.id);
+    await settleFutureBets(match.id, winners.map((o: any) => o.id), winners.map((o: any) => o.label).join(", "));
+    await logAudit("future_market_settled", "match", match.id, { winners: winners.map((o: any) => o.label) });
+    toast.success("Future settled and tickets updated");
+    load();
+  }
+  async function archiveFuture(id: string) {
+    if (!await confirm({ title: "Archive this futures market?", description: "It will be hidden from the homepage and admin list. Existing tickets keep their records.", tone: "danger", confirmText: "Archive" })) return;
+    await supabase.from("matches").update({ is_archived: true }).eq("id", id);
+    load();
+  }
+
+  return (
+    <div className="grid lg:grid-cols-[420px_1fr] gap-4">
+      <Card className="glass-strong p-4 space-y-3">
+        <div className="font-bold flex items-center gap-2"><Target className="h-4 w-4 text-primary" />Futures Betting Control</div>
+        <Input value={settings.futures_section_title} onChange={(e) => setSettings({ ...settings, futures_section_title: e.target.value })} placeholder="Homepage section name" />
+        <div className="grid grid-cols-3 gap-2"><Input type="number" min={1} value={settings.futures_min_stake} onChange={(e) => setSettings({ ...settings, futures_min_stake: Number(e.target.value) })} /><Input type="number" min={1} value={settings.futures_max_payout} onChange={(e) => setSettings({ ...settings, futures_max_payout: Number(e.target.value) })} /><Input type="number" min={1} max={3} value={settings.futures_max_selections} onChange={(e) => setSettings({ ...settings, futures_max_selections: Math.min(3, Math.max(1, Number(e.target.value))) })} /></div>
+        <Button variant="outline" onClick={saveSettings}>Save Section Settings</Button>
+        <div className="h-px bg-border" />
+        <Input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Market title" />
+        <Input value={draft.next_title} onChange={(e) => setDraft({ ...draft, next_title: e.target.value })} placeholder="Current / next round title" />
+        <div><label className="text-xs text-muted-foreground">Opening date</label><Input type="datetime-local" value={draft.opens_at} onChange={(e) => setDraft({ ...draft, opens_at: e.target.value })} /></div>
+        <div><label className="text-xs text-muted-foreground">Closing date</label><Input type="datetime-local" value={draft.closes_at} onChange={(e) => setDraft({ ...draft, closes_at: e.target.value })} /></div>
+        <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
+          {teams.map((t) => <Button key={t.id} size="sm" variant="outline" onClick={() => addCandidate(t.name, 5, t.gang_type === "F" ? "Faction / Clan" : "Gang", t.logo_url)}>{t.name}</Button>)}
+          {players.map((p) => <Button key={p.id} size="sm" variant="outline" onClick={() => addCandidate(p.name, 8, "Shooter", p.avatar_url)}>{p.name}</Button>)}
+        </div>
+        <Textarea rows={8} value={draft.options} onChange={(e) => setDraft({ ...draft, options: e.target.value })} placeholder={"One option per line:\nGang A | 5.50 | Gang | image-url\nTop Shooter | 8.00 | Shooter | image-url\nBest Clan | 10.00 | Faction / Clan | image-url"} />
+        <div className="grid grid-cols-3 gap-2"><Input type="number" min={1} value={draft.min_stake} onChange={(e) => setDraft({ ...draft, min_stake: Number(e.target.value) })} /><Input type="number" min={1} value={draft.max_payout} onChange={(e) => setDraft({ ...draft, max_payout: Number(e.target.value) })} /><Input type="number" min={1} max={3} value={draft.max_selections} onChange={(e) => setDraft({ ...draft, max_selections: Math.min(3, Math.max(1, Number(e.target.value))) })} /></div>
+        <Button className="btn-luxury w-full" onClick={createFuture}><Plus className="h-4 w-4 mr-1" />Create Futures Market</Button>
+      </Card>
+      <div className="space-y-3">
+        {futures.map((f) => (
+          <Card key={f.id} className="glass p-4 space-y-3">
+            <div className="flex items-start gap-2"><div className="min-w-0 flex-1"><div className="font-bold text-lg truncate">{f.name}</div><div className="text-xs text-muted-foreground">Opens {f.lock_time ? new Date(f.lock_time).toLocaleString() : "now"} · Closes {new Date(f.start_time).toLocaleString()} · {f.status}</div></div><Button size="sm" className="btn-luxury" disabled={f.status === "ended"} onClick={() => finalizeFuture(f)}>Finalize</Button><Button size="sm" variant="destructive" onClick={() => archiveFuture(f.id)}><Trash2 className="h-3 w-3" /></Button></div>
+            {(f.markets ?? []).map((m: any) => <div key={m.id} className="grid grid-cols-2 md:grid-cols-3 gap-2">{(m.odds ?? []).map((o: any) => <FutureOddAdminCard key={o.id} odd={o} disabled={f.status === "ended"} onOdd={updateOdd} onStatus={updateFutureStatus} />)}</div>)}
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FutureOddAdminCard({ odd, disabled, onOdd, onStatus }: { odd: any; disabled: boolean; onOdd: (id: string, value: number) => void; onStatus: (odd: any, status: string, opts?: { score?: string; opponent?: string; at?: string }) => void }) {
+  const confirm = useConfirm();
+  const [at, setAt] = useState(odd.future_next_at ? new Date(odd.future_next_at).toISOString().slice(0, 16) : "");
+  const [score, setScore] = useState("");
+  const [opponent, setOpponent] = useState("");
+  const status = odd.future_status ?? "active";
+  const progress = Array.isArray(odd.future_progress) ? odd.future_progress : [];
+  const completed = progress.filter((p: any) => p && p.round != null).length;
+  const currentRound = completed + 1;
+  // "lost" is NOT terminal — the contender stays in the event and advances a round.
+  const terminal = ["disqualified", "settled", "winner"].includes(status);
+
+  async function act(next: string) {
+    const title =
+      next === "qualified" ? `Qualify ${odd.label} (Round ${currentRound})?`
+      : next === "winner" ? `Crown ${odd.label} as WINNER?`
+      : `Mark ${odd.label} as ${next.toUpperCase()}?`;
+    const description =
+      next === "qualified"
+        ? `Records Round ${currentRound}${score.trim() ? ` · ${score.trim()}` : ""}${opponent.trim() ? ` (beat ${opponent.trim()})` : ""} and automatically advances them to Round ${currentRound + 1}.`
+      : next === "winner"
+        ? `Settles them as the tournament champion. Winning tickets update accordingly.`
+        : next === "lost"
+        ? `Records Round ${currentRound}${score.trim() ? ` · ${score.trim()}` : ""}${opponent.trim() ? ` (lost to ${opponent.trim()})` : ""}. They STAY in the event and advance to Round ${currentRound + 1}. The loss shows on bet vouchers but tickets stay open — they only lose if disqualified.`
+        : `Records Round ${currentRound}${score.trim() ? ` · ${score.trim()}` : ""}${opponent.trim() ? ` (lost to ${opponent.trim()})` : ""}. They are disqualified and removed from the event, and all open tickets on this pick are settled as lost.`;
+    const ok = await confirm({ title, description, confirmText: "Confirm" });
+    if (!ok) return;
+    onStatus(odd, next, { score, opponent, at });
+    setScore(""); setOpponent("");
+  }
+
+  return (
+    <div className="rounded-lg border border-primary/20 bg-card/60 p-2 space-y-2">
+      <div className="flex items-center gap-2">
+        <FutureTinyEmblem label={odd.label} url={odd.future_emblem_url} />
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-bold truncate">{odd.label}</div>
+          <div className="text-[10px] text-muted-foreground truncate">{odd.future_candidate_type ?? "Contender"} · <span className="text-primary font-semibold">{terminal ? status : `Round ${currentRound}`}</span></div>
+        </div>
+      </div>
+      <Input className="h-8" type="number" step="0.01" value={Number(odd.value)} onChange={(e) => onOdd(odd.id, Number(e.target.value))} />
+      {!terminal && !disabled && (
+        <>
+          <Input className="h-8" value={score} onChange={(e) => setScore(e.target.value)} placeholder={`Round ${currentRound} score e.g. 21-15`} />
+          <Input className="h-8" value={opponent} onChange={(e) => setOpponent(e.target.value)} placeholder="Opponent (beat / lost to)" />
+          <Input className="h-8" type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
+        </>
+      )}
+      <div className="grid grid-cols-2 gap-1">
+        <Button size="sm" variant="outline" disabled={disabled || terminal} onClick={() => act("qualified")}>Qualified</Button>
+        <Button size="sm" variant="outline" disabled={disabled || terminal} onClick={() => act("winner")}>Winner</Button>
+        <Button size="sm" variant="outline" className="border-amber-500/40 text-amber-300" disabled={disabled || terminal} onClick={() => act("lost")}>Lost (stays in)</Button>
+        <Button size="sm" variant="destructive" disabled={disabled || terminal} onClick={() => act("disqualified")}>DQ</Button>
+      </div>
+      {progress.length > 0 && (
+        <div className="flex flex-wrap gap-1 pt-1 border-t border-border/40">
+          {progress.map((p: any, i: number) => (
+            <span key={i} className={`text-[9px] px-1.5 py-0.5 rounded-full border ${p.status === "winner" ? "border-emerald-400/50 text-emerald-300" : ["lost", "disqualified"].includes(p.status) ? "border-destructive/50 text-destructive" : "border-primary/40 text-primary"}`} title={`${p.opponent ? (["lost","disqualified"].includes(p.status) ? "lost to " : "beat ") + p.opponent : p.status}`}>
+              R{p.round}{p.score ? ` ${p.score}` : ""}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FutureTinyEmblem({ label, url }: { label: string; url?: string | null }) {
+  const initials = label.split(/\s+/).filter(Boolean).map((p) => p[0]).slice(0, 2).join("").toUpperCase() || "LS";
+  return <span className="h-9 w-9 rounded-full bg-primary/10 border border-primary/30 grid place-items-center overflow-hidden text-[10px] font-bold text-primary shrink-0">{url ? <img src={url} alt="" className="h-full w-full object-cover" /> : initials}</span>;
+}
+
 function MatchWizard({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState(1);
   const [teams, setTeams] = useState<any[]>([]);
   const [cats, setCats] = useState<any[]>([]);
   const [teamA, setTeamA] = useState({ id: "", name: "", logoFile: null as File | null, mainPlayers: "", subPlayers: "" });
   const [teamB, setTeamB] = useState({ id: "", name: "", logoFile: null as File | null, mainPlayers: "", subPlayers: "" });
-  const [details, setDetails] = useState({ homeIs: "A" as "A" | "B", oddsA: 2.0, draw: 3.5, oddsB: 2.0, name: "", start_time: "", location: "", category_id: "", featured: false });
+  const [details, setDetails] = useState({ homeIs: "A" as "A" | "B", oddsA: 2.0, draw: 3.5, oddsB: 2.0, name: "", start_time: "", location: "", category_id: "", featured: false, homePresent: false, awayPresent: false, restrictRepeat: false });
   const [csEnabled, setCsEnabled] = useState(true);
   const [csRows, setCsRows] = useState<Array<{ label: string; value: number }>>(
     POPULAR_SCORES.map(([h, a]) => {
@@ -1254,6 +1708,7 @@ function MatchWizard({ onClose }: { onClose: () => void }) {
       start_time: details.start_time ? new Date(details.start_time).toISOString() : new Date().toISOString(),
       location: details.location, status: "scheduled",
       category_id: details.category_id || null, is_featured: details.featured,
+      home_present: details.homePresent, away_present: details.awayPresent, restrict_repeat_contender: details.restrictRepeat,
     }).select().single();
     if (error) { toast.error(error.message); return; }
     const { data: market } = await supabase.from("markets").insert({ match_id: m.id, name: "Match Winner" }).select().single();
@@ -1361,6 +1816,11 @@ function MatchWizard({ onClose }: { onClose: () => void }) {
             </div>
             <Input placeholder="Location / Venue" value={details.location} onChange={(e) => setDetails({ ...details, location: e.target.value })} />
             <label className="flex items-center gap-2 text-sm"><Switch checked={details.featured} onCheckedChange={(v) => setDetails({ ...details, featured: v })} /> Publish on homepage as Featured</label>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex items-center gap-2 rounded-lg border border-primary/20 bg-card/60 p-3 text-sm"><Switch checked={details.homePresent} onCheckedChange={(v) => setDetails({ ...details, homePresent: v })} /> Home team present (counts on Leaderboard)</label>
+              <label className="flex items-center gap-2 rounded-lg border border-primary/20 bg-card/60 p-3 text-sm"><Switch checked={details.awayPresent} onCheckedChange={(v) => setDetails({ ...details, awayPresent: v })} /> Away team present (counts on Leaderboard)</label>
+            </div>
+            <label className="flex items-center gap-2 rounded-lg border border-accent/20 bg-card/60 p-3 text-sm"><Switch checked={details.restrictRepeat} onCheckedChange={(v) => setDetails({ ...details, restrictRepeat: v })} /> Restrict repeat bets — one bet per contender on this match</label>
           </div>
         )}
 
@@ -1419,9 +1879,9 @@ function EventsPanel() {
     let banner_url: string | null = null;
     if (draft.banner) {
       const path = `event-${crypto.randomUUID()}.${draft.banner.name.split(".").pop()}`;
-      const { error } = await supabase.storage.from("announcements").upload(path, draft.banner);
+      const { error } = await supabase.storage.from("ads").upload(path, draft.banner);
       if (error) { toast.error(error.message); return; }
-      banner_url = supabase.storage.from("announcements").getPublicUrl(path).data.publicUrl;
+      banner_url = supabase.storage.from("ads").getPublicUrl(path).data.publicUrl;
     }
     const { error } = await supabase.from("events").insert({ title: draft.title, description: draft.description, banner_url, ends_at: new Date(draft.ends_at).toISOString() });
     if (error) toast.error(error.message);
@@ -2131,18 +2591,14 @@ function AuditPanel() {
   const [actionFilter, setActionFilter] = useState<string>("all");
 
   useEffect(() => {
-    const load = async () => {
-      const { data, error } = await supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(800);
-      if (error) { toast.error(`Audit logs unavailable: ${error.message}`); return; }
+    supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(500).then(async ({ data }) => {
       setLogs(data ?? []);
       const ids = new Set<string>();
       (data ?? []).forEach((x: any) => {
         if (x.actor_id) ids.add(x.actor_id);
-        if (x.metadata?.actor_id) ids.add(x.metadata.actor_id);
         const tu = x.metadata?.target_user_id;
         if (tu) ids.add(tu);
         if (x.target_type === "user" && x.target_id) ids.add(x.target_id);
-        if (x.target_type === "profiles" && x.target_id) ids.add(x.target_id);
       });
       if (ids.size) {
         const { data: p } = await supabase.from("profiles").select("id,full_name,email").in("id", Array.from(ids));
@@ -2150,29 +2606,26 @@ function AuditPanel() {
         (p ?? []).forEach((x: any) => { m[x.id] = x; });
         setProfiles(m);
       }
-    };
-    load();
-    const ch = supabase.channel("admin-audit-live")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "audit_logs" }, load)
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    });
   }, []);
 
   const filtered = useMemo(() => {
     return logs.filter((l) => {
-      const action = String(l.action ?? "");
-      if (/^virtual_round_auto_|^virtual_tick|^virtual_match_auto/i.test(action)) return false;
-      if (actionFilter !== "all" && !auditCategoryFor(action, l.target_type).includes(actionFilter)) return false;
+      if (actionFilter !== "all" && !l.action.startsWith(actionFilter)) return false;
       if (!q) return true;
-      const actor = profiles[l.actor_id]?.full_name ?? l.metadata?.actor_email ?? "";
+      const actor = profiles[l.actor_id]?.full_name ?? "";
       const targetUserId = l.metadata?.target_user_id ?? (l.target_type === "user" ? l.target_id : null);
-      const target = targetUserId ? (profiles[targetUserId]?.full_name ?? "") : (l.metadata?.target_name ?? "");
+      const target = targetUserId ? (profiles[targetUserId]?.full_name ?? "") : "";
       const hay = `${l.action} ${l.target_type} ${l.target_id ?? ""} ${actor} ${target} ${JSON.stringify(l.metadata ?? {})}`.toLowerCase();
       return hay.includes(q.toLowerCase());
     });
   }, [logs, q, actionFilter, profiles]);
 
-  const actionPrefixes = ["add", "admin", "ai", "announcements", "approve", "banned", "decline", "delete", "emergency", "event", "grant", "house", "kick", "match", "notify", "promo", "refund", "remove", "restrict", "revoke", "settings", "suspension", "token", "unsuspend", "withdrawal"];
+  const actionPrefixes = useMemo(() => {
+    const set = new Set<string>();
+    logs.forEach((l) => set.add(l.action.split("_")[0]));
+    return Array.from(set).sort();
+  }, [logs]);
 
   return (
     <div className="space-y-3">
@@ -2186,8 +2639,7 @@ function AuditPanel() {
             {actionPrefixes.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button size="sm" variant="outline" onClick={() => { setQ(""); setActionFilter("all"); }}><RotateCw className="h-3 w-3 mr-1" />Reset</Button>
-        <Badge variant="outline" className="ml-auto">{filtered.length} visible</Badge>
+        <Badge variant="outline" className="ml-auto">{filtered.length} of {logs.length}</Badge>
       </Card>
 
       {filtered.length === 0 && <p className="text-sm text-muted-foreground">No audit entries match.</p>}
@@ -2197,8 +2649,6 @@ function AuditPanel() {
           const meta = l.metadata ?? {};
           const targetUserId = meta.target_user_id ?? (l.target_type === "user" ? l.target_id : null);
           const targetUser = targetUserId ? profiles[targetUserId] : null;
-          const actorName = actor?.full_name ?? meta.actor_email ?? (l.actor_id ? `Staff ${String(l.actor_id).slice(0, 8)}` : "System");
-          const targetName = targetUser?.full_name ?? meta.target_name ?? l.target_id ?? "record";
           const ts = new Date(l.created_at);
           const action = humanize(l.action);
           const tone = /(ban|revoke|deny|delete|wipe|restrict|mute)/i.test(l.action) ? "destructive"
@@ -2209,7 +2659,7 @@ function AuditPanel() {
                         : "border-primary/30 bg-primary/5";
           const dotCls = tone === "destructive" ? "bg-destructive" : tone === "emerald" ? "bg-emerald-400" : "bg-primary";
           // Strip enrichment keys from "extra" rendering
-          const standardKeys = new Set(["actor_email", "actor_id", "actor_role", "user_agent", "route", "origin", "locale", "timezone", "timestamp_iso", "target_user_id", "target_name", "reason", "audit_source", "source", "dedupe_key", "where"]);
+          const standardKeys = new Set(["actor_email", "user_agent", "route", "origin", "locale", "timezone", "timestamp_iso", "target_user_id"]);
           const extras = Object.entries(meta).filter(([k]) => !standardKeys.has(k));
           return (
             <Card key={l.id} className={`glass p-4 border ${toneCls}`}>
@@ -2217,20 +2667,21 @@ function AuditPanel() {
                 <span className={`mt-1 h-2.5 w-2.5 rounded-full shrink-0 ${dotCls} shadow-[0_0_10px_currentColor]`} />
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="font-bold text-primary">{actorName}</span>
+                    <span className="font-bold text-primary">{actor?.full_name ?? "System"}</span>
                     <span className="text-muted-foreground">{action}</span>
                     <span className="text-muted-foreground">on</span>
                     <Badge variant="outline" className="capitalize">{l.target_type ?? "—"}</Badge>
-                    <span className="text-muted-foreground">→</span>
-                    <span className="font-bold text-emerald-300">{targetName}</span>
+                    {targetUser && (
+                      <>
+                        <span className="text-muted-foreground">→</span>
+                        <span className="font-bold text-emerald-300">{targetUser.full_name}</span>
+                      </>
+                    )}
                   </div>
                   <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                    {(actor?.email || meta.actor_email) && <Detail icon={Users} label="By"><span className="font-mono">{actor?.email ?? meta.actor_email}</span></Detail>}
-                    {meta.actor_role && <Detail icon={Shield} label="Role"><span className="capitalize">{meta.actor_role}</span></Detail>}
+                    {actor?.email && <Detail icon={Users} label="By"><span className="font-mono">{actor.email}</span></Detail>}
                     {targetUser?.email && <Detail icon={Users} label="To"><span className="font-mono">{targetUser.email}</span></Detail>}
                     {l.target_id && l.target_type !== "user" && <Detail icon={Tag} label="Target ID"><span className="font-mono break-all">{l.target_id}</span></Detail>}
-                    {meta.reason && <Detail icon={AlertTriangle} label="Reason"><span>{meta.reason}</span></Detail>}
-                    {meta.where && <Detail icon={MapPin} label="Where"><span className="font-mono">{meta.where}</span></Detail>}
                     {meta.route && <Detail icon={MapPin} label="From route"><span className="font-mono">{meta.route}</span></Detail>}
                     {meta.origin && <Detail icon={Globe} label="Origin"><span className="font-mono">{meta.origin}</span></Detail>}
                     {meta.user_agent && <Detail icon={Smartphone} label="Device"><span className="font-mono truncate inline-block max-w-[260px] align-bottom">{summariseUA(meta.user_agent)}</span></Detail>}
@@ -2279,36 +2730,6 @@ function Detail({ icon: Icon, label, children }: { icon: any; label: string; chi
       <span className="truncate">{children}</span>
     </div>
   );
-}
-function auditCategoryFor(action: string, targetType?: string | null) {
-  const hay = `${action} ${targetType ?? ""}`.toLowerCase();
-  const categories: string[] = [];
-  if (/(^|_)add|insert|create|role/.test(hay)) categories.push("add");
-  if (/admin/.test(hay)) categories.push("admin");
-  if (/ai|copilot/.test(hay)) categories.push("ai");
-  if (/announcement|content|highlight|spotlight|broadcast/.test(hay)) categories.push("announcements");
-  if (/approve|approved/.test(hay)) categories.push("approve");
-  if (/ban|banned/.test(hay)) categories.push("banned");
-  if (/decline|denied|deny/.test(hay)) categories.push("decline");
-  if (/delete|deleted|wipe|void/.test(hay)) categories.push("delete");
-  if (/emergency|reload|force|maintenance/.test(hay)) categories.push("emergency");
-  if (/event/.test(hay)) categories.push("event");
-  if (/grant|credit|approved|won/.test(hay)) categories.push("grant");
-  if (/house|wallet|payout/.test(hay)) categories.push("house");
-  if (/kick|logout/.test(hay)) categories.push("kick");
-  if (/match|settle|score|leaderboard|virtual_round_locked|virtual_round_resolved|virtual_round_created/.test(hay)) categories.push("match");
-  if (/notify|notification|broadcast/.test(hay)) categories.push("notify");
-  if (/promo/.test(hay)) categories.push("promo");
-  if (/refund|refunded/.test(hay)) categories.push("refund");
-  if (/remove|removed|revoke|debit/.test(hay)) categories.push("remove");
-  if (/restrict/.test(hay)) categories.push("restrict");
-  if (/revoke|debit/.test(hay)) categories.push("revoke");
-  if (/setting|config|cycle|rules/.test(hay)) categories.push("settings");
-  if (/suspend|muted|mute/.test(hay)) categories.push("suspension");
-  if (/token/.test(hay)) categories.push("token");
-  if (/unsuspend|unmute|lift/.test(hay)) categories.push("unsuspend");
-  if (/withdrawal/.test(hay)) categories.push("withdrawal");
-  return categories.length ? categories : [action.split("_")[0] || "other"];
 }
 function humanize(action: string) { return action.replace(/_/g, " "); }
 
@@ -2383,7 +2804,7 @@ function AnalyticsPanel() {
         supabase.from("ban_appeals").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("support_tickets").select("id", { count: "exact", head: true }).neq("status", "closed"),
         supabase.from("broadcasts").select("*").order("created_at", { ascending: false }).limit(3),
-        supabase.from("events").select("*").eq("is_active", true).order("starts_at", { ascending: true }).limit(1).maybeSingle(),
+        supabase.from("events").select("*").eq("is_active", true).gt("ends_at", new Date().toISOString()).order("ends_at", { ascending: true }).limit(1).maybeSingle(),
       ]);
       const users = u.data ?? [];
       const bets = b.data ?? [];
@@ -2563,11 +2984,11 @@ function AnalyticsPanel() {
         </Card>
       </div>
 
-      {/* ROW 7 — Recent Activity | Live Gang Wars | Highlights Hub */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      {/* ROW 7 — Recent Activity | Live Gang Wars + Event Countdown | Highlights Hub */}
+      <div className="grid grid-cols-[1.15fr_0.9fr_1.35fr] gap-3">
         <PanelBlock title="RECENT ACTIVITY" accent="sky" onView={() => setActiveTabFromAnalytics(nav, "activity")}>
           {activity.length === 0 && <div className="text-[10px] text-muted-foreground">No activity yet</div>}
-          {activity.slice(0, 3).map((a, i) => (
+          {activity.slice(0, 5).map((a, i) => (
             <button key={i} onClick={() => setActiveTabFromAnalytics(nav, "audit")} className="w-full text-left flex items-start gap-1.5 text-[9px] sm:text-xs py-1 border-b border-border/40 last:border-0 hover:bg-sky-500/10 rounded transition">
               <Sparkles className="h-3 w-3 text-sky-400 shrink-0 mt-0.5" />
               <div className="min-w-0 flex-1">
@@ -2577,23 +2998,36 @@ function AnalyticsPanel() {
             </button>
           ))}
         </PanelBlock>
-        <PanelBlock title="LIVE GANG WARS" accent="rose" onView={() => nav({ to: "/matches" })}>
-          {liveMatches.length === 0 && <div className="text-[10px] text-muted-foreground">No live wars</div>}
-          {liveMatches.slice(0, 3).map((m: any) => {
-            const home = m.home_team; const away = m.away_team;
-            const initial = (n?: string) => (n ? n.charAt(0).toUpperCase() : "?");
-            return (
-              <button key={m.id} onClick={() => nav({ to: "/matches/$matchId", params: { matchId: m.id } })} className="w-full flex items-center gap-1.5 text-[9px] sm:text-xs py-1 border-b border-border/40 last:border-0 hover:bg-rose-500/10 rounded px-1 transition">
-                {home?.logo_url ? <img src={home.logo_url} alt="" className="h-5 w-5 rounded-full object-cover border border-rose-500/40" /> : <div className="h-5 w-5 rounded-full bg-rose-500/20 grid place-items-center text-[8px] font-bold text-rose-300 border border-rose-500/40">{initial(home?.name)}</div>}
-                <div className="flex-1 min-w-0 text-center text-foreground font-semibold truncate">{home?.name ?? "Home"} <span className="text-muted-foreground">vs</span> {away?.name ?? "Away"}</div>
-                {away?.logo_url ? <img src={away.logo_url} alt="" className="h-5 w-5 rounded-full object-cover border border-rose-500/40" /> : <div className="h-5 w-5 rounded-full bg-rose-500/20 grid place-items-center text-[8px] font-bold text-rose-300 border border-rose-500/40">{initial(away?.name)}</div>}
+        <div className="space-y-3">
+          <PanelBlock title="LIVE GANG WARS" accent="rose" compact onView={() => nav({ to: "/matches" })}>
+            {liveMatches.length === 0 && <div className="text-[10px] text-muted-foreground">No live wars</div>}
+            {liveMatches.slice(0, 2).map((m: any) => {
+              const home = m.home_team; const away = m.away_team;
+              const initial = (n?: string) => (n ? n.charAt(0).toUpperCase() : "?");
+              return (
+                <button key={m.id} onClick={() => nav({ to: "/matches/$matchId", params: { matchId: m.id } })} className="w-full flex items-center gap-1.5 text-[9px] sm:text-xs py-1 border-b border-border/40 last:border-0 hover:bg-rose-500/10 rounded px-1 transition">
+                  {home?.logo_url ? <img src={home.logo_url} alt="" className="h-5 w-5 rounded-full object-cover border border-rose-500/40" /> : <div className="h-5 w-5 rounded-full bg-rose-500/20 grid place-items-center text-[8px] font-bold text-rose-300 border border-rose-500/40">{initial(home?.name)}</div>}
+                  <div className="flex-1 min-w-0 text-center text-foreground font-semibold truncate">{home?.name ?? "Home"} <span className="text-muted-foreground">vs</span> {away?.name ?? "Away"}</div>
+                  {away?.logo_url ? <img src={away.logo_url} alt="" className="h-5 w-5 rounded-full object-cover border border-rose-500/40" /> : <div className="h-5 w-5 rounded-full bg-rose-500/20 grid place-items-center text-[8px] font-bold text-rose-300 border border-rose-500/40">{initial(away?.name)}</div>}
+                </button>
+              );
+            })}
+          </PanelBlock>
+          <PanelBlock title="EVENT COUNTDOWN" compact onView={() => setActiveTabFromAnalytics(nav, "events")}>
+            {event ? (
+              <button onClick={() => setActiveTabFromAnalytics(nav, "events")} className="relative w-full min-h-24 text-left rounded-lg p-2 transition space-y-1 overflow-hidden border border-primary/20 bg-card/50">
+                {event.banner_url ? <img src={event.banner_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70" /> : <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20" />}
+                <div className="absolute inset-0 bg-gradient-to-r from-background/85 via-background/45 to-background/70" />
+                <div className="relative text-[9px] sm:text-xs font-bold text-primary truncate drop-shadow">{event.title}</div>
+                <div className="relative text-[10px] sm:text-sm font-mono text-amber-300 drop-shadow"><Countdown target={event.ends_at} /></div>
+                {event.description && <div className="relative text-[9px] text-muted-foreground line-clamp-1">{event.description}</div>}
               </button>
-            );
-          })}
-        </PanelBlock>
+            ) : <div className="text-[10px] text-muted-foreground">No active event</div>}
+          </PanelBlock>
+        </div>
         <PanelBlock title="HIGHLIGHTS HUB" accent="violet" onView={() => setActiveTabFromAnalytics(nav, "content")}>
           {highlights.length === 0 && <div className="text-[10px] text-muted-foreground">No highlights yet</div>}
-          {highlights.slice(0, 3).map((h) => (
+          {highlights.slice(0, 4).map((h) => (
             <button key={h.id} onClick={() => setActiveTabFromAnalytics(nav, "content")} className="w-full flex items-center gap-1.5 text-[9px] sm:text-xs py-1 border-b border-border/40 last:border-0 hover:bg-violet-500/10 rounded px-1 transition">
               {h.media_type === "video" ? <Play className="h-3 w-3 text-violet-400 shrink-0" /> : <ImageIcon className="h-3 w-3 text-violet-400 shrink-0" />}
               <div className="min-w-0 flex-1 truncate text-left">{h.title}</div>
@@ -2602,25 +3036,8 @@ function AnalyticsPanel() {
         </PanelBlock>
       </div>
 
-      {/* ROW 8 — Event Countdown | Broadcast Center | Quick Actions */}
+      {/* ROW 8 — Broadcast Center | Quick Actions | Top Bets */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <PanelBlock title="EVENT COUNTDOWN" compact onView={() => setActiveTabFromAnalytics(nav, "events")}>
-          {event ? (
-            <button onClick={() => setActiveTabFromAnalytics(nav, "events")} className="relative w-full text-left rounded p-1 transition space-y-1 overflow-hidden">
-              {event.banner_url && (
-                <>
-                  <img src={event.banner_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70 rounded" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-background/85 via-background/40 to-background/20 rounded" />
-                </>
-              )}
-              <div className="relative text-[9px] sm:text-xs font-bold text-primary truncate drop-shadow">{event.title}</div>
-              <div className="relative text-[10px] sm:text-sm font-mono text-amber-300 drop-shadow"><Countdown target={event.ends_at ?? event.starts_at} /></div>
-              <div className="relative text-[7px] sm:text-[9px] text-muted-foreground tabular-nums">{(() => { const d = new Date(event.starts_at ?? event.ends_at); const p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}:${p(d.getMonth()+1)}:${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; })()}</div>
-            </button>
-          ) : (
-            <div className="text-[10px] text-muted-foreground">No active event</div>
-          )}
-        </PanelBlock>
         <PanelBlock title="BROADCAST CENTER" compact onView={() => setActiveTabFromAnalytics(nav, "broadcast")}>
           {broadcasts.length === 0 && <div className="text-[10px] text-muted-foreground">No broadcasts</div>}
           {broadcasts.map((b) => (
@@ -2631,84 +3048,19 @@ function AnalyticsPanel() {
             </button>
           ))}
         </PanelBlock>
-        <PanelBlock title="QUICK ACTIONS" compact>
-          <div className="max-h-[120px] sm:max-h-[140px] overflow-y-auto pr-1 -mr-1">
-            <div className="grid grid-cols-3 gap-1">
-              {[
-                { i: BarChart3, l: "Analytics", t: "analytics" },
-                { i: Users, l: "Users", t: "users" },
-                { i: Shield, l: "Banned", t: "bannedusers" },
-                { i: Sparkles, l: "Admin AI", t: "adminai" },
-                { i: AlertTriangle, l: "Appeals", t: "appeals" },
-                { i: History, l: "Audit", t: "audit" },
-                { i: ClipboardList, l: "Bet Tracker", t: "bettracker" },
-                { i: Send, l: "Broadcast", t: "broadcast" },
-                { i: Sparkles, l: "Challenges", t: "challenges" },
-                { i: MessageSquare, l: "Chat", t: "chat" },
-                { i: Megaphone, l: "Content", t: "content" },
-                { i: Trophy, l: "Emblems", t: "emblems" },
-                { i: Calendar, l: "Events", t: "events" },
-                { i: Wallet, l: "House Wallet", t: "housewallet" },
-                { i: ListOrdered, l: "Leaderboard", t: "leaderboard" },
-                { i: Trophy, l: "Matches", t: "matches" },
-                { i: Send, l: "Notify", t: "notify" },
-                { i: BarChart3, l: "P&L", t: "pnl" },
-                { i: Tag, l: "Promo Codes", t: "promos" },
-                { i: Tag, l: "Promo Reqs", t: "promoreqs" },
-                { i: Users, l: "Referrals", t: "referrals" },
-                { i: BarChart3, l: "Reports", t: "reports" },
-                { i: AlertTriangle, l: "Risk", t: "risk" },
-                { i: Trophy, l: "Seasons", t: "seasons" },
-                { i: SettingsIcon, l: "Settings", t: "settings" },
-                { i: Sparkles, l: "Spotlights", t: "spotlights" },
-                { i: Sparkles, l: "Streak/Push", t: "streakpush" },
-                { i: ClipboardList, l: "Tasks", t: "tasks" },
-                { i: Ticket, l: "Tickets", t: "tickets" },
-                { i: Coins, l: "Tokens", t: "tokens" },
-                { i: Coins, l: "Token Rules", t: "tokenrules" },
-                { i: Coins, l: "Token Move", t: "tokenmovement" },
-                { i: Users, l: "Activity", t: "activity" },
-                { i: Dice5, l: "Virtual", t: "virtual" },
-                { i: Trophy, l: "VIP", t: "vip" },
-                { i: Wallet, l: "Withdrawals", t: "withdrawals" },
-                { i: Trophy, l: "Won Bets", t: "wonbets" },
-                { i: X, l: "Lost Bets", t: "lostbets" },
-              ].map((q, idx) => {
-                const palette = [
-                  { ic: "text-emerald-400", bd: "border-emerald-500/30 hover:border-emerald-400/70 hover:bg-emerald-500/10" },
-                  { ic: "text-sky-400",     bd: "border-sky-500/30 hover:border-sky-400/70 hover:bg-sky-500/10" },
-                  { ic: "text-rose-400",    bd: "border-rose-500/30 hover:border-rose-400/70 hover:bg-rose-500/10" },
-                  { ic: "text-amber-400",   bd: "border-amber-500/30 hover:border-amber-400/70 hover:bg-amber-500/10" },
-                  { ic: "text-violet-400",  bd: "border-violet-500/30 hover:border-violet-400/70 hover:bg-violet-500/10" },
-                  { ic: "text-fuchsia-400", bd: "border-fuchsia-500/30 hover:border-fuchsia-400/70 hover:bg-fuchsia-500/10" },
-                  { ic: "text-cyan-400",    bd: "border-cyan-500/30 hover:border-cyan-400/70 hover:bg-cyan-500/10" },
-                  { ic: "text-lime-400",    bd: "border-lime-500/30 hover:border-lime-400/70 hover:bg-lime-500/10" },
-                  { ic: "text-orange-400",  bd: "border-orange-500/30 hover:border-orange-400/70 hover:bg-orange-500/10" },
-                  { ic: "text-pink-400",    bd: "border-pink-500/30 hover:border-pink-400/70 hover:bg-pink-500/10" },
-                  { ic: "text-teal-400",    bd: "border-teal-500/30 hover:border-teal-400/70 hover:bg-teal-500/10" },
-                  { ic: "text-indigo-400",  bd: "border-indigo-500/30 hover:border-indigo-400/70 hover:bg-indigo-500/10" },
-                ];
-                const c = palette[idx % palette.length];
-                return (
-                  <button key={q.l} onClick={() => setActiveTabFromAnalytics(nav, q.t)} className={`flex flex-col items-center gap-0.5 p-1 rounded border active:scale-95 transition ${c.bd}`}>
-                    <q.i className={`h-3 w-3 ${c.ic}`} />
-                    <span className="text-[7px] sm:text-[9px] text-foreground text-center leading-tight">{q.l}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </PanelBlock>
+        <MiniLeaderboardPanel onOpen={() => setActiveTabFromAnalytics(nav, "leaderboard")} />
+        <TopBetsPanel limit={3} />
       </div>
 
       {/* ROW 9 — 5 module tiles */}
-      <div className="grid grid-cols-5 gap-2 sm:gap-3">
+      <div className="grid grid-cols-6 gap-3">
         {[
           { l: "VIRTUAL", s: "Manage virtual matches and rounds", t: "virtual", img: tileVirtualAsset.url },
-          { l: "BATTLE", s: "Manage matches, fixtures and outcomes", t: "matches", img: adminBattleTile },
+          { l: "BATTLE", s: "Manage matches, fixtures and outcomes", t: "matches", img: tileBattleAsset.url },
           { l: "CHALLENGES", s: "Create and manage gang challenges", t: "challenges", img: tileChallengesAsset.url },
-          { l: "REFERRALS", s: "Manage referrals and commissions", t: "referrals", img: tileReferralsAsset.url },
-          { l: "USERS", s: "Manage users, profiles and access", t: "users", img: adminUsersTile },
+          { l: "REFERRALS", s: "Manage referrals and commissions", t: "referrals", img: tileReferrals },
+          { l: "USERS", s: "Manage users, profiles and access", t: "users", img: tileUsersAsset.url },
+          { l: "CLANS", s: "Manage gangs, teams and players", t: "clans", img: tileClansAsset.url },
         ].map((m) => (
           <Card key={m.l} className="border-primary/20 bg-card/60 p-2 sm:p-3 flex flex-col">
             <button type="button" onClick={() => setActiveTabFromAnalytics(nav, m.t)} className="relative aspect-square w-full mb-1 rounded overflow-hidden border border-primary/20 hover:border-primary/60 transition active:scale-95">
@@ -2723,7 +3075,6 @@ function AnalyticsPanel() {
         ))}
       </div>
 
-      {/* ROW 10 — System Status */}
       <Card className="border-primary/20 bg-card/60 p-3">
         <div className="text-[10px] sm:text-xs font-bold tracking-widest text-primary mb-2">SYSTEM STATUS <span className="text-muted-foreground font-normal">(COMING SOON)</span></div>
         <div className="grid grid-cols-5 gap-1 sm:gap-2">
@@ -2735,6 +3086,9 @@ function AnalyticsPanel() {
           ))}
         </div>
       </Card>
+
+      {/* Quick actions moved to the bottom — 4 buttons per column, scrolls horizontally */}
+      <QuickActionsBar onOpen={(t) => setActiveTabFromAnalytics(nav, t)} />
     </div>
   );
 }
@@ -2743,6 +3097,121 @@ function setActiveTabFromAnalytics(_nav: any, _tab: string) {
   // Dispatch a custom event the parent listens to, or fallback: store and reload
   const ev = new CustomEvent("admin:set-tab", { detail: _tab });
   window.dispatchEvent(ev);
+}
+
+const QUICK_ACTIONS: { i: any; l: string; t: string }[] = [
+  { i: BarChart3, l: "Analytics", t: "analytics" },
+  { i: Users, l: "Users", t: "users" },
+  { i: Shield, l: "Banned", t: "bannedusers" },
+  { i: Sparkles, l: "Admin AI", t: "adminai" },
+  { i: AlertTriangle, l: "Appeals", t: "appeals" },
+  { i: History, l: "Audit", t: "audit" },
+  { i: ClipboardList, l: "Bet Tracker", t: "bettracker" },
+  { i: Eye, l: "Attendance", t: "attendance" },
+  { i: Send, l: "Broadcast", t: "broadcast" },
+  { i: Sparkles, l: "Challenges", t: "challenges" },
+  { i: MessageSquare, l: "Chat", t: "chat" },
+  { i: Megaphone, l: "Content", t: "content" },
+  { i: Target, l: "Futures", t: "futures" },
+  { i: Trophy, l: "Emblems", t: "emblems" },
+  { i: Calendar, l: "Events", t: "events" },
+  { i: Wallet, l: "House Wallet", t: "housewallet" },
+  { i: ListOrdered, l: "Leaderboard", t: "leaderboard" },
+  { i: Trophy, l: "Matches", t: "matches" },
+  { i: Send, l: "Notify", t: "notify" },
+  { i: BarChart3, l: "P&L", t: "pnl" },
+  { i: Tag, l: "Promo Codes", t: "promos" },
+  { i: Tag, l: "Promo Reqs", t: "promoreqs" },
+  { i: Users, l: "Referrals", t: "referrals" },
+  { i: BarChart3, l: "Reports", t: "reports" },
+  { i: AlertTriangle, l: "Risk", t: "risk" },
+  { i: Trophy, l: "Seasons", t: "seasons" },
+  { i: Trophy, l: "Tournaments", t: "tournaments" },
+  { i: SettingsIcon, l: "Settings", t: "settings" },
+  { i: Sparkles, l: "Spotlights", t: "spotlights" },
+  { i: Sparkles, l: "Streak/Push", t: "streakpush" },
+  { i: ClipboardList, l: "Tasks", t: "tasks" },
+  { i: Ticket, l: "Tickets", t: "tickets" },
+  { i: Coins, l: "Tokens", t: "tokens" },
+  { i: Coins, l: "Token Rules", t: "tokenrules" },
+  { i: Coins, l: "Token Move", t: "tokenmovement" },
+  { i: Users, l: "Activity", t: "activity" },
+  { i: Dice5, l: "Virtual", t: "virtual" },
+  { i: Trophy, l: "VIP", t: "vip" },
+  { i: Wallet, l: "Withdrawals", t: "withdrawals" },
+  { i: Trophy, l: "Won Bets", t: "wonbets" },
+  { i: X, l: "Lost Bets", t: "lostbets" },
+];
+
+const QA_PALETTE = [
+  { ic: "text-emerald-400", bd: "border-emerald-500/30 hover:border-emerald-400/70 hover:bg-emerald-500/10" },
+  { ic: "text-sky-400",     bd: "border-sky-500/30 hover:border-sky-400/70 hover:bg-sky-500/10" },
+  { ic: "text-rose-400",    bd: "border-rose-500/30 hover:border-rose-400/70 hover:bg-rose-500/10" },
+  { ic: "text-amber-400",   bd: "border-amber-500/30 hover:border-amber-400/70 hover:bg-amber-500/10" },
+  { ic: "text-violet-400",  bd: "border-violet-500/30 hover:border-violet-400/70 hover:bg-violet-500/10" },
+  { ic: "text-fuchsia-400", bd: "border-fuchsia-500/30 hover:border-fuchsia-400/70 hover:bg-fuchsia-500/10" },
+  { ic: "text-cyan-400",    bd: "border-cyan-500/30 hover:border-cyan-400/70 hover:bg-cyan-500/10" },
+  { ic: "text-lime-400",    bd: "border-lime-500/30 hover:border-lime-400/70 hover:bg-lime-500/10" },
+  { ic: "text-orange-400",  bd: "border-orange-500/30 hover:border-orange-400/70 hover:bg-orange-500/10" },
+  { ic: "text-pink-400",    bd: "border-pink-500/30 hover:border-pink-400/70 hover:bg-pink-500/10" },
+  { ic: "text-teal-400",    bd: "border-teal-500/30 hover:border-teal-400/70 hover:bg-teal-500/10" },
+  { ic: "text-indigo-400",  bd: "border-indigo-500/30 hover:border-indigo-400/70 hover:bg-indigo-500/10" },
+];
+
+function QuickActionsBar({ onOpen }: { onOpen: (t: string) => void }) {
+  const actions = [...QUICK_ACTIONS].sort((a, b) => a.l.localeCompare(b.l));
+  return (
+    <Card className="border-primary/20 bg-card/60 p-3">
+      <div className="text-[10px] sm:text-xs font-bold tracking-widest text-primary mb-2">QUICK ACTIONS</div>
+      <div className="overflow-x-auto pb-2 -mb-2">
+        {/* 4 buttons stacked per column; columns flow horizontally and scroll left/right */}
+        <div className="grid grid-rows-4 grid-flow-col auto-cols-[68px] sm:auto-cols-[84px] gap-1.5 w-max">
+          {actions.map((q, idx) => {
+            const c = QA_PALETTE[idx % QA_PALETTE.length];
+            return (
+              <button key={q.l} onClick={() => onOpen(q.t)} className={`flex flex-col items-center justify-center gap-1 p-1.5 rounded border active:scale-95 transition ${c.bd}`}>
+                <q.i className={`h-3.5 w-3.5 ${c.ic}`} />
+                <span className="text-[7px] sm:text-[9px] text-foreground text-center leading-tight">{q.l}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function MiniLeaderboardPanel({ onOpen }: { onOpen: () => void }) {
+  const [gangs, setGangs] = useState<LbRow[]>([]);
+  const [shooters, setShooters] = useState<LbRow[]>([]);
+  const [tab, setTab] = useState<"gangs" | "shooters">("gangs");
+
+  useEffect(() => {
+    loadStandings().then(({ gangs, shooters }) => { setGangs(gangs); setShooters(shooters); }).catch(() => {});
+  }, []);
+  const rows = (tab === "gangs" ? gangs : shooters).slice(0, 6);
+  return (
+    <Card className="bg-card/60 p-2 sm:p-3 flex flex-col min-h-0 max-h-[170px] border-amber-500/30 shadow-[0_0_30px_-12px_rgba(251,191,36,0.5)]">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="text-[8px] sm:text-[11px] font-bold tracking-widest text-amber-300 flex items-center gap-1"><Trophy className="h-3 w-3" />LEADERBOARD</div>
+        <button onClick={onOpen} className="text-[7px] sm:text-[9px] text-amber-300/80 hover:text-amber-200">Open</button>
+      </div>
+      <div className="flex gap-1 mb-1">
+        <button onClick={() => setTab("gangs")} className={`flex-1 text-[7px] sm:text-[9px] rounded px-1 py-0.5 border ${tab === "gangs" ? "border-amber-400/60 bg-amber-400/10 text-amber-200" : "border-border/40 text-muted-foreground"}`}>Gangs</button>
+        <button onClick={() => setTab("shooters")} className={`flex-1 text-[7px] sm:text-[9px] rounded px-1 py-0.5 border ${tab === "shooters" ? "border-amber-400/60 bg-amber-400/10 text-amber-200" : "border-border/40 text-muted-foreground"}`}>Shooters</button>
+      </div>
+      <button onClick={onOpen} className="flex-1 overflow-y-auto pr-0.5 text-left">
+        {rows.length === 0 && <div className="text-[9px] text-muted-foreground py-2">No data yet</div>}
+        {rows.map((r, i) => (
+          <div key={r.name} className="flex items-center gap-1.5 text-[8px] sm:text-[10px] py-0.5 border-b border-border/30 last:border-0">
+            <span className={`w-3.5 text-center font-black tabular-nums ${i < 3 ? "text-amber-300" : "text-muted-foreground"}`}>{i + 1}</span>
+            <span className="flex-1 min-w-0 truncate text-foreground font-semibold">{tab === "shooters" ? r.name : r.name}</span>
+            <span className="text-emerald-400 font-bold tabular-nums">{r.PTS}</span>
+          </div>
+        ))}
+      </button>
+    </Card>
+  );
 }
 
 function MetricSquare({ icon: Icon, value, title, sub, tone, compact, onClick }: { icon: any; value: any; title: string; sub?: string; tone?: string; compact?: boolean; onClick?: () => void }) {
@@ -2832,6 +3301,13 @@ function SettingsPanel() {
     const url = supabase.storage.from("ads").getPublicUrl(path).data.publicUrl;
     setS({ ...s, popup_ad_image: url });
   }
+  async function uploadInto(field: string, f: File) {
+    const path = `${field}-${Date.now()}-${f.name}`;
+    const { error } = await supabase.storage.from("ads").upload(path, f, { upsert: true });
+    if (error) { toast.error(error.message); return; }
+    const url = supabase.storage.from("ads").getPublicUrl(path).data.publicUrl;
+    setS({ ...s, [field]: url });
+  }
   return (
     <div className="grid lg:grid-cols-2 gap-4 max-w-5xl">
       <SettingsSection icon={Pause} title="Maintenance" subtitle="Block non-admin access and post a notice.">
@@ -2840,6 +3316,28 @@ function SettingsPanel() {
           <Switch checked={!!s.maintenance_mode} onCheckedChange={(v) => setS({ ...s, maintenance_mode: v })} />
         </div>
         <Textarea placeholder="Message shown to users" value={s.maintenance_message ?? ""} onChange={(e) => setS({ ...s, maintenance_message: e.target.value })} />
+        <FieldLuxe label="Banner image (optional)"><Input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && uploadInto("maintenance_image", e.target.files[0])} /></FieldLuxe>
+        {s.maintenance_image && (
+          <div className="space-y-1">
+            <img src={s.maintenance_image} alt="" className="w-full max-h-40 object-contain rounded border border-border" />
+            <Button variant="ghost" size="sm" className="text-destructive h-7" onClick={() => setS({ ...s, maintenance_image: null })}>Remove image</Button>
+          </div>
+        )}
+      </SettingsSection>
+
+      <SettingsSection icon={Lock} title="Website Closed" subtitle="Fully close the site to non-admin visitors and post a notice.">
+        <div className="flex items-center justify-between">
+          <div className="text-sm">Close website</div>
+          <Switch checked={!!s.closed_mode} onCheckedChange={(v) => setS({ ...s, closed_mode: v })} />
+        </div>
+        <Textarea placeholder="Message shown to users" value={s.closed_message ?? ""} onChange={(e) => setS({ ...s, closed_message: e.target.value })} />
+        <FieldLuxe label="Banner image (optional)"><Input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && uploadInto("closed_image", e.target.files[0])} /></FieldLuxe>
+        {s.closed_image && (
+          <div className="space-y-1">
+            <img src={s.closed_image} alt="" className="w-full max-h-40 object-contain rounded border border-border" />
+            <Button variant="ghost" size="sm" className="text-destructive h-7" onClick={() => setS({ ...s, closed_image: null })}>Remove image</Button>
+          </div>
+        )}
       </SettingsSection>
 
       <SettingsSection icon={Coins} title="Betting Limits" subtitle="Stake and payout guardrails.">
@@ -2850,6 +3348,10 @@ function SettingsPanel() {
           <Input type="number" value={s.max_payout ?? 100000000} onChange={(e) => setS({ ...s, max_payout: Number(e.target.value) })} />
         </FieldLuxe>
         <p className="text-[10px] text-muted-foreground">Bets whose potential payout exceeds the cap are automatically clamped.</p>
+      </SettingsSection>
+
+      <SettingsSection icon={Ticket} title="Re-bet" subtitle="Let members place another bet right after a successful placement." right={<Switch checked={s.allow_rebet !== false} onCheckedChange={(v) => setS({ ...s, allow_rebet: v })} />}>
+        <p className="text-[10px] text-muted-foreground">When on, a “Place another bet” action appears after a ticket is placed (real, virtual and seasonal/futures markets), so users can quickly pick another selection. When off, the slip closes to the placed-ticket screen.</p>
       </SettingsSection>
 
       <SettingsSection icon={Sparkles} title="Brand" subtitle="Tagline shown across landing surfaces.">
@@ -2982,160 +3484,255 @@ function WithdrawalsPanel() {
 
 /* ============================ LEADERBOARD ADMIN ============================ */
 function LeaderboardAdminPanel() {
-  const [list, setList] = useState<any[]>([]);
-  const [draft, setDraft] = useState({ kind: "gang", name: "", top_player: "", wins: 0, losses: 0, draws: 0, played: 0, points: 0, manual_rank: "", is_hidden: false });
-  const [editId, setEditId] = useState<string | null>(null);
+  const [gangs, setGangs] = useState<LbRow[]>([]);
+  const [shooters, setShooters] = useState<LbRow[]>([]);
+  const [tab, setTab] = useState<"gang" | "shooter">("gang");
+  const [edits, setEdits] = useState<Record<string, Partial<LbRow>>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [headerUrl, setHeaderUrl] = useState<string>("");
+  const [headerBusy, setHeaderBusy] = useState(false);
   const confirm = useConfirm();
-  async function load() { setList((await supabase.from("leaderboard_overrides").select("*").order("kind").order("manual_rank", { ascending: true, nullsFirst: false })).data ?? []); }
-  useEffect(() => { load(); }, []);
-  async function save() {
-    if (!draft.name) { toast.error("Name required"); return; }
-    const payload: any = { ...draft, manual_rank: draft.manual_rank ? Number(draft.manual_rank) : null };
-    if (editId) payload.id = editId;
+
+  async function load() {
+    const { gangs, shooters } = await loadStandings();
+    setGangs(gangs);
+    setShooters(shooters);
+    setEdits({});
+  }
+  useEffect(() => {
+    load();
+    supabase.from("app_settings").select("leaderboard_header_url").eq("id", 1).maybeSingle()
+      .then(({ data }) => setHeaderUrl((data as any)?.leaderboard_header_url ?? ""));
+  }, []);
+
+  async function saveHeaderUrl(url: string) {
+    const { error } = await supabase.from("app_settings").update({ leaderboard_header_url: url || null } as any).eq("id", 1);
+    if (error) { toast.error(error.message); return; }
+    setHeaderUrl(url);
+    await logAudit("leaderboard_header_update", "app_settings", undefined, { url });
+    toast.success("Leaderboard header saved");
+  }
+  async function uploadHeader(file: File) {
+    setHeaderBusy(true);
+    try {
+      const path = `leaderboard/header-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+      const { error } = await supabase.storage.from("ads").upload(path, file, { upsert: true });
+      if (error) { toast.error(error.message); return; }
+      const url = supabase.storage.from("ads").getPublicUrl(path).data.publicUrl;
+      await saveHeaderUrl(url);
+    } finally {
+      setHeaderBusy(false);
+    }
+  }
+
+  const rows = tab === "gang" ? gangs : shooters;
+  const rowKey = (r: LbRow) => `${tab}:${r.name}`;
+  function field(r: LbRow, k: keyof LbRow): any {
+    const e = edits[rowKey(r)];
+    return e && k in e ? (e as any)[k] : (r as any)[k];
+  }
+  function setField(r: LbRow, k: keyof LbRow, v: any) {
+    setEdits((prev) => ({ ...prev, [rowKey(r)]: { ...prev[rowKey(r)], [k]: v } }));
+  }
+
+  async function saveRow(r: LbRow) {
+    setSavingKey(rowKey(r));
+    const payload: any = {
+      kind: tab,
+      name: r.name,
+      top_player: tab === "gang" ? (field(r, "top_player") || null) : (field(r, "gang_faction") || null),
+      total_score: Number(field(r, "TS") ?? 0),
+      wins: Number(field(r, "W") ?? 0),
+      losses: Number(field(r, "L") ?? 0),
+      draws: Number(field(r, "D") ?? 0),
+      played: Number(field(r, "P") ?? 0),
+      points: Number(field(r, "PTS") ?? 0),
+      manual_rank: field(r, "manual_rank") != null && String(field(r, "manual_rank")) !== "" ? Number(field(r, "manual_rank")) : null,
+      is_hidden: false,
+    };
+    if (r.override_id) payload.id = r.override_id;
+    const { error } = await supabase.from("leaderboard_overrides").upsert(payload);
+    setSavingKey(null);
+    if (error) { toast.error(error.message); return; }
+    await logAudit("leaderboard_override_edit", "leaderboard_overrides", r.override_id ?? undefined, payload);
+    toast.success(`${r.name} updated`);
+    load();
+  }
+
+  async function resetRow(r: LbRow) {
+    if (!r.override_id) { toast.info("This row is auto-computed — nothing to reset."); return; }
+    if (!await confirm({ title: `Reset ${r.name} to auto-computed stats?`, description: "Removes the manual override so the row reflects match results again.", confirmText: "Reset" })) return;
+    await supabase.from("leaderboard_overrides").delete().eq("id", r.override_id);
+    await logAudit("leaderboard_override_delete", "leaderboard_overrides", r.override_id);
+    toast.success("Reset to auto stats");
+    load();
+  }
+
+  async function hideRow(r: LbRow) {
+    if (!await confirm({ title: `Remove ${r.name} from the leaderboard?`, description: "Hidden from the public board without touching match history. You can restore it later.", tone: "danger", confirmText: "Remove" })) return;
+    const payload: any = { kind: tab, name: r.name, is_hidden: true, wins: 0, losses: 0, draws: 0, played: 0, points: 0, total_score: 0 };
+    if (r.override_id) payload.id = r.override_id;
     const { error } = await supabase.from("leaderboard_overrides").upsert(payload);
     if (error) { toast.error(error.message); return; }
-    await logAudit(editId ? "leaderboard_override_edit" : "leaderboard_override_create", "leaderboard_overrides", editId ?? undefined, payload);
-    toast.success(editId ? "Entry updated" : "Override saved");
-    setDraft({ kind: "gang", name: "", top_player: "", wins: 0, losses: 0, draws: 0, played: 0, points: 0, manual_rank: "", is_hidden: false });
-    setEditId(null);
+    await logAudit("leaderboard_hide", "leaderboard_overrides", r.override_id ?? undefined, { name: r.name, kind: tab });
+    toast.success(`${r.name} removed`);
     load();
   }
-  async function del(id: string) {
-    if (!await confirm({ title: "Delete leaderboard entry?", tone: "danger", confirmText: "Delete" })) return;
-    await supabase.from("leaderboard_overrides").delete().eq("id", id);
-    await logAudit("leaderboard_override_delete", "leaderboard_overrides", id);
-    load();
-  }
-  async function toggleHide(o: any) {
-    const next = !o.is_hidden;
-    const { error } = await supabase.from("leaderboard_overrides").update({ is_hidden: next }).eq("id", o.id);
+
+  // move a row up/down by assigning explicit positions (manual_rank) to it and its neighbour
+  async function move(r: LbRow, dir: -1 | 1) {
+    const idx = rows.findIndex((x) => x.name === r.name);
+    const other = rows[idx + dir];
+    if (!other) return;
+    const myRank = idx + 1;
+    const otherRank = idx + dir + 1;
+    const mk = (row: LbRow, rank: number) => {
+      const p: any = {
+        kind: tab, name: row.name,
+        top_player: tab === "gang" ? (row.top_player || null) : (row.gang_faction || null),
+        total_score: row.TS, wins: row.W, losses: row.L, draws: row.D, played: row.P, points: row.PTS,
+        manual_rank: rank, is_hidden: false,
+      };
+      if (row.override_id) p.id = row.override_id;
+      return p;
+    };
+    const { error } = await supabase.from("leaderboard_overrides").upsert([mk(r, otherRank), mk(other, myRank)]);
     if (error) { toast.error(error.message); return; }
-    await logAudit(next ? "leaderboard_hide" : "leaderboard_unhide", "leaderboard_overrides", o.id, { name: o.name, kind: o.kind });
-    toast.success(next ? `${o.name} hidden from leaderboard` : `${o.name} restored`);
+    await logAudit("leaderboard_reorder", "leaderboard_overrides", undefined, { moved: r.name, to: otherRank });
     load();
   }
-  async function hideTeam() {
-    if (!draft.name) { toast.error("Enter the team or shooter name to hide"); return; }
-    const payload: any = { kind: draft.kind, name: draft.name, is_hidden: true, wins: 0, losses: 0, draws: 0, played: 0, points: 0 };
-    const { error } = await supabase.from("leaderboard_overrides").upsert(payload, { onConflict: "id" });
-    if (error) { toast.error(error.message); return; }
-    await logAudit("leaderboard_hide", "leaderboard_overrides", undefined, payload);
-    toast.success(`${draft.name} hidden from leaderboard`);
-    setDraft({ kind: "gang", name: "", top_player: "", wins: 0, losses: 0, draws: 0, played: 0, points: 0, manual_rank: "", is_hidden: false });
-    load();
-  }
-  function editEntry(o: any) {
-    setEditId(o.id);
-    setDraft({
-      kind: o.kind ?? "gang", name: o.name ?? "", top_player: o.top_player ?? "",
-      wins: Number(o.wins ?? 0), losses: Number(o.losses ?? 0), draws: Number(o.draws ?? 0),
-      played: Number(o.played ?? 0), points: Number(o.points ?? 0),
-      manual_rank: o.manual_rank ? String(o.manual_rank) : "",
-      is_hidden: !!o.is_hidden,
-    });
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
+
   async function clearAll() {
     if (!await confirm({
       title: `Wipe entire Leaderboard?`,
-      description: "Hides every manual override AND every auto-computed gang/shooter row generated from past match results. Match history itself is preserved — new finished matches after this moment will start a fresh leaderboard.",
+      description: "Removes every manual override AND resets the auto-computed gang/shooter rows from past match results. Match history itself is preserved — new finished matches after this moment start a fresh leaderboard.",
       tone: "danger", confirmText: "Clear leaderboard",
     })) return;
     const now = new Date().toISOString();
     const { error: delErr } = await supabase.from("leaderboard_overrides").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     if (delErr) { toast.error(delErr.message); return; }
-    const { error: setErr } = await supabase.from("app_settings").update({
-      leaderboard_gangs_reset_at: now,
-      leaderboard_shooters_reset_at: now,
-    } as any).eq("id", 1);
+    const { error: setErr } = await supabase.from("app_settings").update({ leaderboard_gangs_reset_at: now, leaderboard_shooters_reset_at: now } as any).eq("id", 1);
     if (setErr) { toast.error(setErr.message); return; }
-    await logAudit("leaderboard_clear_all", "leaderboard_overrides", undefined, { previous_count: list.length, reset_at: now });
+    await logAudit("leaderboard_clear_all", "leaderboard_overrides", undefined, { reset_at: now });
     toast.success("Leaderboard cleared");
     load();
   }
   async function wipeKind(kind: "gang" | "shooter", label: string) {
-    const rows = list.filter((o) => o.kind === kind);
-    if (!await confirm({
-      title: `Wipe ${label}?`,
-      description: `Hides every ${label} row — both manual overrides (${rows.length}) and the auto-computed rows from past matches/bets. New activity after this moment starts a fresh list.`,
-      tone: "danger", confirmText: `Wipe ${label}`,
-    })) return;
+    if (!await confirm({ title: `Wipe ${label}?`, description: `Hides every ${label} row — both manual overrides and auto-computed rows. New activity after this moment starts a fresh list.`, tone: "danger", confirmText: `Wipe ${label}` })) return;
     const now = new Date().toISOString();
     const { error } = await supabase.from("leaderboard_overrides").delete().eq("kind", kind);
     if (error) { toast.error(error.message); return; }
-    const patch: Record<string, string> =
-      kind === "gang"
-        ? { leaderboard_gangs_reset_at: now, hall_of_fame_reset_at: now }
-        : { leaderboard_shooters_reset_at: now };
+    const patch: Record<string, string> = kind === "gang" ? { leaderboard_gangs_reset_at: now, hall_of_fame_reset_at: now } : { leaderboard_shooters_reset_at: now };
     const { error: setErr } = await supabase.from("app_settings").update(patch as any).eq("id", 1);
     if (setErr) { toast.error(setErr.message); return; }
-    await logAudit("leaderboard_wipe_kind", "leaderboard_overrides", undefined, { kind, previous_count: rows.length, reset_at: now });
+    await logAudit("leaderboard_wipe_kind", "leaderboard_overrides", undefined, { kind, reset_at: now });
     toast.success(`${label} wiped`);
     load();
   }
+  async function clearHotBets() {
+    if (!await confirm({ title: "Clear all Hot Bets?", description: "Hides every current Hot Bet from the homepage. New bets placed after this moment will start a fresh Hot Bets list.", tone: "danger", confirmText: "Clear hot bets" })) return;
+    const now = new Date().toISOString();
+    const { error } = await supabase.from("app_settings").update({ hot_bets_reset_at: now } as any).eq("id", 1);
+    if (error) { toast.error(error.message); return; }
+    await logAudit("hot_bets_clear", "app_settings", undefined, { reset_at: now });
+    toast.success("Hot bets cleared");
+  }
+  async function wipeHallOfFame() {
+    if (!await confirm({ title: "Wipe Hall of Fame?", description: "Hides every current Grand Prize Winner from the Hall of Fame. New winning tickets after this moment start a fresh list.", tone: "danger", confirmText: "Wipe Hall of Fame" })) return;
+    const now = new Date().toISOString();
+    const { error } = await supabase.from("app_settings").update({ hall_of_fame_reset_at: now } as any).eq("id", 1);
+    if (error) { toast.error(error.message); return; }
+    await logAudit("hall_of_fame_wipe", "app_settings", undefined, { reset_at: now });
+    toast.success("Hall of Fame wiped");
+  }
+
+  const numCls = "h-8 w-14 text-center px-1 tabular-nums";
+
   return (
     <div className="space-y-3">
+      <Card className="glass-strong p-3 space-y-2 border-amber-500/40">
+        <div className="text-xs font-bold tracking-widest text-amber-300">LEADERBOARD HEADER IMAGE</div>
+        <p className="text-[10px] text-muted-foreground">Shown at the top of the public Leaderboard page instead of the plain title. Upload a banner or paste an image URL.</p>
+        {headerUrl && <img src={headerUrl} alt="Leaderboard header" className="w-full max-h-28 object-contain rounded-lg border border-amber-500/30 bg-black/30" />}
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex">
+            <input type="file" accept="image/*" className="hidden" disabled={headerBusy} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadHeader(f); }} />
+            <span className={`inline-flex items-center h-9 px-3 rounded-md border border-amber-500/40 text-amber-200 text-sm cursor-pointer hover:bg-amber-500/10 ${headerBusy ? "opacity-50 pointer-events-none" : ""}`}>{headerBusy ? "Uploading…" : "Upload image"}</span>
+          </label>
+          <Input value={headerUrl} onChange={(e) => setHeaderUrl(e.target.value)} placeholder="…or paste image URL" className="flex-1 min-w-[180px] h-9" />
+          <Button size="sm" variant="outline" onClick={() => saveHeaderUrl(headerUrl)}>Save URL</Button>
+          {headerUrl && <Button size="sm" variant="ghost" className="text-destructive" onClick={() => saveHeaderUrl("")}>Clear</Button>}
+        </div>
+      </Card>
+
       <Card className="glass-strong p-3 flex flex-wrap items-center gap-2 border-destructive/40">
         <div className="text-xs font-bold tracking-widest text-destructive mr-1">DANGER ZONE</div>
-        <Button variant="destructive" size="sm" onClick={clearAll}>
-          <Trash2 className="h-3 w-3 mr-1" />Wipe Leaderboard
-        </Button>
-        <Button variant="destructive" size="sm" onClick={() => wipeKind("shooter", "Shooters")}>
-          <Trash2 className="h-3 w-3 mr-1" />Wipe Shooters
-        </Button>
-        <Button variant="destructive" size="sm" onClick={() => wipeKind("gang", "Hall of Fame")}>
-          <Trash2 className="h-3 w-3 mr-1" />Wipe Hall of Fame
-        </Button>
-        <span className="text-[10px] text-muted-foreground ml-auto">Wipes auto-computed rows AND manual overrides. Match history is preserved.</span>
+        <Button variant="destructive" size="sm" onClick={clearAll}><Trash2 className="h-3 w-3 mr-1" />Wipe Leaderboard</Button>
+        <Button variant="destructive" size="sm" onClick={() => wipeKind("shooter", "Shooters")}><Trash2 className="h-3 w-3 mr-1" />Wipe Shooters</Button>
+        <Button variant="destructive" size="sm" onClick={() => wipeKind("gang", "Gangs / Factions")}><Trash2 className="h-3 w-3 mr-1" />Wipe Gangs</Button>
+        <Button variant="destructive" size="sm" onClick={wipeHallOfFame}><Trash2 className="h-3 w-3 mr-1" />Wipe Hall of Fame</Button>
+        <Button variant="destructive" size="sm" onClick={clearHotBets}><Flame className="h-3 w-3 mr-1" />Clear Hot Bets</Button>
+        <span className="text-[10px] text-muted-foreground ml-auto">This editor mirrors the public Leaderboard exactly. Edits are saved as overrides.</span>
       </Card>
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="text-xs text-muted-foreground">{list.length} manual override{list.length === 1 ? "" : "s"}</div>
+
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant={tab === "gang" ? "default" : "outline"} onClick={() => setTab("gang")}>Top Gangs / Factions</Button>
+        <Button size="sm" variant={tab === "shooter" ? "default" : "outline"} onClick={() => setTab("shooter")}>Top Shooters</Button>
+        <span className="text-[11px] text-muted-foreground ml-auto">{rows.length} entries</span>
       </div>
-      <Card className="glass-strong p-4 space-y-2">
-        <div className="font-bold flex items-center gap-2">
-          {editId ? <><Pencil className="h-4 w-4 text-primary" />Editing entry</> : "Manual override (auto-stats are computed from match results)"}
-          {editId && <button onClick={() => { setEditId(null); setDraft({ kind: "gang", name: "", top_player: "", wins: 0, losses: 0, draws: 0, played: 0, points: 0, manual_rank: "", is_hidden: false }); }} className="ml-auto text-xs text-muted-foreground hover:text-foreground underline">Cancel edit</button>}
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <Select value={draft.kind} onValueChange={(v) => setDraft({ ...draft, kind: v })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="gang">Gang/Faction</SelectItem><SelectItem value="shooter">Shooter</SelectItem></SelectContent>
-          </Select>
-          <Input placeholder="Name" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
-          <Input placeholder="Top player (gang only)" value={draft.top_player} onChange={(e) => setDraft({ ...draft, top_player: e.target.value })} />
-          <Input placeholder="Manual rank #" value={draft.manual_rank} onChange={(e) => setDraft({ ...draft, manual_rank: e.target.value })} />
-          <Input type="number" placeholder="W" value={draft.wins} onChange={(e) => setDraft({ ...draft, wins: Number(e.target.value) })} />
-          <Input type="number" placeholder="L" value={draft.losses} onChange={(e) => setDraft({ ...draft, losses: Number(e.target.value) })} />
-          <Input type="number" placeholder="D" value={draft.draws} onChange={(e) => setDraft({ ...draft, draws: Number(e.target.value) })} />
-          <Input type="number" placeholder="Played" value={draft.played} onChange={(e) => setDraft({ ...draft, played: Number(e.target.value) })} />
-          <Input type="number" placeholder="Points" value={draft.points} onChange={(e) => setDraft({ ...draft, points: Number(e.target.value) })} />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button className="btn-luxury" onClick={save}>
-            {editId ? <><Check className="h-4 w-4 mr-1" />Update entry</> : <><Plus className="h-4 w-4 mr-1" />Save override</>}
-          </Button>
-          {!editId && (
-            <Button variant="destructive" onClick={hideTeam} title="Hide this team/shooter from the public leaderboard without touching match history">
-              <Trash2 className="h-4 w-4 mr-1" />Remove from leaderboard
-            </Button>
-          )}
-        </div>
+
+      <Card className="glass-strong p-0 overflow-x-auto">
+        <table className="w-full text-xs min-w-[860px]">
+          <thead>
+            <tr className="text-left uppercase tracking-widest text-muted-foreground border-b border-border bg-card/40">
+              <th className="px-2 py-2">Pos</th>
+              <th className="px-2 py-2">{tab === "gang" ? "Gang / Faction" : "Player"}</th>
+              <th className="px-2 py-2">{tab === "gang" ? "Top Player" : "Gang & Faction"}</th>
+              <th className="px-2 py-2 text-center">TS</th>
+              <th className="px-2 py-2 text-center">W</th>
+              <th className="px-2 py-2 text-center">L</th>
+              <th className="px-2 py-2 text-center">D</th>
+              <th className="px-2 py-2 text-center">P</th>
+              <th className="px-2 py-2 text-center">PTS</th>
+              <th className="px-2 py-2 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && <tr><td colSpan={10} className="p-6 text-center text-muted-foreground">No entries yet.</td></tr>}
+            {rows.map((r, i) => {
+              const dirty = !!edits[rowKey(r)];
+              return (
+                <tr key={r.name} className="border-b border-border/40">
+                  <td className="px-2 py-1.5">
+                    <div className="flex items-center gap-1">
+                      <span className="font-bold w-5 text-right">{i + 1}</span>
+                      <button onClick={() => move(r, -1)} disabled={i === 0} className="text-muted-foreground disabled:opacity-30 hover:text-primary"><ChevronLeft className="h-3.5 w-3.5 rotate-90" /></button>
+                      <button onClick={() => move(r, 1)} disabled={i === rows.length - 1} className="text-muted-foreground disabled:opacity-30 hover:text-primary"><ChevronRight className="h-3.5 w-3.5 rotate-90" /></button>
+                    </div>
+                  </td>
+                  <td className="px-2 py-1.5 font-bold whitespace-nowrap">{r.name}{r.is_override && <Badge variant="outline" className="ml-1 text-[8px]">manual</Badge>}</td>
+                  <td className="px-2 py-1.5">
+                    <Input value={field(r, tab === "gang" ? "top_player" : "gang_faction") ?? ""} onChange={(e) => setField(r, tab === "gang" ? "top_player" : "gang_faction", e.target.value)} className="h-8 w-32" />
+                  </td>
+                  <td className="px-2 py-1.5"><Input type="number" value={field(r, "TS") ?? 0} onChange={(e) => setField(r, "TS", e.target.value)} className={numCls} /></td>
+                  <td className="px-2 py-1.5"><Input type="number" value={field(r, "W") ?? 0} onChange={(e) => setField(r, "W", e.target.value)} className={numCls} /></td>
+                  <td className="px-2 py-1.5"><Input type="number" value={field(r, "L") ?? 0} onChange={(e) => setField(r, "L", e.target.value)} className={numCls} /></td>
+                  <td className="px-2 py-1.5"><Input type="number" value={field(r, "D") ?? 0} onChange={(e) => setField(r, "D", e.target.value)} className={numCls} /></td>
+                  <td className="px-2 py-1.5"><Input type="number" value={field(r, "P") ?? 0} onChange={(e) => setField(r, "P", e.target.value)} className={numCls} /></td>
+                  <td className="px-2 py-1.5"><Input type="number" value={field(r, "PTS") ?? 0} onChange={(e) => setField(r, "PTS", e.target.value)} className={numCls} /></td>
+                  <td className="px-2 py-1.5">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button size="sm" variant={dirty ? "default" : "outline"} className="h-8" onClick={() => saveRow(r)} disabled={savingKey === rowKey(r)}><Check className="h-3 w-3" /></Button>
+                      {r.is_override && <Button size="sm" variant="outline" className="h-8" title="Reset to auto stats" onClick={() => resetRow(r)}><RotateCw className="h-3 w-3" /></Button>}
+                      <Button size="sm" variant="destructive" className="h-8" title="Remove from leaderboard" onClick={() => hideRow(r)}><Trash2 className="h-3 w-3" /></Button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </Card>
-      <div className="space-y-1">
-        {list.map((o) => (
-          <Card key={o.id} className={`glass p-2 flex items-center gap-2 flex-wrap text-sm ${o.is_hidden ? "opacity-60 border-destructive/40" : ""}`}>
-            <Badge variant="outline" className="capitalize">{o.kind}</Badge>
-            {o.is_hidden && <Badge variant="destructive" className="text-[10px]">Hidden</Badge>}
-            <div className="font-bold flex-1 min-w-0 truncate">{o.name} {o.top_player && <span className="text-xs text-muted-foreground">· top: {o.top_player}</span>}</div>
-            <span className="text-xs text-muted-foreground">W {o.wins} · L {o.losses} · D {o.draws} · PTS {o.points}{o.manual_rank ? ` · #${o.manual_rank}` : ""}</span>
-            <Button size="sm" variant="outline" onClick={() => toggleHide(o)} title={o.is_hidden ? "Show on leaderboard" : "Hide from leaderboard"}>
-              {o.is_hidden ? <Eye className="h-3 w-3" /> : <X className="h-3 w-3" />}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => editEntry(o)}><Pencil className="h-3 w-3" /></Button>
-            <Button size="sm" variant="destructive" onClick={() => del(o.id)}><Trash2 className="h-3 w-3" /></Button>
-          </Card>
-        ))}
-      </div>
     </div>
   );
 }
@@ -3164,18 +3761,11 @@ function BetTrackerPanel() {
 
   async function load() {
     let qb = supabase.from("bets")
-      .select("*, bet_selections(id,match_id,market_id,odd_id,locked_odds,selection_label,result,created_at, matches!bet_selections_match_id_fkey(id,name,status,home_score,away_score), markets!bet_selections_market_id_fkey(name))")
+      .select("*, profiles!user_id(full_name,email,ingame_name), bet_selections(*, matches!match_id(name))")
       .order("created_at", { ascending: false }).limit(200);
     if (filter !== "all") qb = qb.eq("status", filter as any);
-    const { data, error } = await qb;
-    if (error) { toast.error(`Bet tracker unavailable: ${error.message}`); setBets([]); return; }
-    const userIds = Array.from(new Set((data ?? []).map((b: any) => b.user_id).filter(Boolean)));
-    const profilesById: Record<string, any> = {};
-    if (userIds.length) {
-      const { data: profs } = await supabase.from("profiles").select("id,full_name,email,ingame_name").in("id", userIds);
-      (profs ?? []).forEach((p: any) => { profilesById[p.id] = p; });
-    }
-    setBets((data ?? []).map((b: any) => ({ ...b, profiles: profilesById[b.user_id] ?? null })));
+    const { data } = await qb;
+    setBets(data ?? []);
   }
   useEffect(() => { load(); }, [filter]);
   useEffect(() => {
@@ -3233,17 +3823,14 @@ function BetTrackerPanel() {
   const filtered = bets.filter((b) => {
     if (!q) return true;
     const s = q.toLowerCase();
-    return b.tracking_id?.toLowerCase().includes(s) || b.booking_code?.toLowerCase().includes(s) || b.profiles?.email?.toLowerCase().includes(s) || b.profiles?.full_name?.toLowerCase().includes(s) || b.profiles?.ingame_name?.toLowerCase().includes(s);
+    return b.tracking_id?.toLowerCase().includes(s) || b.booking_code?.toLowerCase().includes(s) || b.profiles?.email?.toLowerCase().includes(s) || b.profiles?.full_name?.toLowerCase().includes(s);
   });
-  const statusCounts = bets.reduce((acc: Record<string, number>, b: any) => { acc[b.status] = (acc[b.status] ?? 0) + 1; return acc; }, {});
 
   return (
     <div className="space-y-3">
       <Card className="glass p-3 flex flex-wrap items-center gap-2">
         <ClipboardList className="h-4 w-4 text-primary" />
         <div className="font-bold text-sm">Bet Ticket Tracker</div>
-        <Badge variant="outline">{bets.length} loaded</Badge>
-        {Object.entries(statusCounts).slice(0, 4).map(([s, n]) => <Badge key={s} variant="outline" className="capitalize text-[10px]">{s}: {n}</Badge>)}
         <div className="flex-1" />
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tracking, code, user…" className="w-full md:max-w-xs" />
         <Button size="sm" variant="outline" onClick={load}><RotateCw className="h-3 w-3 mr-1" />Refresh</Button>
@@ -3911,17 +4498,28 @@ function ChallengesAdminPanel() {
 function SeasonsAdminPanel() {
   const [list, setList] = useState<any[]>([]);
   const [form, setForm] = useState<any>({ name: "", description: "", banner_url: "", starts_at: new Date().toISOString().slice(0, 16), ends_at: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 16), is_active: true });
+  const [bannerBusy, setBannerBusy] = useState(false);
   const load = async () => {
     const { data } = await supabase.from("seasons").select("*").order("starts_at", { ascending: false });
     setList(data ?? []);
   };
   useEffect(() => { load(); }, []);
+  async function uploadBanner(file: File) {
+    setBannerBusy(true);
+    const path = `season-${crypto.randomUUID()}.${file.name.split(".").pop() || "jpg"}`;
+    const { error } = await supabase.storage.from("ads").upload(path, file, { upsert: true });
+    setBannerBusy(false);
+    if (error) { toast.error(error.message); return; }
+    const url = supabase.storage.from("ads").getPublicUrl(path).data.publicUrl;
+    setForm((f: any) => ({ ...f, banner_url: url }));
+    toast.success("Banner uploaded");
+  }
   async function save() {
     if (!form.name) return toast.error("Name required");
     const { error } = await supabase.from("seasons").insert({ ...form, starts_at: new Date(form.starts_at).toISOString(), ends_at: new Date(form.ends_at).toISOString() });
     if (error) return toast.error(error.message);
     toast.success("Season created");
-    setForm({ ...form, name: "", description: "" });
+    setForm({ ...form, name: "", description: "", banner_url: "" });
     load();
   }
   async function toggle(s: any) {
@@ -3940,7 +4538,15 @@ function SeasonsAdminPanel() {
         <div className="font-bold">Create Season</div>
         <div className="grid md:grid-cols-2 gap-2">
           <Input placeholder="Season name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <Input placeholder="Banner URL (optional)" value={form.banner_url} onChange={(e) => setForm({ ...form, banner_url: e.target.value })} />
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Season banner image (upload from device — optional)</label>
+            <div className="flex items-center gap-2">
+              {form.banner_url
+                ? <img src={form.banner_url} alt="" className="h-9 w-16 rounded object-cover border border-primary/30" />
+                : <div className="h-9 w-16 rounded bg-primary/15 grid place-items-center text-primary"><ImageIcon className="h-4 w-4" /></div>}
+              <Input type="file" accept="image/*" disabled={bannerBusy} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadBanner(f); }} />
+            </div>
+          </div>
           <Input type="datetime-local" value={form.starts_at} onChange={(e) => setForm({ ...form, starts_at: e.target.value })} />
           <Input type="datetime-local" value={form.ends_at} onChange={(e) => setForm({ ...form, ends_at: e.target.value })} />
         </div>
@@ -4120,6 +4726,109 @@ function TokenMovementPanel() {
           </Card>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Attendance log — every side marked Present or Absent, with who they were
+ * scheduled against and the match timestamp. Filterable by status and name.
+ */
+function AttendancePanel() {
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "present" | "absent">("all");
+  const [q, setQ] = useState("");
+
+  async function load() {
+    setLoading(true);
+    const { data } = await supabase
+      .from("matches")
+      .select("id,name,match_kind,status,start_time,settled_at,created_at,home_present,away_present,home_team:teams!home_team_id(name),away_team:teams!away_team_id(name),home_player:players!home_player_id(name),away_player:players!away_player_id(name)")
+      .neq("match_kind", "future")
+      .order("start_time", { ascending: false, nullsFirst: false })
+      .limit(1000);
+    const out: any[] = [];
+    (data ?? []).forEach((m: any) => {
+      const homeName = (m.match_kind === "shooter" ? m.home_player?.name : m.home_team?.name) ?? "Home";
+      const awayName = (m.match_kind === "shooter" ? m.away_player?.name : m.away_team?.name) ?? "Away";
+      const when = m.settled_at ?? m.start_time ?? m.created_at;
+      if (m.home_present !== null && m.home_present !== undefined)
+        out.push({ key: m.id + "-h", name: homeName, present: m.home_present === true, opponent: awayName, match: m.name, kind: m.match_kind, status: m.status, when });
+      if (m.away_present !== null && m.away_present !== undefined)
+        out.push({ key: m.id + "-a", name: awayName, present: m.away_present === true, opponent: homeName, match: m.name, kind: m.match_kind, status: m.status, when });
+    });
+    setRows(out);
+    setLoading(false);
+  }
+  useEffect(() => {
+    load();
+    const ch = supabase.channel("admin-attendance")
+      .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  const filtered = rows.filter((r) => {
+    if (filter === "present" && !r.present) return false;
+    if (filter === "absent" && r.present) return false;
+    if (q.trim()) {
+      const needle = q.trim().toLowerCase();
+      if (!r.name.toLowerCase().includes(needle) && !r.opponent.toLowerCase().includes(needle) && !(r.match ?? "").toLowerCase().includes(needle)) return false;
+    }
+    return true;
+  });
+  const presentCount = rows.filter((r) => r.present).length;
+  const absentCount = rows.length - presentCount;
+
+  return (
+    <div className="space-y-4">
+      <Card className="glass-strong p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Eye className="h-4 w-4 text-primary" />
+          <div className="font-bold tracking-wide">Player Attendance Log</div>
+          <Badge variant="outline" className="ml-auto border-emerald-500/40 text-emerald-400">{presentCount} present</Badge>
+          <Badge variant="outline" className="border-destructive/40 text-destructive">{absentCount} absent</Badge>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[180px]">
+            <Filter className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input className="pl-9" placeholder="Search player, opponent or match…" value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+          <div className="flex gap-1">
+            {(["all", "present", "absent"] as const).map((f) => (
+              <Button key={f} size="sm" variant={filter === f ? "default" : "outline"} className="capitalize" onClick={() => setFilter(f)}>{f}</Button>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      <Card className="border-primary/20 bg-card/60 overflow-hidden">
+        <div className="grid grid-cols-[1.4fr_0.8fr_1.4fr_1.2fr] gap-2 px-3 py-2 border-b border-primary/20 text-[10px] uppercase tracking-widest text-muted-foreground bg-gradient-to-r from-primary/10 to-transparent">
+          <div>Player / Side</div><div>Status</div><div>Scheduled vs</div><div>When</div>
+        </div>
+        <div className="max-h-[60vh] overflow-y-auto divide-y divide-border/40">
+          {loading && <div className="p-3 text-xs text-muted-foreground">Loading…</div>}
+          {!loading && filtered.length === 0 && <div className="p-3 text-xs text-muted-foreground">No attendance records match this filter.</div>}
+          {filtered.map((r) => (
+            <div key={r.key} className="grid grid-cols-[1.4fr_0.8fr_1.4fr_1.2fr] gap-2 px-3 py-2 text-xs items-center hover:bg-primary/5">
+              <div className="min-w-0">
+                <div className="font-bold truncate">{r.name}</div>
+                <div className="text-[9px] text-muted-foreground truncate">{r.match}</div>
+              </div>
+              <div>
+                {r.present ? (
+                  <span className="inline-flex items-center gap-1 text-emerald-400 font-bold"><Check className="h-3 w-3" />Present</span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-destructive font-bold"><X className="h-3 w-3" />Absent</span>
+                )}
+              </div>
+              <div className="truncate text-muted-foreground">vs <span className="text-foreground font-semibold">{r.opponent}</span></div>
+              <div className="text-[10px] text-muted-foreground tabular-nums">{r.when ? new Date(r.when).toLocaleString() : "—"}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 }

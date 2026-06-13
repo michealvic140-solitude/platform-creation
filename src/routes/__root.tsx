@@ -72,6 +72,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" },
+      { name: "google-site-verification", content: "VmJKgEfwpQsNav2Nc0ItKNySizECxM7nnKuyxh-A5gM" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
@@ -161,16 +162,11 @@ import { RouteProgress } from "@/components/RouteProgress";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  // PWA: register the service worker in production only (skip iframes/preview)
+  // Service workers / push disabled in this build — unregister any lingering ones.
   if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-    const isIframe = (() => { try { return window.self !== window.top; } catch { return true; } })();
-    const isPreview = /id-preview--|lovableproject\.com/.test(window.location.hostname);
-    if (!isIframe && !isPreview) {
-      navigator.serviceWorker.getRegistration("/sw.js").then((r) => { if (!r) navigator.serviceWorker.register("/sw.js").catch(() => {}); });
-    } else {
-      navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister()));
-    }
+    navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())).catch(() => {});
   }
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

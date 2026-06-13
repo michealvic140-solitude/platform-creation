@@ -23,15 +23,23 @@ export function StreakAndPushPanel() {
   const genVapid = useServerFn(generateVapidKeys);
 
   async function load() {
-    const { data } = await supabase.from("app_settings")
-      .select("daily_login_enabled, daily_login_base_reward, daily_login_bonus_per_day, daily_login_max_streak, vapid_public_key, vapid_subject, push_endpoint_url")
-      .eq("id", 1).maybeSingle();
-    setS(data ?? {});
+    const [{ data: pub }, { data: priv }] = await Promise.all([
+      supabase.from("app_settings")
+        .select("daily_login_enabled, daily_login_base_reward, daily_login_bonus_per_day, daily_login_max_streak, vapid_public_key")
+        .eq("id", 1).maybeSingle(),
+      supabase.from("app_settings_private").select("vapid_subject, push_endpoint_url").eq("id", 1).maybeSingle(),
+    ]);
+    setS({ ...(pub ?? {}), ...(priv ?? {}) });
   }
   useEffect(() => { load(); }, []);
 
   async function save() {
-    const { error } = await supabase.from("app_settings").update(s).eq("id", 1);
+    const { vapid_subject, push_endpoint_url, ...pub } = s;
+    const [{ error: e1 }, { error: e2 }] = await Promise.all([
+      supabase.from("app_settings").update(pub).eq("id", 1),
+      supabase.from("app_settings_private").update({ vapid_subject, push_endpoint_url }).eq("id", 1),
+    ]);
+    const error = e1 || e2;
     if (error) toast.error(error.message); else toast.success("Saved (audit log recorded)");
   }
 
@@ -155,7 +163,7 @@ export function RiskPanel() {
     const [{ data: rs }, { data: ex }, { data: ap }] = await Promise.all([
       supabase.rpc("admin_risk_summary"),
       supabase.rpc("admin_exposure_per_match"),
-      supabase.from("app_settings").select("exposure_warn_pct, house_low_balance").eq("id", 1).maybeSingle(),
+      supabase.from("app_settings_private").select("exposure_warn_pct, house_low_balance").eq("id", 1).maybeSingle(),
     ]);
     setS(rs);
     setExposure((ex as any) ?? []);
