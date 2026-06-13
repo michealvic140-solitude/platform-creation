@@ -100,7 +100,7 @@ function CreateTournamentDialog({ open, onClose, onCreated }: { open: boolean; o
   async function go() {
     if (!name.trim()) { toast.error("Tournament name is required"); return; }
     setBusy(true);
-    const { data, error } = await supabase.from("tournaments").insert({
+    const { data, error } = await (supabase.from("tournaments") as any).insert({
       name: name.trim(), size, tagline, status: "active",
     }).select().single();
     if (error) { setBusy(false); toast.error(error.message); return; }
