@@ -201,7 +201,7 @@ function TournamentEditor({ tournament, onChanged }: { tournament: Tournament; o
     const player = shooters.find((s) => s.id === playerId);
     if (!player) return;
     const teamName = player.teams?.name ?? null;
-    const { error } = await supabase.from("tournament_participants").insert({
+    const { error } = await (supabase.from("tournament_participants") as any).insert({
       tournament_id: tournament.id,
       player_id: player.id,
       team_id: player.team_id,
