@@ -2250,63 +2250,88 @@ export type Database = {
       }
       tournament_matches: {
         Row: {
+          code: string
           created_at: string
           id: string
+          kills_a: number | null
+          kills_b: number | null
           label: string | null
+          loser_id: string | null
           next_match_id: string | null
           next_slot: string | null
           participant_a_id: string | null
           participant_b_id: string | null
-          round: number
+          played_at: string | null
+          round: string
           round_name: string | null
           scheduled_at: string | null
           score_a: number | null
           score_b: number | null
           slot: number
+          slot_index: number
           status: string
           tournament_id: string
           updated_at: string
           winner_id: string | null
         }
         Insert: {
+          code: string
           created_at?: string
           id?: string
+          kills_a?: number | null
+          kills_b?: number | null
           label?: string | null
+          loser_id?: string | null
           next_match_id?: string | null
           next_slot?: string | null
           participant_a_id?: string | null
           participant_b_id?: string | null
-          round: number
+          played_at?: string | null
+          round: string
           round_name?: string | null
           scheduled_at?: string | null
           score_a?: number | null
           score_b?: number | null
           slot?: number
+          slot_index: number
           status?: string
           tournament_id: string
           updated_at?: string
           winner_id?: string | null
         }
         Update: {
+          code?: string
           created_at?: string
           id?: string
+          kills_a?: number | null
+          kills_b?: number | null
           label?: string | null
+          loser_id?: string | null
           next_match_id?: string | null
           next_slot?: string | null
           participant_a_id?: string | null
           participant_b_id?: string | null
-          round?: number
+          played_at?: string | null
+          round?: string
           round_name?: string | null
           scheduled_at?: string | null
           score_a?: number | null
           score_b?: number | null
           slot?: number
+          slot_index?: number
           status?: string
           tournament_id?: string
           updated_at?: string
           winner_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "tournament_matches_loser_id_fkey"
+            columns: ["loser_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_participants"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tournament_matches_next_match_id_fkey"
             columns: ["next_match_id"]
@@ -2348,37 +2373,69 @@ export type Database = {
         Row: {
           created_at: string
           current_round: number
+          display_name: string
+          eliminated_at_round: string | null
           eliminated_round: number | null
+          emblem_url: string | null
+          gang_tag: string | null
           id: string
           is_eliminated: boolean
           logo_url: string | null
           name: string
+          player_id: string | null
           seed: number | null
+          team_id: string | null
           tournament_id: string
         }
         Insert: {
           created_at?: string
           current_round?: number
+          display_name: string
+          eliminated_at_round?: string | null
           eliminated_round?: number | null
+          emblem_url?: string | null
+          gang_tag?: string | null
           id?: string
           is_eliminated?: boolean
           logo_url?: string | null
           name: string
+          player_id?: string | null
           seed?: number | null
+          team_id?: string | null
           tournament_id: string
         }
         Update: {
           created_at?: string
           current_round?: number
+          display_name?: string
+          eliminated_at_round?: string | null
           eliminated_round?: number | null
+          emblem_url?: string | null
+          gang_tag?: string | null
           id?: string
           is_eliminated?: boolean
           logo_url?: string | null
           name?: string
+          player_id?: string | null
           seed?: number | null
+          team_id?: string | null
           tournament_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tournament_participants_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_participants_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tournament_participants_tournament_id_fkey"
             columns: ["tournament_id"]
@@ -2390,7 +2447,9 @@ export type Database = {
       }
       tournaments: {
         Row: {
+          banner_url: string | null
           champion_id: string | null
+          champion_participant_id: string | null
           created_at: string
           created_by: string | null
           event_date: string | null
@@ -2398,12 +2457,16 @@ export type Database = {
           id: string
           is_featured: boolean
           name: string
+          size: number
+          starts_at: string | null
           status: string
           tagline: string | null
           updated_at: string
         }
         Insert: {
+          banner_url?: string | null
           champion_id?: string | null
+          champion_participant_id?: string | null
           created_at?: string
           created_by?: string | null
           event_date?: string | null
@@ -2411,12 +2474,16 @@ export type Database = {
           id?: string
           is_featured?: boolean
           name: string
+          size?: number
+          starts_at?: string | null
           status?: string
           tagline?: string | null
           updated_at?: string
         }
         Update: {
+          banner_url?: string | null
           champion_id?: string | null
+          champion_participant_id?: string | null
           created_at?: string
           created_by?: string | null
           event_date?: string | null
@@ -2424,6 +2491,8 @@ export type Database = {
           id?: string
           is_featured?: boolean
           name?: string
+          size?: number
+          starts_at?: string | null
           status?: string
           tagline?: string | null
           updated_at?: string
@@ -3098,6 +3167,28 @@ export type Database = {
         Returns: Json
       }
       settle_pay_winning_bet: { Args: { _bet_id: string }; Returns: Json }
+      tournament_disqualify: {
+        Args: {
+          _disqualified_participant_id: string
+          _kills_a: number
+          _kills_b: number
+          _match_id: string
+        }
+        Returns: Json
+      }
+      tournament_generate_bracket: {
+        Args: { _tournament_id: string }
+        Returns: Json
+      }
+      tournament_set_result: {
+        Args: {
+          _kills_a: number
+          _kills_b: number
+          _match_id: string
+          _winner_id: string
+        }
+        Returns: Json
+      }
       user_cashout_bet: { Args: { _bet_id: string }; Returns: Json }
       verify_xp_consistency: { Args: { _user_id?: string }; Returns: Json }
       virtual_tick: { Args: never; Returns: Json }
