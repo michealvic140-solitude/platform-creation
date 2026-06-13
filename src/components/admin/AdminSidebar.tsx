@@ -14,7 +14,7 @@ import {
 import {
   BarChart3, Users, Sparkles, AlertTriangle, History, ClipboardList, Send,
   MessageSquare, Megaphone, Trophy, Calendar, Wallet, ListOrdered, Tag,
-  Settings as SettingsIcon, Ticket, Coins, Dice5,
+  Settings as SettingsIcon, Ticket, Coins, Dice5, Shield, Flame, Target,
 } from "lucide-react";
 import lslLogo from "@/assets/lsl-logo.png";
 
@@ -37,9 +37,11 @@ const NAV: AdminNavItem[] = [
   { key: "broadcast",   label: "Broadcast",            icon: Send,            admin: true },
   { key: "challenges",  label: "Challenges",           icon: Sparkles,        admin: true },
   { key: "chat",        label: "Chat",                 icon: MessageSquare,   modOk: true, alertKey: "chat" },
+  { key: "clans",       label: "Clans",                icon: Shield,          admin: true },
   { key: "content",     label: "Content",              icon: Megaphone,       modOk: true },
   { key: "emblems",     label: "Emblems",              icon: Trophy,          admin: true },
   { key: "events",      label: "Events",               icon: Calendar,        admin: true },
+  { key: "futures",     label: "Futures",              icon: Target,          admin: true },
   { key: "housewallet", label: "House Wallet",         icon: Wallet,          admin: true },
   { key: "leaderboard", label: "Leaderboard",          icon: ListOrdered,     admin: true },
   { key: "matches",     label: "Matches",              icon: Trophy,          modOk: true },
@@ -58,6 +60,8 @@ const NAV: AdminNavItem[] = [
   { key: "tickets",     label: "Tickets",              icon: Ticket,          modOk: true, alertKey: "tickets" },
   { key: "tokens",      label: "Tokens",               icon: Coins,           admin: true, alertKey: "tokens" },
   { key: "tokenrules",  label: "Token Rules",          icon: Coins,           admin: true },
+  { key: "topbets",     label: "Top Bets",             icon: Flame,           modOk: true },
+  { key: "tournaments", label: "Tournaments",          icon: Trophy,          admin: true },
   { key: "users",       label: "Users",                icon: Users,           modOk: true, alertKey: "users" },
   { key: "virtual",     label: "Virtual",              icon: Dice5,           admin: true },
   { key: "vip",         label: "VIP",                  icon: Trophy,          admin: true },

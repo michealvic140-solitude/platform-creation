@@ -71,9 +71,11 @@ export type Database = {
       app_settings: {
         Row: {
           about_us: string | null
-          admin_ai_enabled: boolean
-          admin_ai_model: string
+          allow_rebet: boolean
           challenge_reward_multiplier: number
+          closed_image: string | null
+          closed_message: string
+          closed_mode: boolean
           contact_email: string | null
           contact_phone: string | null
           contact_whatsapp: string | null
@@ -82,9 +84,12 @@ export type Database = {
           daily_login_enabled: boolean
           daily_login_max_streak: number
           emblem_auto_approve: boolean
-          exposure_warn_pct: number
           force_reload_at: string | null
           friends_enabled: boolean
+          futures_max_payout: number
+          futures_max_selections: number
+          futures_min_stake: number
+          futures_section_title: string
           gift_daily_limit: number
           gift_enabled: boolean
           gift_fee_pct: number
@@ -92,10 +97,12 @@ export type Database = {
           gift_min_amount: number
           hall_of_fame_reset_at: string | null
           hero_tagline: string | null
-          house_low_balance: number
+          hot_bets_reset_at: string | null
           id: number
           leaderboard_gangs_reset_at: string | null
+          leaderboard_header_url: string | null
           leaderboard_shooters_reset_at: string | null
+          maintenance_image: string | null
           maintenance_message: string | null
           maintenance_mode: boolean
           max_payout: number
@@ -108,7 +115,6 @@ export type Database = {
           popup_ad_link: string | null
           popup_ad_size: string
           popup_ad_text: string | null
-          push_endpoint_url: string | null
           referral_bonus_referee: number
           referral_bonus_referrer: number
           spin_cooldown_hours: number
@@ -118,7 +124,6 @@ export type Database = {
           terms_content: string | null
           updated_at: string
           vapid_public_key: string | null
-          vapid_subject: string | null
           vip_enabled: boolean
           vip_token_multipliers: Json
           virtual_animation_seconds: number
@@ -145,9 +150,11 @@ export type Database = {
         }
         Insert: {
           about_us?: string | null
-          admin_ai_enabled?: boolean
-          admin_ai_model?: string
+          allow_rebet?: boolean
           challenge_reward_multiplier?: number
+          closed_image?: string | null
+          closed_message?: string
+          closed_mode?: boolean
           contact_email?: string | null
           contact_phone?: string | null
           contact_whatsapp?: string | null
@@ -156,9 +163,12 @@ export type Database = {
           daily_login_enabled?: boolean
           daily_login_max_streak?: number
           emblem_auto_approve?: boolean
-          exposure_warn_pct?: number
           force_reload_at?: string | null
           friends_enabled?: boolean
+          futures_max_payout?: number
+          futures_max_selections?: number
+          futures_min_stake?: number
+          futures_section_title?: string
           gift_daily_limit?: number
           gift_enabled?: boolean
           gift_fee_pct?: number
@@ -166,10 +176,12 @@ export type Database = {
           gift_min_amount?: number
           hall_of_fame_reset_at?: string | null
           hero_tagline?: string | null
-          house_low_balance?: number
+          hot_bets_reset_at?: string | null
           id?: number
           leaderboard_gangs_reset_at?: string | null
+          leaderboard_header_url?: string | null
           leaderboard_shooters_reset_at?: string | null
+          maintenance_image?: string | null
           maintenance_message?: string | null
           maintenance_mode?: boolean
           max_payout?: number
@@ -182,7 +194,6 @@ export type Database = {
           popup_ad_link?: string | null
           popup_ad_size?: string
           popup_ad_text?: string | null
-          push_endpoint_url?: string | null
           referral_bonus_referee?: number
           referral_bonus_referrer?: number
           spin_cooldown_hours?: number
@@ -192,7 +203,6 @@ export type Database = {
           terms_content?: string | null
           updated_at?: string
           vapid_public_key?: string | null
-          vapid_subject?: string | null
           vip_enabled?: boolean
           vip_token_multipliers?: Json
           virtual_animation_seconds?: number
@@ -219,9 +229,11 @@ export type Database = {
         }
         Update: {
           about_us?: string | null
-          admin_ai_enabled?: boolean
-          admin_ai_model?: string
+          allow_rebet?: boolean
           challenge_reward_multiplier?: number
+          closed_image?: string | null
+          closed_message?: string
+          closed_mode?: boolean
           contact_email?: string | null
           contact_phone?: string | null
           contact_whatsapp?: string | null
@@ -230,9 +242,12 @@ export type Database = {
           daily_login_enabled?: boolean
           daily_login_max_streak?: number
           emblem_auto_approve?: boolean
-          exposure_warn_pct?: number
           force_reload_at?: string | null
           friends_enabled?: boolean
+          futures_max_payout?: number
+          futures_max_selections?: number
+          futures_min_stake?: number
+          futures_section_title?: string
           gift_daily_limit?: number
           gift_enabled?: boolean
           gift_fee_pct?: number
@@ -240,10 +255,12 @@ export type Database = {
           gift_min_amount?: number
           hall_of_fame_reset_at?: string | null
           hero_tagline?: string | null
-          house_low_balance?: number
+          hot_bets_reset_at?: string | null
           id?: number
           leaderboard_gangs_reset_at?: string | null
+          leaderboard_header_url?: string | null
           leaderboard_shooters_reset_at?: string | null
+          maintenance_image?: string | null
           maintenance_message?: string | null
           maintenance_mode?: boolean
           max_payout?: number
@@ -256,7 +273,6 @@ export type Database = {
           popup_ad_link?: string | null
           popup_ad_size?: string
           popup_ad_text?: string | null
-          push_endpoint_url?: string | null
           referral_bonus_referee?: number
           referral_bonus_referrer?: number
           spin_cooldown_hours?: number
@@ -266,7 +282,6 @@ export type Database = {
           terms_content?: string | null
           updated_at?: string
           vapid_public_key?: string | null
-          vapid_subject?: string | null
           vip_enabled?: boolean
           vip_token_multipliers?: Json
           virtual_animation_seconds?: number
@@ -290,6 +305,39 @@ export type Database = {
           xp_per_login?: number
           xp_per_referral?: number
           xp_per_win?: number
+        }
+        Relationships: []
+      }
+      app_settings_private: {
+        Row: {
+          admin_ai_enabled: boolean
+          admin_ai_model: string
+          exposure_warn_pct: number
+          house_low_balance: number
+          id: number
+          push_endpoint_url: string | null
+          updated_at: string
+          vapid_subject: string | null
+        }
+        Insert: {
+          admin_ai_enabled?: boolean
+          admin_ai_model?: string
+          exposure_warn_pct?: number
+          house_low_balance?: number
+          id?: number
+          push_endpoint_url?: string | null
+          updated_at?: string
+          vapid_subject?: string | null
+        }
+        Update: {
+          admin_ai_enabled?: boolean
+          admin_ai_model?: string
+          exposure_warn_pct?: number
+          house_low_balance?: number
+          id?: number
+          push_endpoint_url?: string | null
+          updated_at?: string
+          vapid_subject?: string | null
         }
         Relationships: []
       }
@@ -1193,6 +1241,7 @@ export type Database = {
           played: number
           points: number
           top_player: string | null
+          total_score: number
           updated_at: string
           wins: number
         }
@@ -1207,6 +1256,7 @@ export type Database = {
           played?: number
           points?: number
           top_player?: string | null
+          total_score?: number
           updated_at?: string
           wins?: number
         }
@@ -1221,6 +1271,7 @@ export type Database = {
           played?: number
           points?: number
           top_player?: string | null
+          total_score?: number
           updated_at?: string
           wins?: number
         }
@@ -1260,11 +1311,15 @@ export type Database = {
       }
       matches: {
         Row: {
+          away_player_id: string | null
+          away_present: boolean
           away_score: number
           away_team_id: string
           category_id: string | null
           created_at: string
           created_by: string | null
+          home_player_id: string | null
+          home_present: boolean
           home_score: number
           home_team_id: string
           id: string
@@ -1275,7 +1330,10 @@ export type Database = {
           lock_time: string | null
           locked_at: string | null
           locked_by: string | null
+          marketing_enabled: boolean
+          match_kind: string
           name: string
+          restrict_repeat_contender: boolean
           settled_at: string | null
           settled_by: string | null
           start_time: string
@@ -1287,11 +1345,15 @@ export type Database = {
           winner_team_id: string | null
         }
         Insert: {
+          away_player_id?: string | null
+          away_present?: boolean
           away_score?: number
           away_team_id: string
           category_id?: string | null
           created_at?: string
           created_by?: string | null
+          home_player_id?: string | null
+          home_present?: boolean
           home_score?: number
           home_team_id: string
           id?: string
@@ -1302,7 +1364,10 @@ export type Database = {
           lock_time?: string | null
           locked_at?: string | null
           locked_by?: string | null
+          marketing_enabled?: boolean
+          match_kind?: string
           name: string
+          restrict_repeat_contender?: boolean
           settled_at?: string | null
           settled_by?: string | null
           start_time: string
@@ -1314,11 +1379,15 @@ export type Database = {
           winner_team_id?: string | null
         }
         Update: {
+          away_player_id?: string | null
+          away_present?: boolean
           away_score?: number
           away_team_id?: string
           category_id?: string | null
           created_at?: string
           created_by?: string | null
+          home_player_id?: string | null
+          home_present?: boolean
           home_score?: number
           home_team_id?: string
           id?: string
@@ -1329,7 +1398,10 @@ export type Database = {
           lock_time?: string | null
           locked_at?: string | null
           locked_by?: string | null
+          marketing_enabled?: boolean
+          match_kind?: string
           name?: string
+          restrict_repeat_contender?: boolean
           settled_at?: string | null
           settled_by?: string | null
           start_time?: string
@@ -1342,6 +1414,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "matches_away_player_id_fkey"
+            columns: ["away_player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "matches_away_team_id_fkey"
             columns: ["away_team_id"]
             isOneToOne: false
@@ -1353,6 +1432,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_home_player_id_fkey"
+            columns: ["home_player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
             referencedColumns: ["id"]
           },
           {
@@ -1451,6 +1537,12 @@ export type Database = {
       }
       odds: {
         Row: {
+          future_candidate_type: string | null
+          future_emblem_url: string | null
+          future_next_at: string | null
+          future_next_title: string | null
+          future_progress: Json
+          future_status: string
           id: string
           is_winner: boolean | null
           label: string
@@ -1459,6 +1551,12 @@ export type Database = {
           value: number
         }
         Insert: {
+          future_candidate_type?: string | null
+          future_emblem_url?: string | null
+          future_next_at?: string | null
+          future_next_title?: string | null
+          future_progress?: Json
+          future_status?: string
           id?: string
           is_winner?: boolean | null
           label: string
@@ -1467,6 +1565,12 @@ export type Database = {
           value: number
         }
         Update: {
+          future_candidate_type?: string | null
+          future_emblem_url?: string | null
+          future_next_at?: string | null
+          future_next_title?: string | null
+          future_progress?: Json
+          future_status?: string
           id?: string
           is_winner?: boolean | null
           label?: string
@@ -1492,7 +1596,7 @@ export type Database = {
           is_substitute: boolean
           name: string
           position: string | null
-          team_id: string
+          team_id: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -1501,7 +1605,7 @@ export type Database = {
           is_substitute?: boolean
           name: string
           position?: string | null
-          team_id: string
+          team_id?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -1510,7 +1614,7 @@ export type Database = {
           is_substitute?: boolean
           name?: string
           position?: string | null
-          team_id?: string
+          team_id?: string | null
         }
         Relationships: [
           {
@@ -2144,6 +2248,203 @@ export type Database = {
         }
         Relationships: []
       }
+      tournament_matches: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          next_match_id: string | null
+          next_slot: string | null
+          participant_a_id: string | null
+          participant_b_id: string | null
+          round: number
+          round_name: string | null
+          scheduled_at: string | null
+          score_a: number | null
+          score_b: number | null
+          slot: number
+          status: string
+          tournament_id: string
+          updated_at: string
+          winner_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          next_match_id?: string | null
+          next_slot?: string | null
+          participant_a_id?: string | null
+          participant_b_id?: string | null
+          round: number
+          round_name?: string | null
+          scheduled_at?: string | null
+          score_a?: number | null
+          score_b?: number | null
+          slot?: number
+          status?: string
+          tournament_id: string
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          next_match_id?: string | null
+          next_slot?: string | null
+          participant_a_id?: string | null
+          participant_b_id?: string | null
+          round?: number
+          round_name?: string | null
+          scheduled_at?: string | null
+          score_a?: number | null
+          score_b?: number | null
+          slot?: number
+          status?: string
+          tournament_id?: string
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_matches_next_match_id_fkey"
+            columns: ["next_match_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_matches_participant_a_id_fkey"
+            columns: ["participant_a_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_matches_participant_b_id_fkey"
+            columns: ["participant_b_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_matches_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_matches_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournament_participants: {
+        Row: {
+          created_at: string
+          current_round: number
+          eliminated_round: number | null
+          id: string
+          is_eliminated: boolean
+          logo_url: string | null
+          name: string
+          seed: number | null
+          tournament_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_round?: number
+          eliminated_round?: number | null
+          id?: string
+          is_eliminated?: boolean
+          logo_url?: string | null
+          name: string
+          seed?: number | null
+          tournament_id: string
+        }
+        Update: {
+          created_at?: string
+          current_round?: number
+          eliminated_round?: number | null
+          id?: string
+          is_eliminated?: boolean
+          logo_url?: string | null
+          name?: string
+          seed?: number | null
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_participants_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournaments: {
+        Row: {
+          champion_id: string | null
+          created_at: string
+          created_by: string | null
+          event_date: string | null
+          futures_match_id: string | null
+          id: string
+          is_featured: boolean
+          name: string
+          status: string
+          tagline: string | null
+          updated_at: string
+        }
+        Insert: {
+          champion_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_date?: string | null
+          futures_match_id?: string | null
+          id?: string
+          is_featured?: boolean
+          name: string
+          status?: string
+          tagline?: string | null
+          updated_at?: string
+        }
+        Update: {
+          champion_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_date?: string | null
+          futures_match_id?: string | null
+          id?: string
+          is_featured?: boolean
+          name?: string
+          status?: string
+          tagline?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournaments_champion_fk"
+            columns: ["champion_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournaments_futures_match_id_fkey"
+            columns: ["futures_match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_achievements: {
         Row: {
           awarded_at: string
@@ -2602,6 +2903,29 @@ export type Database = {
           match_name: string
         }[]
       }
+      admin_list_users_with_kyc: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          created_at: string
+          discord_full_name: string
+          discord_username: string
+          email: string
+          email_confirmed: boolean
+          full_name: string
+          gang_name: string
+          gang_type: string
+          id: string
+          is_banned: boolean
+          is_muted: boolean
+          is_restricted: boolean
+          phone: string
+          token_balance: number
+          total_bets: number
+          vip_tier: string
+          xp: number
+        }[]
+      }
       admin_lock_virtual_round: { Args: { _match_id: string }; Returns: Json }
       admin_log_action: {
         Args: {
@@ -2619,7 +2943,7 @@ export type Database = {
       admin_pnl_summary: { Args: { _days?: number }; Returns: Json }
       admin_refund_bet: {
         Args: { _bet_id: string; _reason?: string }
-        Returns: Json
+        Returns: undefined
       }
       admin_review_virtual_payout: {
         Args: { _approve: boolean; _id: string; _reason?: string }
@@ -2646,6 +2970,10 @@ export type Database = {
           _wins: number
         }
         Returns: Json
+      }
+      admin_void_bet: {
+        Args: { _bet_id: string; _reason?: string; _refund?: boolean }
+        Returns: undefined
       }
       apply_imported_profile: {
         Args: { _email: string; _user_id: string }
@@ -2680,6 +3008,17 @@ export type Database = {
         Returns: undefined
       }
       fix_pending_virtual_bets: { Args: never; Returns: Json }
+      gang_directory: {
+        Args: never
+        Returns: {
+          members: number
+          name: string
+          sample: string[]
+          tokens: number
+          type: string
+        }[]
+      }
+      get_display_roles: { Args: { _user_id: string }; Returns: string[] }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2707,6 +3046,23 @@ export type Database = {
         Returns: Json
       }
       primary_role: { Args: { _user_id: string }; Returns: string }
+      public_profiles: {
+        Args: { _ids?: string[] }
+        Returns: {
+          avatar_url: string
+          country: string
+          full_name: string
+          gang_name: string
+          gang_type: string
+          id: string
+          ingame_name: string
+          longest_streak: number
+          profile_title: string
+          streak_days: number
+          vip_tier: string
+          xp: number
+        }[]
+      }
       recalc_vip_tier: { Args: { _user_id: string }; Returns: string }
       redeem_promo_code: { Args: { _code: string }; Returns: Json }
       redeem_referral_code: { Args: { _code: string }; Returns: Json }
@@ -2732,6 +3088,15 @@ export type Database = {
         Returns: undefined
       }
       server_now: { Args: never; Returns: string }
+      set_tournament_result: {
+        Args: {
+          _match_id: string
+          _score_a: number
+          _score_b: number
+          _winner_id: string
+        }
+        Returns: Json
+      }
       settle_pay_winning_bet: { Args: { _bet_id: string }; Returns: Json }
       user_cashout_bet: { Args: { _bet_id: string }; Returns: Json }
       verify_xp_consistency: { Args: { _user_id?: string }; Returns: Json }

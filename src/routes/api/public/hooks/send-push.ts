@@ -14,10 +14,11 @@ export const Route = createFileRoute('/api/public/hooks/send-push')({
           const body = (await request.json()) as { user_id?: string; title?: string; body?: string; link?: string; notification_id?: string }
           if (!body?.user_id || !body?.title) return new Response('bad', { status: 400 })
 
-          const { data: settings } = await supabaseAdmin.from('app_settings').select('vapid_public_key, vapid_subject').eq('id', 1).maybeSingle()
+          const { data: settings } = await supabaseAdmin.from('app_settings').select('vapid_public_key').eq('id', 1).maybeSingle()
+          const { data: privSettings } = await supabaseAdmin.from('app_settings_private').select('vapid_subject').eq('id', 1).maybeSingle()
           const pub = (settings as any)?.vapid_public_key || process.env.VAPID_PUBLIC_KEY
           const priv = process.env.VAPID_PRIVATE_KEY
-          const subject = (settings as any)?.vapid_subject || 'mailto:admin@example.com'
+          const subject = (privSettings as any)?.vapid_subject || 'mailto:admin@example.com'
           if (!pub || !priv) return new Response(JSON.stringify({ skipped: 'no_vapid_keys' }), { status: 200 })
           webpush.setVapidDetails(subject, pub, priv)
 
