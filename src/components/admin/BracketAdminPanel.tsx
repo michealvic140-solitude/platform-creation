@@ -178,7 +178,7 @@ function TournamentEditor({ tournament, onChanged }: { tournament: Tournament; o
     if (ue) { toast.error("Upload failed: " + ue.message); return; }
     const { data: signed } = await supabase.storage.from("event-banners").createSignedUrl(path, 60 * 60 * 24 * 365);
     if (!signed?.signedUrl) { toast.error("Could not create banner URL"); return; }
-    await supabase.from("tournaments").update({ banner_url: signed.signedUrl }).eq("id", tournament.id);
+    await (supabase.from("tournaments") as any).update({ banner_url: signed.signedUrl }).eq("id", tournament.id);
     toast.success("Banner uploaded");
     onChanged();
   }
