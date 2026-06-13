@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Dice5, Plus, Lock, Trophy, Trash2, RefreshCw, Settings2, ShieldAlert, Coins, History } from "lucide-react";
 import { toast } from "sonner";
-import { useConfirm } from "@/components/ConfirmDialog";
 import { Link } from "@tanstack/react-router";
 
 const DEFAULT_SCORES = ["0:0", "1:0", "0:1", "1:1", "2:0", "0:2", "2:1", "1:2", "2:2", "3:0", "0:3", "3:1", "1:3", "3:2", "2:3", "3:3"];
@@ -28,7 +27,6 @@ type Round = {
 type AuditEntry = { id: string; action: string; target_id: string | null; actor_id: string | null; created_at: string; metadata: any };
 
 export function VirtualAdminPanel() {
-  const confirm = useConfirm();
   const [teams, setTeams] = useState<TeamOpt[]>([]);
   const [rounds, setRounds] = useState<Round[]>([]);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -134,7 +132,7 @@ export function VirtualAdminPanel() {
                     </>
                   )}
                   <Button size="sm" variant="ghost" onClick={async () => {
-                    if (!await confirm({ title: "Delete this virtual round?", description: "The round and its betting markets will be permanently removed. Existing user tickets keep their record.", tone: "danger", confirmText: "Delete round" })) return;
+                    if (!confirm("Delete this round?")) return;
                     await supabase.from("markets").delete().eq("match_id", r.id);
                     await supabase.from("matches").delete().eq("id", r.id);
                     toast.success("Deleted");
