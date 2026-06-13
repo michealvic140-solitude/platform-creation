@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, User as UserIcon, Shield, MessageSquare, Home, Trophy, Ticket, LifeBuoy, Wallet, Crosshair as MatchIcon, Settings as SettingsIcon, Coins, LayoutDashboard, Dice5, Swords } from "lucide-react";
+import { LogOut, User as UserIcon, Shield, MessageSquare, Home, Trophy, Ticket, LifeBuoy, Wallet, Crosshair as MatchIcon, Settings as SettingsIcon, Coins, LayoutDashboard, Dice5 } from "lucide-react";
 import { GangLogo } from "@/components/GangLogo";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,6 @@ import { LevelUpModal } from "@/components/Spotlight";
 import { ReactNode, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocation } from "@tanstack/react-router";
-import lslPlatformBg from "@/assets/lsl-platform-bg.png.asset.json";
 
 // Site-wide background ticker so virtual rounds keep advancing even when
 // no one is on /virtual. Any authenticated client pings every 15s.
@@ -54,15 +53,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
 
   return (
     <div className="relative min-h-screen">
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <img
-          src={lslPlatformBg.url}
-          alt=""
-          aria-hidden
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-        <div className="absolute inset-0 bg-background/25" />
-      </div>
+      {/* Cosmic background painted on <html> via styles.css — no extra overlays here */}
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-gradient-to-b from-card/80 to-card/50 border-b border-primary/20 shadow-[0_2px_30px_-12px_rgba(0,0,0,0.6)]">
         <div className="container mx-auto px-4 flex h-16 items-center gap-3 lg:gap-4">
           <Link to="/" className="flex items-center gap-2 group shrink-0">
@@ -76,7 +67,6 @@ export const Layout = ({ children }: { children: ReactNode }) => {
             <NavLink to="/matches" icon={MatchIcon} label="Matches" />
             <NavLink to="/virtual" icon={Dice5} label="Virtual" />
             <NavLink to="/leaderboard" icon={Trophy} label="Leaderboard" />
-            <NavLink to="/tournament" icon={Swords} label="Tournament" />
             {user && <NavLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" />}
             {user && <NavLink to="/checkout" icon={Coins} label="Buy" />}
             {user && <NavLink to="/withdraw" icon={Wallet} label="Withdraw" />}
@@ -140,7 +130,6 @@ export const Layout = ({ children }: { children: ReactNode }) => {
           <MobLink to="/matches" icon={MatchIcon} label="Matches" />
           <MobLink to="/virtual" icon={Dice5} label="Virtual" />
           <MobLink to="/leaderboard" icon={Trophy} label="Top" />
-          <MobLink to="/tournament" icon={Swords} label="Bracket" />
           {user && <>
             <MobLink to="/dashboard" icon={Ticket} label="Bets" />
             <MobLink to="/profile" icon={UserIcon} label="Profile" />
