@@ -50,7 +50,7 @@ function SupportPage() {
       if (error) throw error;
       let imageUrl: string | null = null;
       if (imageFile) {
-        const path = `${ticket.id}/${Date.now()}-${imageFile.name}`;
+        const path = `${user.id}/${ticket.id}/${Date.now()}-${imageFile.name}`;
         const { error: ue } = await supabase.storage.from("ticket-uploads").upload(path, imageFile);
         if (!ue) imageUrl = supabase.storage.from("ticket-uploads").getPublicUrl(path).data.publicUrl;
       }
