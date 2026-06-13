@@ -44,7 +44,7 @@ export function BracketAdminPanel() {
 
   async function load() {
     const { data } = await supabase.from("tournaments").select("*").order("created_at", { ascending: false });
-    setTournaments((data ?? []) as Tournament[]);
+    setTournaments((data ?? []) as unknown as Tournament[]);
     if (!activeId && data && data.length > 0) setActiveId(data[0].id);
   }
   useEffect(() => { load(); }, []);
