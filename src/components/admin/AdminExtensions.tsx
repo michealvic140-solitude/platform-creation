@@ -7,12 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { AlertTriangle, Activity, TrendingUp, TrendingDown, Wallet, Users, Image as ImageIcon, Crown, Gift, RefreshCw, Bell, Send, Coins, Sparkles, FileDown, Heart, Bot, Loader2, Share2, Copy } from "lucide-react";
+import { AlertTriangle, Activity, TrendingUp, TrendingDown, Wallet, Users, Image as ImageIcon, Crown, Gift, RefreshCw, Bell, Send, Coins, Sparkles, FileDown, Heart, Bot, Share2, Copy } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar } from "recharts";
 import { useServerFn } from "@tanstack/react-start";
 import { adminAiChat } from "@/lib/admin-ai.functions";
 import { generateVapidKeys } from "@/lib/vapid.functions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import lslLogo from "@/assets/lsl-logo.png";
 
 /* =============== STREAK / LOGIN / PUSH SETTINGS =============== */
 export function StreakAndPushPanel() {
@@ -498,7 +499,7 @@ export function BroadcastPanel() {
             <Button key={s} size="sm" variant={segment === s ? "default" : "outline"} onClick={()=>setSegment(s)}>{s.toUpperCase()}</Button>
           ))}
           <Button onClick={send} disabled={sending} className="ml-auto bg-gradient-gold text-primary-foreground">
-            {sending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Send className="h-3 w-3 mr-1" />}Send
+            {sending ? <img src={lslLogo} alt="" className="h-3 w-3 mr-1 rounded-full animate-spin" /> : <Send className="h-3 w-3 mr-1" />}Send
           </Button>
         </div>
       </Card>
@@ -735,7 +736,7 @@ export function AdminAILivePanel() {
             </div>
           </div>
         ))}
-        {loading && <div className="flex justify-start"><div className="bg-card border border-border rounded-xl p-3 text-sm flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />Thinking…</div></div>}
+        {loading && <div className="flex justify-start"><div className="bg-card border border-border rounded-xl p-3 text-sm flex items-center gap-2"><img src={lslLogo} alt="" className="h-4 w-4 rounded-full animate-spin" />Thinking…</div></div>}
       </Card>
 
       <Card className="p-3 flex gap-2">
