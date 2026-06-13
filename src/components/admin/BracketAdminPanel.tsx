@@ -157,8 +157,8 @@ function TournamentEditor({ tournament, onChanged }: { tournament: Tournament; o
       supabase.from("tournament_matches").select("*").eq("tournament_id", tournament.id).order("round").order("slot_index"),
       supabase.from("players").select("id,name,team_id,teams:teams(name)").order("name"),
     ]);
-    setParticipants((p ?? []) as Participant[]);
-    setMatches((m ?? []) as Match[]);
+    setParticipants((p ?? []) as unknown as Participant[]);
+    setMatches((m ?? []) as unknown as Match[]);
     setShooters(pl ?? []);
   }
 
