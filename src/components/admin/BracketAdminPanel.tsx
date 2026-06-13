@@ -44,7 +44,7 @@ export function BracketAdminPanel() {
 
   async function load() {
     const { data } = await supabase.from("tournaments").select("*").order("created_at", { ascending: false });
-    setTournaments((data ?? []) as Tournament[]);
+    setTournaments((data ?? []) as unknown as Tournament[]);
     if (!activeId && data && data.length > 0) setActiveId(data[0].id);
   }
   useEffect(() => { load(); }, []);
@@ -100,7 +100,7 @@ function CreateTournamentDialog({ open, onClose, onCreated }: { open: boolean; o
   async function go() {
     if (!name.trim()) { toast.error("Tournament name is required"); return; }
     setBusy(true);
-    const { data, error } = await supabase.from("tournaments").insert({
+    const { data, error } = await (supabase.from("tournaments") as any).insert({
       name: name.trim(), size, tagline, status: "active",
     }).select().single();
     if (error) { setBusy(false); toast.error(error.message); return; }
@@ -157,8 +157,8 @@ function TournamentEditor({ tournament, onChanged }: { tournament: Tournament; o
       supabase.from("tournament_matches").select("*").eq("tournament_id", tournament.id).order("round").order("slot_index"),
       supabase.from("players").select("id,name,team_id,teams:teams(name)").order("name"),
     ]);
-    setParticipants((p ?? []) as Participant[]);
-    setMatches((m ?? []) as Match[]);
+    setParticipants((p ?? []) as unknown as Participant[]);
+    setMatches((m ?? []) as unknown as Match[]);
     setShooters(pl ?? []);
   }
 
@@ -178,7 +178,7 @@ function TournamentEditor({ tournament, onChanged }: { tournament: Tournament; o
     if (ue) { toast.error("Upload failed: " + ue.message); return; }
     const { data: signed } = await supabase.storage.from("event-banners").createSignedUrl(path, 60 * 60 * 24 * 365);
     if (!signed?.signedUrl) { toast.error("Could not create banner URL"); return; }
-    await supabase.from("tournaments").update({ banner_url: signed.signedUrl }).eq("id", tournament.id);
+    await (supabase.from("tournaments") as any).update({ banner_url: signed.signedUrl }).eq("id", tournament.id);
     toast.success("Banner uploaded");
     onChanged();
   }
@@ -201,7 +201,7 @@ function TournamentEditor({ tournament, onChanged }: { tournament: Tournament; o
     const player = shooters.find((s) => s.id === playerId);
     if (!player) return;
     const teamName = player.teams?.name ?? null;
-    const { error } = await supabase.from("tournament_participants").insert({
+    const { error } = await (supabase.from("tournament_participants") as any).insert({
       tournament_id: tournament.id,
       player_id: player.id,
       team_id: player.team_id,

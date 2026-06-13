@@ -27,9 +27,9 @@ function TournamentPage() {
       supabase.from("tournament_participants").select("*").eq("tournament_id", id),
       supabase.from("tournament_matches").select("*").eq("tournament_id", id).order("round").order("slot_index"),
     ]);
-    setTournament(t as Tournament | null);
-    setParticipants((p ?? []) as Participant[]);
-    setMatches((m ?? []) as Match[]);
+    setTournament(t as unknown as Tournament | null);
+    setParticipants((p ?? []) as unknown as Participant[]);
+    setMatches((m ?? []) as unknown as Match[]);
   }
 
   useEffect(() => { load(); }, [id]);
