@@ -2258,7 +2258,7 @@ function AdminTicketDialog({ ticket, onClose }: { ticket: any; onClose: () => vo
     setSending(false); load();
   }
   async function upload(file: File) {
-    const path = `${ticket.user_id ?? user?.id}/${ticket.id}/${Date.now()}-${file.name}`;
+    const path = `${ticket.id}/${Date.now()}-${file.name}`;
     const { error } = await supabase.storage.from("ticket-uploads").upload(path, file);
     if (error) { toast.error(error.message); return; }
     await send(supabase.storage.from("ticket-uploads").getPublicUrl(path).data.publicUrl);
