@@ -1,1 +1,0 @@
-REVOKE ALL ON FUNCTION public.refresh_virtual_selection_results(uuid) FROM PUBLIC, anon, authenticated;

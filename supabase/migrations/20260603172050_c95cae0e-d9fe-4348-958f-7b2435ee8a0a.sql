@@ -1,1 +1,0 @@
-GRANT EXECUTE ON FUNCTION public.refresh_virtual_selection_results(uuid) TO authenticated;

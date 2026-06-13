@@ -1,1 +1,0 @@
-UPDATE public.app_settings SET virtual_animation_seconds = 30, virtual_round_duration_seconds = 120 WHERE id = 1;

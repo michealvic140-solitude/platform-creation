@@ -1,1 +1,0 @@
-UPDATE app_settings SET virtual_animation_seconds = 120, virtual_round_duration_seconds = 120, updated_at = now() WHERE id = 1;
