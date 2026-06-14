@@ -2936,6 +2936,7 @@ function AnalyticsPanel() {
                 { i: Wallet, l: "Withdrawals", t: "withdrawals" },
                 { i: Trophy, l: "Won Bets", t: "wonbets" },
                 { i: X, l: "Lost Bets", t: "lostbets" },
+                { i: Crosshair, l: "Tournaments", t: "bracket" },
               ].map((q, idx) => {
                 const palette = [
                   { ic: "text-emerald-400", bd: "border-emerald-500/30 hover:border-emerald-400/70 hover:bg-emerald-500/10" },
