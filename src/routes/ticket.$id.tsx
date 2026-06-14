@@ -493,8 +493,7 @@ function SupportTicketView({ ticket, userId, isMod }: { ticket: any; userId: str
   }
 
   async function pickImage(file: File) {
-    const ownerId = ticket.user_id ?? userId;
-    const path = `${ownerId}/${ticket.id}/${Date.now()}-${file.name}`;
+    const path = `${ticket.id}/${Date.now()}-${file.name}`;
     const { error: ue } = await supabase.storage.from("ticket-uploads").upload(path, file);
     if (ue) { toast.error(ue.message); return; }
     const { data: { publicUrl } } = supabase.storage.from("ticket-uploads").getPublicUrl(path);

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
-import lslLogo from "@/assets/lsl-logo.png";
 
 /**
  * Centered spinner overlay that shows while TanStack Router is loading
@@ -29,14 +28,12 @@ export function RouteProgress() {
 
   if (!visible) return null;
   return (
-    <div className="fixed inset-0 z-[200] pointer-events-none grid place-items-center bg-background/25 backdrop-blur-[1px]">
-      <div className="relative h-16 w-16 rounded-full border border-primary/35 bg-background/70 p-2 shadow-gold">
-        <span className="absolute inset-[-10px] rounded-full border border-primary/20" />
-        <img
-          src={lslLogo}
-          alt="LSL loading"
-          className="h-full w-full object-contain rounded-full animate-spin"
-          style={{ animationDuration: "1.1s", filter: "drop-shadow(0 0 16px oklch(0.82 0.22 88 / 0.75))" }}
+    <div className="fixed inset-0 z-[200] pointer-events-none grid place-items-center">
+      <div className="relative h-12 w-12">
+        <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+        <div
+          className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary border-r-amber-300 animate-spin"
+          style={{ boxShadow: "0 0 18px oklch(0.82 0.22 88 / 0.55)" }}
         />
       </div>
     </div>
