@@ -205,6 +205,7 @@ function TournamentEditor({ tournament, onChanged }: { tournament: Tournament; o
       tournament_id: tournament.id,
       player_id: player.id,
       team_id: player.team_id,
+      name: player.name,
       display_name: player.name,
       gang_tag: teamName,
       seed: participants.length + 1,

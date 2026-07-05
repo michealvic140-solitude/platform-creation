@@ -11,17 +11,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLocation } from "@tanstack/react-router";
 
 // Site-wide background ticker so virtual rounds keep advancing even when
-// no one is on /virtual. Any authenticated client pings every 15s.
+// no one is on /virtual. It uses the public tick route, not a direct DB RPC.
 function useVirtualHeartbeat() {
-  const { user } = useAuth();
   useEffect(() => {
-    if (!user) return;
     let alive = true;
-    const ping = () => { supabase.rpc("virtual_tick").then(() => {}, () => {}); };
+    const ping = () => { fetch("/api/public/virtual-tick", { cache: "no-store" }).catch(() => {}); };
     ping();
     const t = setInterval(() => { if (alive) ping(); }, 15000);
     return () => { alive = false; clearInterval(t); };
-  }, [user]);
+  }, []);
 }
 
 // Admin "Broadcast reload" — every active browser refreshes when force_reload_at bumps.
