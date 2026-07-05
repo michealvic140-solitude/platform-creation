@@ -537,7 +537,7 @@ function useCountdown(target: string | null | undefined) {
 }
 
 function VirtualRoundCard({ match, animSec }: { match: VirtualMatch; animSec: number }) {
-  const { add, setOpen, selections } = useBetSlip();
+  const { add, selections } = useBetSlip();
   const home = match.home_team?.name ?? "Home";
   const away = match.away_team?.name ?? "Away";
   const lockTime = match.lock_time;
@@ -579,7 +579,7 @@ function VirtualRoundCard({ match, animSec }: { match: VirtualMatch; animSec: nu
       is_virtual: true,
       virtual_round_batch_id: match.virtual_round_batch_id ?? match.id,
     });
-    setOpen(true);
+    toast.success("Selection added to ready slip");
   }
 
   return (
