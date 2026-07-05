@@ -1,0 +1,12 @@
+GRANT SELECT ON public.matches TO anon, authenticated;
+GRANT SELECT ON public.teams TO anon, authenticated;
+GRANT SELECT ON public.markets TO anon, authenticated;
+GRANT SELECT ON public.odds TO anon, authenticated;
+GRANT SELECT ON public.categories TO anon, authenticated;
+GRANT SELECT ON public.app_settings TO anon, authenticated;
+GRANT ALL ON public.matches TO service_role;
+GRANT ALL ON public.teams TO service_role;
+GRANT ALL ON public.markets TO service_role;
+GRANT ALL ON public.odds TO service_role;
+GRANT ALL ON public.categories TO service_role;
+GRANT ALL ON public.app_settings TO service_role;
