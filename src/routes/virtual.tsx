@@ -1180,7 +1180,7 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
       <div className="p-3 bg-gradient-to-r from-background/80 via-secondary/50 to-background/80">
         <div className="flex items-center justify-between mb-2">
           <div className="text-[10px] uppercase tracking-widest text-destructive font-bold flex items-center gap-1">
-            <Sparkles className="h-3 w-3" />
+            <Crosshair className="h-3 w-3" />
             Live shootout
           </div>
           <div className="font-mono font-black text-2xl tabular-nums text-primary tracking-widest">
