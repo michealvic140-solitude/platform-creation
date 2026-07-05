@@ -16,7 +16,9 @@ import {
   Zap,
   CheckCircle2,
   PauseCircle,
-  Sparkles,
+  Shield,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { TeamLogo } from "@/components/TeamLogo";
@@ -157,45 +159,6 @@ function VirtualPage() {
     <Layout>
       <PageShell tone="default">
         <div className="container py-6 sm:py-10 space-y-8">
-          <header className="virtual-hero-shell text-center relative p-5 sm:p-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/15 border border-primary/40 text-[10px] uppercase tracking-[0.3em] text-primary mb-3">
-              <Dice5 className="h-3.5 w-3.5" /> Instant Virtuals · Auto-Play
-            </div>
-            <h1 className="text-4xl sm:text-6xl font-black gradient-gold-text">Gang vs Gang</h1>
-            <p className="text-muted-foreground mt-3 text-sm sm:text-base max-w-2xl mx-auto">
-              Stake one or many markets. Watch one featured live feed while every active match score
-              updates to the same final result used on vouchers.
-            </p>
-            <div className="mt-4 flex justify-center gap-2 flex-wrap">
-              <Badge
-                variant="outline"
-                className={
-                  cycle.running
-                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
-                    : "bg-muted text-muted-foreground"
-                }
-              >
-                {cycle.running ? (
-                  <>
-                    <Zap className="h-3 w-3 mr-1" />
-                    Cycle running
-                  </>
-                ) : (
-                  <>
-                    <PauseCircle className="h-3 w-3 mr-1" />
-                    Cycle paused
-                  </>
-                )}
-              </Badge>
-              <Link to="/virtual/history">
-                <Button variant="outline" size="sm">
-                  <History className="h-3.5 w-3.5 mr-1" />
-                  Rounds & Claims
-                </Button>
-              </Link>
-            </div>
-          </header>
-
           {live.length === 0 && upcoming.length === 0 ? (
             <Card className="virtual-match-card p-8 text-center text-muted-foreground">
               <Dice5 className="h-10 w-10 mx-auto mb-3 opacity-50" />
@@ -211,33 +174,12 @@ function VirtualPage() {
               </p>
             </Card>
           ) : (
-            <>
-              {live.length === 0 && upcoming.length > 0 && (
-                <section>
-                  <SectionTitle
-                    icon={Clock}
-                    label={`Open · stake before lock (${Math.round(cycle.durSec / 60)} min window · ${cycle.perRound} matches)`}
-                    color="text-primary"
-                  />
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {upcoming.map((m) => (
-                      <VirtualRoundCard key={m.id} match={m} animSec={cycle.animSec} />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {live.length > 0 && (
-                <section>
-                  <SectionTitle
-                    icon={Flame}
-                    label="Playing out · watch live"
-                    color="text-destructive"
-                  />
-                  <LiveFeedSection matches={live} animSec={cycle.animSec} />
-                </section>
-              )}
-            </>
+            <VirtualBetConsole
+              matches={live.length > 0 ? live : upcoming}
+              recent={recent}
+              cycle={cycle}
+              isLive={live.length > 0}
+            />
           )}
 
           {recent.length > 0 && (
@@ -308,6 +250,241 @@ function SectionTitle({
       <Icon className={`h-4 w-4 ${color}`} />
       <h2 className="text-xs sm:text-sm font-black uppercase tracking-[0.2em]">{label}</h2>
       <div className="flex-1 h-px bg-gradient-to-r from-border to-transparent" />
+    </div>
+  );
+}
+
+function VirtualBetConsole({
+  matches,
+  recent,
+  cycle,
+  isLive,
+}: {
+  matches: VirtualMatch[];
+  recent: VirtualMatch[];
+  cycle: CycleState;
+  isLive: boolean;
+}) {
+  const featured = matches[0];
+  if (!featured) return null;
+  const cd = useCountdown(featured.lock_time);
+  return (
+    <section className="virtual-book overflow-hidden">
+      <div className="virtual-book-topbar">
+        <Link to="/" className="virtual-icon-btn" aria-label="Back home">
+          <ChevronLeft className="h-4 w-4" />
+        </Link>
+        <div className="text-center min-w-0">
+          <div className="virtual-brandline"><Crosshair className="h-3 w-3" /> LSL · GANGS</div>
+          <h1 className="text-sm sm:text-base font-black truncate">Virtual Gang League</h1>
+          <div className="text-[10px] text-muted-foreground">
+            Match Day {new Date(featured.start_time).getDate()} <Badge variant="outline" className="virtual-mini-badge">{isLive ? "LIVE" : "PRE MATCH"}</Badge>
+          </div>
+        </div>
+        <Link to="/virtual/history" className="virtual-icon-btn" aria-label="Full history">
+          <History className="h-4 w-4" />
+        </Link>
+      </div>
+
+      <div className="virtual-score-strip">
+        <span className={isLive ? "text-destructive" : "text-primary"}>● {featured.home_team?.name ?? "Gang A"}</span>
+        <span>{isLive ? `${featured.home_score}:${featured.away_score}` : `${cd.mm}:${cd.ss}`}</span>
+        <span className="text-right text-sky-300">{featured.away_team?.name ?? "Gang B"} ●</span>
+      </div>
+
+      {isLive ? (
+        <LiveMatchTicker match={featured} animSec={cycle.animSec} />
+      ) : (
+        <PreMatchArena match={featured} countdown={cd} recent={recent} cycle={cycle} />
+      )}
+
+      <LineupsTable matches={matches} animSec={cycle.animSec} />
+
+      <div className="virtual-placebar">
+        <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.35em] text-muted-foreground">Place your bets</div>
+          <div className="text-xs font-bold">{primaryMarketName(matches)}</div>
+        </div>
+        <ChevronRight className="h-4 w-4 text-primary" />
+      </div>
+
+      <MarketBoard matches={matches} />
+      <RecentResultsPanel recent={recent} />
+    </section>
+  );
+}
+
+function PreMatchArena({
+  match,
+  countdown,
+  recent,
+  cycle,
+}: {
+  match: VirtualMatch;
+  countdown: ReturnType<typeof useCountdown>;
+  recent: VirtualMatch[];
+  cycle: CycleState;
+}) {
+  const recentSide = recent.slice(0, 4);
+  return (
+    <div className="virtual-arena virtual-pre-arena">
+      <div className="virtual-arena-grid" />
+      <div className="virtual-building" style={{ left: "17%", top: "18%", width: "15%", height: "20%" }} />
+      <div className="virtual-building" style={{ left: "66%", top: "20%", width: "13%", height: "26%" }} />
+      <div className="virtual-building" style={{ left: "41%", top: "54%", width: "17%", height: "17%" }} />
+      <div className="virtual-building" style={{ left: "9%", top: "69%", width: "13%", height: "16%" }} />
+      <div className="virtual-countdown-panel">
+        <div className="text-[10px] uppercase tracking-[0.38em] text-muted-foreground">Round locks in</div>
+        <div className="font-mono text-5xl sm:text-6xl font-black tabular-nums text-primary">{countdown.mm}:{countdown.ss}</div>
+        <div className="mt-2 text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+          <Shield className="h-3 w-3 text-primary" /> {match.home_team?.name ?? "Gang A"} vs {match.away_team?.name ?? "Gang B"}
+        </div>
+      </div>
+      <aside className="virtual-previous-scores">
+        <div className="text-[9px] uppercase tracking-[0.25em] text-primary mb-2">Previous scores</div>
+        {recentSide.length === 0 ? (
+          <div className="text-[10px] text-muted-foreground">Waiting for first result</div>
+        ) : (
+          recentSide.map((r) => (
+            <div key={r.id} className="virtual-prev-row">
+              <span className="truncate">{r.home_team?.name}</span>
+              <b>{r.home_score}</b>
+              <span className="text-muted-foreground">-</span>
+              <b>{r.away_score}</b>
+              <span className="truncate text-right">{r.away_team?.name}</span>
+            </div>
+          ))
+        )}
+      </aside>
+      <div className="absolute bottom-3 left-3 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+        {cycle.perRound} gangs queued
+      </div>
+    </div>
+  );
+}
+
+function primaryMarketName(matches: VirtualMatch[]) {
+  return matches.find((m) => m.markets?.some((mk) => /match\s*winner/i.test(mk.name)))?.markets?.find((mk) => /match\s*winner/i.test(mk.name))?.name ?? "Match Winner";
+}
+
+function LineupsTable({ matches, animSec }: { matches: VirtualMatch[]; animSec: number }) {
+  const split = Math.ceil(matches.length / 2);
+  const left = matches.slice(0, split);
+  const right = matches.slice(split);
+  return (
+    <div className="virtual-lineups">
+      <LineupColumn rows={left} animSec={animSec} />
+      <LineupColumn rows={right} animSec={animSec} />
+    </div>
+  );
+}
+
+function LineupColumn({ rows, animSec }: { rows: VirtualMatch[]; animSec: number }) {
+  return (
+    <div className="min-w-0">
+      <div className="virtual-lineup-head"><span>Team</span><span>FT</span><span>HT</span></div>
+      {rows.map((m) => <LineupRow key={m.id} match={m} animSec={animSec} />)}
+    </div>
+  );
+}
+
+function LineupRow({ match, animSec }: { match: VirtualMatch; animSec: number }) {
+  const { h, a } = useLiveScore(match, animSec);
+  const live = match.status === "live";
+  const settled = match.status === "ended";
+  const homeScore = settled ? match.home_score : live ? h : null;
+  const awayScore = settled ? match.away_score : live ? a : null;
+  return (
+    <div className="virtual-lineup-row">
+      <div className="min-w-0">
+        <div className="font-bold truncate">{match.home_team?.name}</div>
+        <div className="text-muted-foreground truncate">{match.away_team?.name}</div>
+      </div>
+      <div className="font-mono text-primary text-right tabular-nums">
+        {homeScore ?? "-"}<br />{awayScore ?? "-"}
+      </div>
+      <div className="font-mono text-muted-foreground text-right tabular-nums">-<br />-</div>
+    </div>
+  );
+}
+
+function MarketBoard({ matches }: { matches: VirtualMatch[] }) {
+  return (
+    <div className="virtual-market-board">
+      {matches.map((match) => <MarketMatchRow key={match.id} match={match} />)}
+    </div>
+  );
+}
+
+function MarketMatchRow({ match }: { match: VirtualMatch }) {
+  const { add, selections } = useBetSlip();
+  const locked = match.status !== "scheduled" || (match.lock_time ? new Date(match.lock_time).getTime() <= serverNow() : false);
+  const home = match.home_team?.name ?? "Gang A";
+  const away = match.away_team?.name ?? "Gang B";
+  const market = [...(match.markets ?? [])].sort((a, b) => (/match\s*winner/i.test(a.name) ? -1 : /match\s*winner/i.test(b.name) ? 1 : 0))[0];
+  const odds = market?.odds ?? [];
+
+  function pick(o: OddRow) {
+    if (!market || locked || !market.is_open) return;
+    if (selections.length > 0 && selections.some((s) => !s.is_virtual)) {
+      toast.error("Clear the current slip before adding virtual selections.");
+      return;
+    }
+    add({
+      match_id: match.id,
+      match_name: `${home} vs ${away}`,
+      market_id: market.id,
+      market_name: market.name,
+      odd_id: o.id,
+      selection_label: o.label,
+      odds: Number(o.value),
+      is_virtual: true,
+      virtual_round_batch_id: match.virtual_round_batch_id ?? match.id,
+    });
+    toast.success("Selection added to ready slip");
+  }
+
+  return (
+    <div className="virtual-market-row">
+      <div className="virtual-market-teams">
+        <span className="text-muted-foreground">{home}</span>
+        <b>{away}</b>
+        <span className="text-primary text-[9px] uppercase tracking-widest">More bets +</span>
+      </div>
+      <div className="virtual-odd-grid">
+        {odds.slice(0, 3).map((o) => {
+          const picked = selections.some((s) => s.odd_id === o.id);
+          return (
+            <button key={o.id} disabled={locked || !market?.is_open} onClick={() => pick(o)} className={picked ? "virtual-odd picked" : "virtual-odd"}>
+              <span>{o.label === home ? "1" : o.label === away ? "2" : "X"}</span>
+              <b>{Number(o.value).toFixed(2)}</b>
+            </button>
+          );
+        })}
+        {odds.length === 0 && <div className="virtual-odd locked"><Lock className="h-4 w-4" /></div>}
+      </div>
+      <div className="virtual-stats-dot"><Zap className="h-4 w-4" /></div>
+    </div>
+  );
+}
+
+function RecentResultsPanel({ recent }: { recent: VirtualMatch[] }) {
+  return (
+    <div className="virtual-history-panel">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
+        <div className="text-[10px] uppercase tracking-[0.25em] text-primary flex items-center gap-1"><Trophy className="h-3 w-3" /> Recent results</div>
+        <Link to="/virtual/history" className="text-[10px] text-primary">Full history</Link>
+      </div>
+      {recent.slice(0, 7).map((r) => (
+        <div key={r.id} className="virtual-history-row">
+          <div className="min-w-0">
+            <div className="font-bold truncate">{r.home_team?.name}</div>
+            <div className="text-muted-foreground truncate">{r.away_team?.name}</div>
+          </div>
+          <div className="font-mono text-primary text-right tabular-nums">{r.home_score}<br />{r.away_score}</div>
+        </div>
+      ))}
     </div>
   );
 }
