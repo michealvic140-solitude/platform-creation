@@ -119,6 +119,18 @@ function Index() {
       <SeasonBanner />
       <Spotlight />
 
+      <PromoCarousel />
+
+      {/* Bet9ja-style command console: sidebar + live/highlights tables + right rail */}
+      <section className="container mt-6 grid gap-4 lg:grid-cols-[220px_1fr_300px]">
+        <div className="hidden lg:block"><SportsSidebar /></div>
+        <div className="min-w-0 space-y-4">
+          <LiveHighlightsTable matches={live} />
+          <HighlightsTable matches={upcoming} />
+        </div>
+        <div className="hidden lg:block"><RightRail /></div>
+      </section>
+
       {/* Highlights → Announcements → Ads → Matches */}
       <HighlightsRow />
       <AnnouncementSlider />
