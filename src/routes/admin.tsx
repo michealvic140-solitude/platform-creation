@@ -46,6 +46,7 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { ClansAdminPanel } from "@/components/admin/ClansAdminPanel";
 import { TopBetsPanel } from "@/components/admin/TopBetsPanel";
 import { BracketAdminPanel } from "@/components/admin/BracketAdminPanel";
+import { HomeCMSPanel } from "@/components/admin/HomeCMSPanel";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 export const Route = createFileRoute("/admin")({
