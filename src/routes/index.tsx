@@ -230,7 +230,7 @@ function LiveGangTabs({ live, upcoming }: { live: MatchRow[]; upcoming: MatchRow
     { key: "squad", label: "Squad", match: (m: MatchRow) => /squad|team/i.test(m.category?.name ?? "") },
     { key: "ranked", label: "Ranked", match: (m: MatchRow) => /rank/i.test(m.category?.name ?? "") },
     { key: "tournament", label: "Tournament", match: (m: MatchRow) => /tournament|cup/i.test(m.category?.name ?? "") || m.match_kind === "future" },
-    { key: "virtual", label: "Virtual", match: (m: MatchRow) => /virtual/i.test(m.category?.name ?? "") || m.match_kind === "virtual" },
+    { key: "virtual", label: "Virtual", match: (m: MatchRow) => /virtual/i.test(m.category?.name ?? "") },
   ] as const;
   return (
     <Tabs defaultValue="all">
