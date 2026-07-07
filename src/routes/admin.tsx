@@ -18,8 +18,6 @@ import {
   Dice5, LogOut, Crosshair, Target, Home,
 } from "lucide-react";
 import { HomepageAdminPanel } from "@/components/admin/HomepageAdminPanel";
-// placeholder to keep line count
-const __hp = null;
 import { supabase } from "@/integrations/supabase/client";
 import lslLogo from "@/assets/lsl-logo.png";
 import tileBattle from "@/assets/tile-battle.jpg";
