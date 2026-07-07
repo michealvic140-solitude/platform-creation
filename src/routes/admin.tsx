@@ -15,8 +15,11 @@ import { Switch } from "@/components/ui/switch";
 import {
   Shield, Users, Trophy, Coins, Megaphone, Settings as SettingsIcon, Ticket, AlertTriangle,
   Calendar, Tag, Image as ImageIcon, BarChart3, History, Send, Plus, Trash2, Pencil, ChevronRight, ChevronLeft, Wallet, ListOrdered, Sparkles, ClipboardList, Lock, Pause, Play, Check, X, MessageSquare, Eye, RotateCw, Copy, Globe, MapPin, Smartphone, Clock, Filter,
-  Dice5, LogOut, Crosshair, Target,
+  Dice5, LogOut, Crosshair, Target, Home,
 } from "lucide-react";
+import { HomepageAdminPanel } from "@/components/admin/HomepageAdminPanel";
+// placeholder to keep line count
+const __hp = null;
 import { supabase } from "@/integrations/supabase/client";
 import lslLogo from "@/assets/lsl-logo.png";
 import tileBattle from "@/assets/tile-battle.jpg";
