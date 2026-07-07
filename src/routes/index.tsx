@@ -113,6 +113,29 @@ function Index() {
         </div>
       </section>
 
+      {/* New homepage layout mirroring reference: Popular rail + Hero carousel */}
+      <section className="container mt-4 grid lg:grid-cols-[220px_1fr] gap-3 items-start">
+        <div className="hidden lg:block"><PopularRail /></div>
+        <HeroBannerSlider />
+      </section>
+      <div className="lg:hidden container mt-3"><PopularRail /></div>
+
+      {/* Featured / Highlight / Gifts tabbed row */}
+      <section className="container mt-4">
+        <FeaturedTabsRow />
+      </section>
+
+      {/* Lottery + News + Results cluster */}
+      <section className="container mt-4 grid lg:grid-cols-3 gap-3 items-start">
+        <div className="lg:col-span-2 space-y-3">
+          <LotteryDrawsPanel />
+        </div>
+        <div className="space-y-3">
+          <NewsPanel />
+          <LotteryResultsPanel />
+        </div>
+      </section>
+
       <EventBanner />
       <SeasonBanner />
       <Spotlight />
@@ -123,6 +146,7 @@ function Index() {
       <AdsRow />
       <FuturesSection title={settings?.futures_section_title || "TOURNAMENT FUTURES"} markets={futures} maxSelections={Number(settings?.futures_max_selections ?? 1)} />
       <KnockoutBracketTeaser />
+
 
       <BookingCodeFab />
 
