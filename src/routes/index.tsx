@@ -8,10 +8,6 @@ import { Input } from "@/components/ui/input";
 import { MatchCardLive } from "@/components/MatchCardLive";
 import { EventBanner } from "@/components/EventBanner";
 import { AnnouncementSlider, HighlightsRow, AdsRow } from "@/components/HomeContent";
-import { PromoCarousel } from "@/components/home/PromoCarousel";
-import { SportsSidebar } from "@/components/home/SportsSidebar";
-import { LiveHighlightsTable, HighlightsTable } from "@/components/home/OddsTable";
-import { RightRail } from "@/components/home/RightRail";
 import { GrandPrizeWinners } from "@/components/GrandPrizeWinners";
 import { HotBets } from "@/components/HotBets";
 import { SeasonBanner } from "@/components/SeasonBanner";
@@ -118,18 +114,6 @@ function Index() {
       <EventBanner />
       <SeasonBanner />
       <Spotlight />
-
-      <PromoCarousel />
-
-      {/* Bet9ja-style command console: sidebar + live/highlights tables + right rail */}
-      <section className="container mt-6 grid gap-4 lg:grid-cols-[220px_1fr_300px]">
-        <div className="hidden lg:block"><SportsSidebar /></div>
-        <div className="min-w-0 space-y-4">
-          <LiveHighlightsTable matches={live} />
-          <HighlightsTable matches={upcoming} />
-        </div>
-        <div className="hidden lg:block"><RightRail /></div>
-      </section>
 
       {/* Highlights → Announcements → Ads → Matches */}
       <HighlightsRow />

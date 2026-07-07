@@ -1866,45 +1866,6 @@ export type Database = {
           },
         ]
       }
-      promo_slides: {
-        Row: {
-          created_at: string
-          cta_label: string | null
-          cta_link: string | null
-          id: string
-          image_url: string
-          is_active: boolean
-          sort_order: number
-          subtitle: string | null
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          cta_label?: string | null
-          cta_link?: string | null
-          id?: string
-          image_url: string
-          is_active?: boolean
-          sort_order?: number
-          subtitle?: string | null
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          cta_label?: string | null
-          cta_link?: string | null
-          id?: string
-          image_url?: string
-          is_active?: boolean
-          sort_order?: number
-          subtitle?: string | null
-          title?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       push_subscriptions: {
         Row: {
           auth_key: string
@@ -2066,42 +2027,6 @@ export type Database = {
           name?: string
           reward_structure?: Json | null
           starts_at?: string
-        }
-        Relationships: []
-      }
-      sidebar_categories: {
-        Row: {
-          created_at: string
-          icon: string | null
-          id: string
-          is_active: boolean
-          is_pinned: boolean
-          link: string | null
-          name: string
-          sort_order: number
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          icon?: string | null
-          id?: string
-          is_active?: boolean
-          is_pinned?: boolean
-          link?: string | null
-          name: string
-          sort_order?: number
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          icon?: string | null
-          id?: string
-          is_active?: boolean
-          is_pinned?: boolean
-          link?: string | null
-          name?: string
-          sort_order?: number
-          updated_at?: string
         }
         Relationships: []
       }
