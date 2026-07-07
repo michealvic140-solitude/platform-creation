@@ -190,26 +190,15 @@ function Index() {
               </div>
             </div>
           )}
-          {!loading && live.length > 0 && (
+          {!loading && (live.length > 0 || upcoming.length > 0) && (
             <div>
-              <SectionHeader icon={Flame} title="Live Now" subtitle="Live odds. Markets close round-by-round." />
-              <div className="grid md:grid-cols-2 gap-4 mt-4">
-                {live.map((m) => <MatchCardLive key={m.id} match={m} />)}
+              <SectionHeader icon={Flame} title="Live" subtitle="Live odds by gang category. Markets close round-by-round." />
+              <div className="mt-4">
+                <LiveGangTabs live={live} upcoming={upcoming} />
               </div>
             </div>
           )}
-          {!loading && (
-            <div>
-              <SectionHeader icon={Crosshair} title="Upcoming Matches" subtitle="Lock your picks before the round starts." />
-              {upcoming.length === 0 ? (
-                <p className="text-muted-foreground mt-4 text-sm">No upcoming matches scheduled.</p>
-              ) : (
-                <div className="grid md:grid-cols-2 gap-4 mt-4">
-                  {upcoming.slice(0, 6).map((m) => <MatchCardLive key={m.id} match={m} />)}
-                </div>
-              )}
-            </div>
-          )}
+
           {categoryGroups.map(([id, g]) => (
             <div key={id}>
               <SectionHeader icon={Crosshair} title={g.name} subtitle={`${g.items.length} match${g.items.length === 1 ? "" : "es"} in this category.`} />
