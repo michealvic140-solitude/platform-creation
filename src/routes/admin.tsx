@@ -15,8 +15,9 @@ import { Switch } from "@/components/ui/switch";
 import {
   Shield, Users, Trophy, Coins, Megaphone, Settings as SettingsIcon, Ticket, AlertTriangle,
   Calendar, Tag, Image as ImageIcon, BarChart3, History, Send, Plus, Trash2, Pencil, ChevronRight, ChevronLeft, Wallet, ListOrdered, Sparkles, ClipboardList, Lock, Pause, Play, Check, X, MessageSquare, Eye, RotateCw, Copy, Globe, MapPin, Smartphone, Clock, Filter,
-  Dice5, LogOut, Crosshair, Target,
+  Dice5, LogOut, Crosshair, Target, Home,
 } from "lucide-react";
+import { HomepageAdminPanel } from "@/components/admin/HomepageAdminPanel";
 import { supabase } from "@/integrations/supabase/client";
 import lslLogo from "@/assets/lsl-logo.png";
 import tileBattle from "@/assets/tile-battle.jpg";
@@ -195,6 +196,7 @@ function AdminPage() {
             <TabsContent value="clans" className="mt-4"><ClansAdminPanel /></TabsContent>
             <TabsContent value="topbets" className="mt-4"><TopBetsPanel /></TabsContent>
             <TabsContent value="bracket" className="mt-4"><BracketAdminPanel /></TabsContent>
+            <TabsContent value="homepage" className="mt-4"><HomepageAdminPanel /></TabsContent>
           </Tabs>
         </div>
       </main>
@@ -2937,6 +2939,7 @@ function AnalyticsPanel() {
                 { i: Trophy, l: "Won Bets", t: "wonbets" },
                 { i: X, l: "Lost Bets", t: "lostbets" },
                 { i: Crosshair, l: "Tournaments", t: "bracket" },
+                { i: Home, l: "Homepage", t: "homepage" },
               ].map((q, idx) => {
                 const palette = [
                   { ic: "text-emerald-400", bd: "border-emerald-500/30 hover:border-emerald-400/70 hover:bg-emerald-500/10" },

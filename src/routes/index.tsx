@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { MatchCardLive } from "@/components/MatchCardLive";
 import { EventBanner } from "@/components/EventBanner";
 import { AnnouncementSlider, HighlightsRow, AdsRow } from "@/components/HomeContent";
+import { PopularRail, HeroBannerSlider, FeaturedTabsRow, LotteryDrawsPanel, NewsPanel, LotteryResultsPanel } from "@/components/home/HomeSections";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { GrandPrizeWinners } from "@/components/GrandPrizeWinners";
 import { HotBets } from "@/components/HotBets";
 import { SeasonBanner } from "@/components/SeasonBanner";
@@ -111,6 +113,29 @@ function Index() {
         </div>
       </section>
 
+      {/* New homepage layout mirroring reference: Popular rail + Hero carousel */}
+      <section className="container mt-4 grid lg:grid-cols-[220px_1fr] gap-3 items-start">
+        <div className="hidden lg:block"><PopularRail /></div>
+        <HeroBannerSlider />
+      </section>
+      <div className="lg:hidden container mt-3"><PopularRail /></div>
+
+      {/* Featured / Highlight / Gifts tabbed row */}
+      <section className="container mt-4">
+        <FeaturedTabsRow />
+      </section>
+
+      {/* Lottery + News + Results cluster */}
+      <section className="container mt-4 grid lg:grid-cols-3 gap-3 items-start">
+        <div className="lg:col-span-2 space-y-3">
+          <LotteryDrawsPanel />
+        </div>
+        <div className="space-y-3">
+          <NewsPanel />
+          <LotteryResultsPanel />
+        </div>
+      </section>
+
       <EventBanner />
       <SeasonBanner />
       <Spotlight />
@@ -121,6 +146,7 @@ function Index() {
       <AdsRow />
       <FuturesSection title={settings?.futures_section_title || "TOURNAMENT FUTURES"} markets={futures} maxSelections={Number(settings?.futures_max_selections ?? 1)} />
       <KnockoutBracketTeaser />
+
 
       <BookingCodeFab />
 
@@ -164,26 +190,15 @@ function Index() {
               </div>
             </div>
           )}
-          {!loading && live.length > 0 && (
+          {!loading && (live.length > 0 || upcoming.length > 0) && (
             <div>
-              <SectionHeader icon={Flame} title="Live Now" subtitle="Live odds. Markets close round-by-round." />
-              <div className="grid md:grid-cols-2 gap-4 mt-4">
-                {live.map((m) => <MatchCardLive key={m.id} match={m} />)}
+              <SectionHeader icon={Flame} title="Live" subtitle="Live odds by gang category. Markets close round-by-round." />
+              <div className="mt-4">
+                <LiveGangTabs live={live} upcoming={upcoming} />
               </div>
             </div>
           )}
-          {!loading && (
-            <div>
-              <SectionHeader icon={Crosshair} title="Upcoming Matches" subtitle="Lock your picks before the round starts." />
-              {upcoming.length === 0 ? (
-                <p className="text-muted-foreground mt-4 text-sm">No upcoming matches scheduled.</p>
-              ) : (
-                <div className="grid md:grid-cols-2 gap-4 mt-4">
-                  {upcoming.slice(0, 6).map((m) => <MatchCardLive key={m.id} match={m} />)}
-                </div>
-              )}
-            </div>
-          )}
+
           {categoryGroups.map(([id, g]) => (
             <div key={id}>
               <SectionHeader icon={Crosshair} title={g.name} subtitle={`${g.items.length} match${g.items.length === 1 ? "" : "es"} in this category.`} />
@@ -205,6 +220,51 @@ function Stat({ label, value }: { label: string; value: string }) {
       <span className="text-muted-foreground">{label}</span>
       <span className="font-bold text-primary">{value}</span>
     </div>
+  );
+}
+
+function LiveGangTabs({ live, upcoming }: { live: MatchRow[]; upcoming: MatchRow[] }) {
+  const CATS = [
+    { key: "all", label: "All", match: () => true },
+    { key: "duel", label: "Duel", match: (m: MatchRow) => /duel|1v1/i.test(m.category?.name ?? "") || /duel|1v1/i.test(m.name) },
+    { key: "squad", label: "Squad", match: (m: MatchRow) => /squad|team/i.test(m.category?.name ?? "") },
+    { key: "ranked", label: "Ranked", match: (m: MatchRow) => /rank/i.test(m.category?.name ?? "") },
+    { key: "tournament", label: "Tournament", match: (m: MatchRow) => /tournament|cup/i.test(m.category?.name ?? "") || m.match_kind === "future" },
+    { key: "virtual", label: "Virtual", match: (m: MatchRow) => /virtual/i.test(m.category?.name ?? "") },
+  ] as const;
+  return (
+    <Tabs defaultValue="all">
+      <TabsList className="flex flex-wrap h-auto">
+        {CATS.map((c) => <TabsTrigger key={c.key} value={c.key} className="text-xs">{c.label}</TabsTrigger>)}
+      </TabsList>
+      {CATS.map((c) => {
+        const l = live.filter(c.match);
+        const u = upcoming.filter(c.match);
+        return (
+          <TabsContent key={c.key} value={c.key} className="mt-3 space-y-4">
+            {l.length === 0 && u.length === 0 && (
+              <p className="text-sm text-muted-foreground">No matches in this category yet.</p>
+            )}
+            {l.length > 0 && (
+              <div>
+                <div className="text-xs font-bold uppercase tracking-widest text-primary mb-2">Live</div>
+                <div className="grid md:grid-cols-2 gap-3">
+                  {l.map((m) => <MatchCardLive key={m.id} match={m} />)}
+                </div>
+              </div>
+            )}
+            {u.length > 0 && (
+              <div>
+                <div className="text-xs font-bold uppercase tracking-widest text-accent mb-2">Upcoming</div>
+                <div className="grid md:grid-cols-2 gap-3">
+                  {u.slice(0, 6).map((m) => <MatchCardLive key={m.id} match={m} />)}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        );
+      })}
+    </Tabs>
   );
 }
 
