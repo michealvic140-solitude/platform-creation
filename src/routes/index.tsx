@@ -223,6 +223,51 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+function LiveGangTabs({ live, upcoming }: { live: MatchRow[]; upcoming: MatchRow[] }) {
+  const CATS = [
+    { key: "all", label: "All", match: () => true },
+    { key: "duel", label: "Duel", match: (m: MatchRow) => /duel|1v1/i.test(m.category?.name ?? "") || /duel|1v1/i.test(m.name) },
+    { key: "squad", label: "Squad", match: (m: MatchRow) => /squad|team/i.test(m.category?.name ?? "") },
+    { key: "ranked", label: "Ranked", match: (m: MatchRow) => /rank/i.test(m.category?.name ?? "") },
+    { key: "tournament", label: "Tournament", match: (m: MatchRow) => /tournament|cup/i.test(m.category?.name ?? "") || m.match_kind === "future" },
+    { key: "virtual", label: "Virtual", match: (m: MatchRow) => /virtual/i.test(m.category?.name ?? "") || m.match_kind === "virtual" },
+  ] as const;
+  return (
+    <Tabs defaultValue="all">
+      <TabsList className="flex flex-wrap h-auto">
+        {CATS.map((c) => <TabsTrigger key={c.key} value={c.key} className="text-xs">{c.label}</TabsTrigger>)}
+      </TabsList>
+      {CATS.map((c) => {
+        const l = live.filter(c.match);
+        const u = upcoming.filter(c.match);
+        return (
+          <TabsContent key={c.key} value={c.key} className="mt-3 space-y-4">
+            {l.length === 0 && u.length === 0 && (
+              <p className="text-sm text-muted-foreground">No matches in this category yet.</p>
+            )}
+            {l.length > 0 && (
+              <div>
+                <div className="text-xs font-bold uppercase tracking-widest text-primary mb-2">Live</div>
+                <div className="grid md:grid-cols-2 gap-3">
+                  {l.map((m) => <MatchCardLive key={m.id} match={m} />)}
+                </div>
+              </div>
+            )}
+            {u.length > 0 && (
+              <div>
+                <div className="text-xs font-bold uppercase tracking-widest text-accent mb-2">Upcoming</div>
+                <div className="grid md:grid-cols-2 gap-3">
+                  {u.slice(0, 6).map((m) => <MatchCardLive key={m.id} match={m} />)}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        );
+      })}
+    </Tabs>
+  );
+}
+
 function KnockoutBracketTeaser() {
   const [t, setT] = useState<any>(null);
   useEffect(() => {
