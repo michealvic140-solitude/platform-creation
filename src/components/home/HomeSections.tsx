@@ -17,9 +17,8 @@ function useRows<T = any>(table: string, deps: string[] = []) {
       setRows((data ?? []) as T[]);
     };
     load();
-    const ch = db.channel(`home-${table}`)
-      .on("postgres_changes", { event: "*", schema: "public", table }, load)
-      .subscribe();
+    const ch = db.channel(`home-${table}`);
+    ch.on("postgres_changes", { event: "*", schema: "public", table }, load).subscribe();
     return () => { db.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
