@@ -14,7 +14,8 @@ import {
 import {
   BarChart3, Users, Sparkles, AlertTriangle, History, ClipboardList, Send,
   MessageSquare, Megaphone, Trophy, Calendar, Wallet, ListOrdered, Tag,
-  Settings as SettingsIcon, Ticket, Coins, Dice5, Shield, Flame, Target, Crosshair,
+  Settings as SettingsIcon, Ticket, Coins, Dice5, Shield, Flame, Target,
+  Gift,
 } from "lucide-react";
 import lslLogo from "@/assets/lsl-logo.png";
 
@@ -34,7 +35,6 @@ const NAV: AdminNavItem[] = [
   { key: "appeals",     label: "Appeals",              icon: AlertTriangle,   modOk: true, alertKey: "appeals" },
   { key: "audit",       label: "Audit",                icon: History,         admin: true },
   { key: "bettracker",  label: "Bet Tracker",          icon: ClipboardList,   admin: true, alertKey: "bettracker" },
-  { key: "bracket",     label: "Knockout Bracket",     icon: Crosshair,       admin: true },
   { key: "broadcast",   label: "Broadcast",            icon: Send,            admin: true },
   { key: "challenges",  label: "Challenges",           icon: Sparkles,        admin: true },
   { key: "chat",        label: "Chat",                 icon: MessageSquare,   modOk: true, alertKey: "chat" },
@@ -43,8 +43,10 @@ const NAV: AdminNavItem[] = [
   { key: "emblems",     label: "Emblems",              icon: Trophy,          admin: true },
   { key: "events",      label: "Events",               icon: Calendar,        admin: true },
   { key: "futures",     label: "Futures",              icon: Target,          admin: true },
+  { key: "giftsspin",   label: "Gifts & Spin",         icon: Gift,            admin: true },
   { key: "housewallet", label: "House Wallet",         icon: Wallet,          admin: true },
   { key: "leaderboard", label: "Leaderboard",          icon: ListOrdered,     admin: true },
+  { key: "lottery",     label: "Lottery",              icon: Dice5,           admin: true },
   { key: "matches",     label: "Matches",              icon: Trophy,          modOk: true },
   { key: "notify",      label: "Notify",               icon: Send,            modOk: true },
   { key: "pnl",         label: "P&L",                  icon: BarChart3,       admin: true },
@@ -57,11 +59,13 @@ const NAV: AdminNavItem[] = [
   { key: "settings",    label: "Settings",             icon: SettingsIcon,    admin: true },
   { key: "spotlights",  label: "Spotlights",           icon: Sparkles,        modOk: true },
   { key: "streakpush",  label: "Streak & Push",        icon: Sparkles,        admin: true },
+  { key: "surveys",     label: "Surveys",              icon: ClipboardList,   admin: true },
   { key: "tasks",       label: "Tasks & Achievements", icon: ClipboardList,   admin: true },
   { key: "tickets",     label: "Tickets",              icon: Ticket,          modOk: true, alertKey: "tickets" },
   { key: "tokens",      label: "Tokens",               icon: Coins,           admin: true, alertKey: "tokens" },
   { key: "tokenrules",  label: "Token Rules",          icon: Coins,           admin: true },
   { key: "topbets",     label: "Top Bets",             icon: Flame,           modOk: true },
+  { key: "tournaments", label: "Tournaments",          icon: Trophy,          admin: true },
   { key: "users",       label: "Users",                icon: Users,           modOk: true, alertKey: "users" },
   { key: "virtual",     label: "Virtual",              icon: Dice5,           admin: true },
   { key: "vip",         label: "VIP",                  icon: Trophy,          admin: true },
