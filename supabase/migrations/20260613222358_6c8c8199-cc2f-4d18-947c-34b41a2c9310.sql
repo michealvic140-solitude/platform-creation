@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.sync_future_contender_scores() FROM PUBLIC, anon, authenticated;

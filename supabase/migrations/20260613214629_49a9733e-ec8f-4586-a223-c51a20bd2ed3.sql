@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.set_tournament_result(uuid, integer, integer, uuid);

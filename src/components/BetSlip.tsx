@@ -12,6 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Ticket, X, Trash2, Coins, CheckCircle2, Copy, Share2, ExternalLink, Gem, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { DraggableFab } from "@/components/DraggableFab";
+import { showBetSuccess } from "@/components/BetSuccessPopout";
 
 export function BetSlipFab() {
   const { selections, open, setOpen } = useBetSlip();
@@ -64,11 +65,12 @@ function BetSlipDrawer({ open, onClose }: { open: boolean; onClose: () => void }
   const [maxSelVirt, setMaxSelVirt] = useState(20);
   const [submitting, setSubmitting] = useState(false);
   const [placed, setPlaced] = useState<any>(null);
+  const [allowRebet, setAllowRebet] = useState(true);
   const confirm = useConfirm();
   const nav = useNavigate();
 
   useEffect(() => {
-    supabase.from("app_settings").select("min_stake,max_payout,virtual_min_stake,virtual_max_payout,max_selections_per_ticket,virtual_max_selections,futures_min_stake,futures_max_payout,futures_max_selections").eq("id", 1).maybeSingle()
+    supabase.from("app_settings").select("min_stake,max_payout,virtual_min_stake,virtual_max_payout,max_selections_per_ticket,virtual_max_selections,futures_min_stake,futures_max_payout,futures_max_selections,allow_rebet").eq("id", 1).maybeSingle()
       .then(({ data }) => {
         if (data?.min_stake) setRealMinStake(Number(data.min_stake));
         if ((data as any)?.max_payout) setRealMaxPayout(Number((data as any).max_payout));
@@ -79,6 +81,7 @@ function BetSlipDrawer({ open, onClose }: { open: boolean; onClose: () => void }
         if ((data as any)?.futures_min_stake) setFutureMinStake(Number((data as any).futures_min_stake));
         if ((data as any)?.futures_max_payout) setFutureMaxPayout(Number((data as any).futures_max_payout));
         if ((data as any)?.futures_max_selections) setFutureMaxSel(Number((data as any).futures_max_selections));
+        if (typeof (data as any)?.allow_rebet === "boolean") setAllowRebet((data as any).allow_rebet);
       });
   }, [open]);
 
@@ -107,6 +110,40 @@ function BetSlipDrawer({ open, onClose }: { open: boolean; onClose: () => void }
       toast.error(`Maximum ${maxSel} selections per ticket (you have ${selections.length}).`);
       return;
     }
+    // Re-bet guardrail: when admins turn OFF re-betting, members may not stack
+    // another active ticket on a match they already have an open bet on.
+    if (!allowRebet && !isVirtualTicket) {
+      const matchIds = Array.from(new Set(selections.map((s) => s.match_id)));
+      const { data: prior } = await supabase
+        .from("bet_selections")
+        .select("match_id, bets!inner(user_id,status)")
+        .in("match_id", matchIds)
+        .eq("bets.user_id", user.id);
+      const active = (prior ?? []).filter((p: any) => p.bets?.status === "open");
+      if (active.length) {
+        toast.error("Re-betting is turned off. You already have an active ticket on one of these matches.");
+        return;
+      }
+    }
+    // Future tournaments: allow many tickets, but block betting the same contender twice when enabled by admin.
+    if (isFutureTicket) {
+      const matchIds = Array.from(new Set(selections.map((s) => s.match_id)));
+      const { data: ms } = await supabase.from("matches").select("id,restrict_repeat_contender").in("id", matchIds);
+      const restricted = new Set((ms ?? []).filter((m: any) => m.restrict_repeat_contender).map((m: any) => m.id));
+      const restrictedSels = selections.filter((s) => restricted.has(s.match_id));
+      if (restrictedSels.length) {
+        const { data: prior } = await supabase
+          .from("bet_selections")
+          .select("odd_id, selection_label, bets!inner(user_id,status)")
+          .in("odd_id", restrictedSels.map((s) => s.odd_id))
+          .eq("bets.user_id", user.id);
+        const blocked = (prior ?? []).filter((p: any) => !["void", "refunded"].includes(p.bets?.status));
+        if (blocked.length) {
+          toast.error(`You already have a ticket on ${blocked[0].selection_label}. You can't bet the same contender twice in this tournament.`);
+          return;
+        }
+      }
+    }
     if (profile.is_restricted) { toast.error("Your account is restricted from betting."); return; }
     if (stake < minStake) { toast.error(`Minimum stake is ${minStake.toLocaleString()} tokens`); return; }
     if (stake > (profile.token_balance ?? 0)) { toast.error("Insufficient balance"); return; }
@@ -134,6 +171,14 @@ function BetSlipDrawer({ open, onClose }: { open: boolean; onClose: () => void }
         const snapshot = { ...(freshBet ?? placedVirtual), id: betId, _selections: selections, _payout: placedVirtual?.payout ?? payout, _is_virtual: true };
         clear(); refresh();
         setPlaced(snapshot);
+        showBetSuccess({
+          betId,
+          trackingId: placedVirtual?.tracking_id ?? snapshot?.tracking_id,
+          bookingCode: snapshot?.booking_code,
+          stake,
+          potentialWin: Number(placedVirtual?.payout ?? payout),
+          kind: "Virtual matches",
+        });
         return;
       }
       const { data: bet, error: be } = await supabase.from("bets").insert({
@@ -157,6 +202,14 @@ function BetSlipDrawer({ open, onClose }: { open: boolean; onClose: () => void }
       const snapshot = { ...bet, _selections: selections, _payout: payout, _is_virtual: false };
       clear(); refresh();
       setPlaced(snapshot);
+      showBetSuccess({
+        betId: bet.id,
+        trackingId: bet.tracking_id,
+        bookingCode: bet.booking_code,
+        stake,
+        potentialWin: Number(payout),
+        kind: isFutureTicket ? "Tournament futures" : "Real matches",
+      });
     } catch (e: any) {
       toast.error(e.message || "Failed to place bet");
     } finally { setSubmitting(false); }
@@ -181,7 +234,13 @@ function BetSlipDrawer({ open, onClose }: { open: boolean; onClose: () => void }
         </SheetHeader>
 
         {placed ? (
-          <PlacedPreview bet={placed} onView={() => { closeAll(); nav({ to: "/ticket/$id", params: { id: placed.id } }); }} onClose={closeAll} />
+          <PlacedPreview
+            bet={placed}
+            allowAgain={allowRebet}
+            onAgain={() => { setPlaced(null); onClose(); }}
+            onView={() => { closeAll(); nav({ to: "/ticket/$id", params: { id: placed.id } }); }}
+            onClose={closeAll}
+          />
         ) : (
         <div className="flex min-h-0 flex-col pb-[calc(env(safe-area-inset-bottom)+1rem)]">
         <div className="px-6 mt-4 space-y-3 max-h-none overflow-visible pr-4">
@@ -252,7 +311,7 @@ function BetSlipDrawer({ open, onClose }: { open: boolean; onClose: () => void }
   );
 }
 
-function PlacedPreview({ bet, onView, onClose }: { bet: any; onView: () => void; onClose: () => void }) {
+function PlacedPreview({ bet, onView, onClose, allowAgain, onAgain }: { bet: any; onView: () => void; onClose: () => void; allowAgain?: boolean; onAgain?: () => void }) {
   const sels = bet._selections ?? [];
   function copy(t: string) { navigator.clipboard.writeText(t); toast.success("Copied"); }
   async function share() {
@@ -302,6 +361,11 @@ function PlacedPreview({ bet, onView, onClose }: { bet: any; onView: () => void;
         <Button variant="outline" onClick={share}><Share2 className="h-4 w-4 mr-1" />Share</Button>
         <Button className="btn-luxury" onClick={onView}><ExternalLink className="h-4 w-4 mr-1" />View Ticket</Button>
       </div>
+      {allowAgain && onAgain && (
+        <Button className="w-full btn-luxury" onClick={onAgain}>
+          <Ticket className="h-4 w-4 mr-1" />Place another bet
+        </Button>
+      )}
       <Button variant="ghost" className="w-full" onClick={onClose}>Close</Button>
     </div>
   );

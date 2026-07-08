@@ -1,24 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Layout } from "@/components/Layout";
-import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  Dice5,
-  Lock,
-  Flame,
-  Trophy,
-  Clock,
-  History,
   Crosshair,
-  Zap,
-  CheckCircle2,
-  PauseCircle,
-  Shield,
+  History,
   ChevronLeft,
   ChevronRight,
+  Lock,
+  Trophy,
+  Target,
+  Radio,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { TeamLogo } from "@/components/TeamLogo";
@@ -41,15 +34,16 @@ type VirtualSettings = {
 };
 
 type CycleState = { running: boolean; animSec: number; durSec: number; perRound: number; maxScore: number };
+type Phase = "idle" | "pre" | "live";
 
 export const Route = createFileRoute("/virtual")({
   head: () => ({
     meta: [
-      { title: "Virtual Gangs — Instant Rounds | LSL" },
+      { title: "Virtual Gang League — Instant Shootouts | LSL" },
       {
         name: "description",
         content:
-          "Quick gang vs gang instant rounds. Stake winners, scores, and first blood — auto-played every 2 minutes.",
+          "Gang vs gang instant shootout rounds. Watch the live shootout feed, line-ups, and previous scores — auto-played every round.",
       },
     ],
   }),
@@ -64,12 +58,12 @@ const matchSelect = `
 `;
 
 function VirtualPage() {
-  const [live, setLive] = useState<MatchRow[]>([]);
-  const [upcoming, setUpcoming] = useState<MatchRow[]>([]);
-  const [recent, setRecent] = useState<MatchRow[]>([]);
+  const [round, setRound] = useState<VirtualMatch[]>([]);
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [recent, setRecent] = useState<VirtualMatch[]>([]);
   const [cycle, setCycle] = useState<CycleState>({
     running: false,
-    animSec: 30,
+    animSec: 40,
     durSec: 120,
     perRound: 5,
     maxScore: 8,
@@ -86,7 +80,7 @@ function VirtualPage() {
             .eq("is_virtual", true)
             .eq("status", "live")
             .order("start_time", { ascending: false })
-            .limit(20),
+            .limit(30),
           supabase
             .from("matches")
             .select(matchSelect)
@@ -109,33 +103,42 @@ function VirtualPage() {
             .eq("id", 1)
             .maybeSingle(),
         ]);
-      const activeRows = [...((liveRows ?? []) as unknown as VirtualMatch[]), ...((upRows ?? []) as unknown as VirtualMatch[])];
-      const activeBatch = newestVirtualBatch(activeRows);
-      const batchIsLive = activeBatch.some((m) => m.status === "live");
-      setLive(batchIsLive ? activeBatch.map((m) => ({ ...m, status: "live" })) : []);
-      setUpcoming(batchIsLive ? [] : activeBatch.filter((m) => m.status === "scheduled"));
+
+      // A live shootout ALWAYS wins over an upcoming round. Previously the
+      // "newest batch by lock time" could be the *next* scheduled round, which
+      // silently hid the shootout that was actively playing.
+      const liveBatch = newestVirtualBatch((liveRows ?? []) as unknown as VirtualMatch[]);
+      const upBatch = newestVirtualBatch((upRows ?? []) as unknown as VirtualMatch[]);
+      if (liveBatch.length) {
+        setRound(liveBatch.map((m) => ({ ...m, status: "live" })));
+        setPhase("live");
+      } else if (upBatch.length) {
+        setRound(upBatch);
+        setPhase("pre");
+      } else {
+        setRound([]);
+        setPhase("idle");
+      }
       setRecent((recRows ?? []) as unknown as VirtualMatch[]);
       if (cfg) {
-        const settings = cfg as VirtualSettings;
+        const s = cfg as VirtualSettings;
         setCycle({
-          running: !!settings.virtual_cycle_running,
-          animSec: Number(settings.virtual_animation_seconds ?? 30),
-          durSec: Number(settings.virtual_round_duration_seconds ?? 120),
-          perRound: Number(settings.virtual_matches_per_round ?? 5),
-          maxScore: Number(settings.virtual_max_score ?? 8),
+          running: !!s.virtual_cycle_running,
+          animSec: Number(s.virtual_animation_seconds ?? 40),
+          durSec: Number(s.virtual_round_duration_seconds ?? 120),
+          perRound: Number(s.virtual_matches_per_round ?? 5),
+          maxScore: Number(s.virtual_max_score ?? 8),
         });
       }
     };
     load();
     const t = setInterval(load, 1000);
-    // Fallback public tick, in case the scheduled backend heartbeat lags.
-    const pingTick = () => fetch("/api/public/virtual-tick", { cache: "no-store" }).catch(() => {});
     const ping = setInterval(() => {
-      pingTick();
+      supabase.rpc("virtual_tick").then(() => {}, () => {});
     }, 8000);
-    pingTick();
+    supabase.rpc("virtual_tick").then(() => {}, () => {});
     const ch = supabase
-      .channel("virtual-rounds-v2")
+      .channel("virtual-rounds-v3")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "matches", filter: "is_virtual=eq.true" },
@@ -150,355 +153,473 @@ function VirtualPage() {
     };
   }, []);
 
+  const featured = round[0];
+
   return (
     <Layout>
-      <PageShell tone="default">
-        <div className="container py-6 sm:py-10 space-y-8">
-          {live.length === 0 && upcoming.length === 0 ? (
-            <Card className="virtual-match-card p-8 text-center text-muted-foreground">
-              <Dice5 className="h-10 w-10 mx-auto mb-3 opacity-50" />
+      <div className="virtual-page min-h-[calc(100vh-4rem)]">
+        <div className="container py-4 sm:py-6 space-y-4">
+          <RoundHeader featured={featured} phase={phase} round={round} />
+
+          {!featured ? (
+            <Card className="virtual-panel p-10 text-center text-muted-foreground">
+              <Target className="h-10 w-10 mx-auto mb-3 opacity-50" />
               <p className="font-semibold">
-                {cycle.running
-                  ? "Spinning up the next round…"
-                  : "No virtual rounds active right now."}
+                {cycle.running ? "Spinning up the next shootout…" : "No virtual round active right now."}
               </p>
               <p className="text-xs mt-1">
-                {cycle.running
-                  ? "New round appears within seconds."
-                  : "Admin will start the cycle shortly."}
+                {cycle.running ? "The next round appears within seconds." : "The cycle will start shortly."}
               </p>
             </Card>
           ) : (
-            <VirtualBetConsole
-              matches={live.length > 0 ? live : upcoming}
-              recent={recent}
-              cycle={cycle}
-              isLive={live.length > 0}
-            />
+            <>
+              <ShootoutStage featured={featured} phase={phase} animSec={cycle.animSec} recent={recent} />
+              <ScoresTable matches={round} phase={phase} />
+              <MarketBoard matches={round} phase={phase} />
+            </>
           )}
 
-          {recent.length > 0 && (
-            <section>
-              <SectionTitle icon={Trophy} label="Recent results" color="text-emerald-400" />
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {recent.map((m) => {
-                  const outcome =
-                    m.home_score > m.away_score
-                      ? `${m.home_team?.name} WIN`
-                      : m.away_score > m.home_score
-                        ? `${m.away_team?.name} WIN`
-                        : "DRAW";
-                  return (
-                    <Card key={m.id} className="virtual-result-card p-3">
-                      <div className="text-[10px] uppercase tracking-widest text-muted-foreground truncate">
-                        {m.name}
-                      </div>
-                      <div className="flex items-center justify-between mt-2 gap-2">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <TeamLogo
-                            name={m.home_team?.name ?? ""}
-                            url={m.home_team?.logo_url ?? null}
-                            size={22}
-                            rounded="full"
-                          />
-                          <span className="text-xs font-bold truncate">{m.home_team?.name}</span>
-                        </div>
-                        <span className="font-mono font-black text-base text-primary tabular-nums">
-                          {m.home_score} - {m.away_score}
-                        </span>
-                        <div className="flex items-center gap-1.5 min-w-0 flex-row-reverse">
-                          <TeamLogo
-                            name={m.away_team?.name ?? ""}
-                            url={m.away_team?.logo_url ?? null}
-                            size={22}
-                            rounded="full"
-                          />
-                          <span className="text-xs font-bold truncate">{m.away_team?.name}</span>
-                        </div>
-                      </div>
-                      <div className="mt-2 text-center text-[10px] font-bold tracking-widest text-emerald-400">
-                        {outcome}
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            </section>
-          )}
+          <RecentResults recent={recent} />
         </div>
-      </PageShell>
+      </div>
     </Layout>
   );
 }
 
-function SectionTitle({
-  icon: Icon,
-  label,
-  color,
-}: {
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  color: string;
-}) {
-  return (
-    <div className="flex items-center gap-2 mb-3">
-      <Icon className={`h-4 w-4 ${color}`} />
-      <h2 className="text-xs sm:text-sm font-black uppercase tracking-[0.2em]">{label}</h2>
-      <div className="flex-1 h-px bg-gradient-to-r from-border to-transparent" />
-    </div>
-  );
+/* ============================ HEADER ============================ */
+
+function statusLabel(phase: Phase, featured?: VirtualMatch) {
+  if (!featured) return "IDLE";
+  if (phase === "live") return "MATCH";
+  return "PRE MATCH";
 }
 
-function VirtualBetConsole({
-  matches,
-  recent,
-  cycle,
-  isLive,
-}: {
-  matches: VirtualMatch[];
-  recent: VirtualMatch[];
-  cycle: CycleState;
-  isLive: boolean;
-}) {
-  const featured = matches[0];
-  if (!featured) return null;
-  const cd = useCountdown(featured.lock_time);
+function roundCode(featured?: VirtualMatch) {
+  const id = featured?.virtual_round_batch_id ?? featured?.id ?? "00000";
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return (10000 + (h % 89999)).toString();
+}
+
+function RoundHeader({ featured, phase, round }: { featured?: VirtualMatch; phase: Phase; round: VirtualMatch[] }) {
+  const label = statusLabel(phase, featured);
+  const tone =
+    label === "MATCH"
+      ? "bg-destructive/20 border-destructive/50 text-destructive"
+      : "bg-amber-500/15 border-amber-500/40 text-amber-400";
   return (
-    <section className="virtual-book overflow-hidden">
-      <div className="virtual-book-topbar">
-        <Link to="/" className="virtual-icon-btn" aria-label="Back home">
+    <Card className="virtual-panel px-4 py-3">
+      <div className="flex items-center justify-between">
+        <Link to="/virtual" className="text-muted-foreground hover:text-foreground">
           <ChevronLeft className="h-4 w-4" />
         </Link>
-        <div className="text-center min-w-0">
-          <div className="virtual-brandline"><Crosshair className="h-3 w-3" /> LSL · GANGS</div>
-          <h1 className="text-sm sm:text-base font-black truncate">Virtual Gang League</h1>
-          <div className="text-[10px] text-muted-foreground">
-            Match Day {new Date(featured.start_time).getDate()} <Badge variant="outline" className="virtual-mini-badge">{isLive ? "LIVE" : "PRE MATCH"}</Badge>
+        <div className="text-center">
+          <div className="text-sm sm:text-base font-black tracking-wide gradient-gold-text">
+            LSL Virtual Gang League
+          </div>
+          <div className="flex items-center justify-center gap-2 mt-0.5">
+            <span className="text-[11px] text-muted-foreground font-mono">
+              {roundCode(featured)} / Round {round.length} matches
+            </span>
+            <Badge variant="outline" className={`text-[9px] font-black tracking-widest ${tone}`}>
+              {label}
+            </Badge>
           </div>
         </div>
-        <Link to="/virtual/history" className="virtual-icon-btn" aria-label="Full history">
-          <History className="h-4 w-4" />
+        <Link to="/virtual/history" className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-[10px] uppercase tracking-widest">
+          <History className="h-3.5 w-3.5" /> Rounds
         </Link>
       </div>
+    </Card>
+  );
+}
 
-      <div className="virtual-score-strip">
-        <span className={isLive ? "text-destructive" : "text-primary"}>● {featured.home_team?.name ?? "Gang A"}</span>
-        <span>{isLive ? `${featured.home_score}:${featured.away_score}` : `${cd.mm}:${cd.ss}`}</span>
-        <span className="text-right text-sky-300">{featured.away_team?.name ?? "Gang B"} ●</span>
-      </div>
+/* ============================ STAGE ============================ */
 
-      {isLive ? (
-        <LiveMatchTicker match={featured} animSec={cycle.animSec} />
+function ShootoutStage({
+  featured,
+  phase,
+  animSec,
+  recent,
+}: {
+  featured: VirtualMatch;
+  phase: Phase;
+  animSec: number;
+  recent: VirtualMatch[];
+}) {
+  const home = featured.home_team?.name ?? "Gang A";
+  const away = featured.away_team?.name ?? "Gang B";
+  const cd = useCountdown(featured.lock_time);
+  const live = phase === "live";
+  const { h, a } = useLiveScore(featured, animSec);
+
+  return (
+    <div className="space-y-3">
+      {/* Featured teams strip */}
+      <Card className="virtual-panel px-3 py-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_#ff4d4d]" />
+            <TeamLogo name={home} url={featured.home_team?.logo_url ?? null} size={24} rounded="full" />
+            <span className="text-xs font-black truncate">{home}</span>
+          </div>
+          <div className="font-mono font-black text-lg tabular-nums text-primary shrink-0">
+            {live ? `${h}:${a}` : "—"}
+          </div>
+          <div className="flex items-center gap-2 min-w-0 flex-row-reverse text-right">
+            <span className="h-2 w-2 rounded-full bg-sky-400 shadow-[0_0_8px_#4dd2ff]" />
+            <TeamLogo name={away} url={featured.away_team?.logo_url ?? null} size={24} rounded="full" />
+            <span className="text-xs font-black truncate">{away}</span>
+          </div>
+        </div>
+      </Card>
+
+      {/* Center arena */}
+      {live ? (
+        <LiveMatchTicker match={featured} animSec={animSec} />
       ) : (
-        <PreMatchArena match={featured} countdown={cd} recent={recent} cycle={cycle} />
+        <Card className="virtual-panel virtual-arena grid place-items-center py-10">
+          <div className="relative grid place-items-center">
+            <div className="h-40 w-40 rounded-full border border-primary/25 grid place-items-center bg-[radial-gradient(circle,rgba(0,0,0,0.6),transparent_70%)]">
+              <div className="h-24 w-24 rounded-full border border-primary/40 grid place-items-center animate-pulse">
+                <Crosshair className="h-9 w-9 text-primary" />
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 text-center">
+            <div className="text-[11px] font-black tracking-[0.3em] text-primary">▼ PLACE YOUR BETS ▼</div>
+            <div className="text-xs text-muted-foreground mt-1">Gang vs gang shootout begins at lock</div>
+          </div>
+        </Card>
       )}
 
-      <LineupsTable matches={matches} animSec={cycle.animSec} />
-
-      <div className="virtual-placebar">
-        <ChevronLeft className="h-4 w-4 text-muted-foreground" />
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.35em] text-muted-foreground">Place your bets</div>
-          <div className="text-xs font-bold">{primaryMarketName(matches)}</div>
-        </div>
-        <ChevronRight className="h-4 w-4 text-primary" />
-      </div>
-
-      <MarketBoard matches={matches} />
-      <RecentResultsPanel recent={recent} />
-    </section>
-  );
-}
-
-function PreMatchArena({
-  match,
-  countdown,
-  recent,
-  cycle,
-}: {
-  match: VirtualMatch;
-  countdown: ReturnType<typeof useCountdown>;
-  recent: VirtualMatch[];
-  cycle: CycleState;
-}) {
-  const recentSide = recent.slice(0, 4);
-  return (
-    <div className="virtual-arena virtual-pre-arena">
-      <div className="virtual-arena-grid" />
-      <div className="virtual-building" style={{ left: "17%", top: "18%", width: "15%", height: "20%" }} />
-      <div className="virtual-building" style={{ left: "66%", top: "20%", width: "13%", height: "26%" }} />
-      <div className="virtual-building" style={{ left: "41%", top: "54%", width: "17%", height: "17%" }} />
-      <div className="virtual-building" style={{ left: "9%", top: "69%", width: "13%", height: "16%" }} />
-      <div className="virtual-countdown-panel">
-        <div className="text-[10px] uppercase tracking-[0.38em] text-muted-foreground">Round locks in</div>
-        <div className="font-mono text-5xl sm:text-6xl font-black tabular-nums text-primary">{countdown.mm}:{countdown.ss}</div>
-        <div className="mt-2 text-[10px] text-muted-foreground flex items-center justify-center gap-1">
-          <Shield className="h-3 w-3 text-primary" /> {match.home_team?.name ?? "Gang A"} vs {match.away_team?.name ?? "Gang B"}
-        </div>
-      </div>
-      <aside className="virtual-previous-scores">
-        <div className="text-[9px] uppercase tracking-[0.25em] text-primary mb-2">Previous scores</div>
-        {recentSide.length === 0 ? (
-          <div className="text-[10px] text-muted-foreground">Waiting for first result</div>
-        ) : (
-          recentSide.map((r) => (
-            <div key={r.id} className="virtual-prev-row">
-              <span className="truncate">{r.home_team?.name}</span>
-              <b>{r.home_score}</b>
-              <span className="text-muted-foreground">-</span>
-              <b>{r.away_score}</b>
-              <span className="truncate text-right">{r.away_team?.name}</span>
+      {/* Countdown (left) + Previous scores (right) */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="virtual-panel p-3">
+          <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/80 mb-1">
+            {live ? "Shootout live" : "Round locks in"}
+          </div>
+          {live ? (
+            <div className="flex items-center gap-2 text-destructive font-black">
+              <Radio className="h-5 w-5 animate-pulse" />
+              <span className="text-lg">In progress</span>
             </div>
-          ))
+          ) : (
+            <>
+              <div className="text-3xl sm:text-4xl font-black tabular-nums gradient-gold-text leading-none">
+                {cd.mm}:{cd.ss}
+              </div>
+              <div className="mt-2 h-1.5 rounded-full bg-background overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-500 to-primary transition-all"
+                  style={{ width: `${Math.min(100, 100 - (cd.secs / Math.max(1, cd.secs + 1)) * 0)}%` }}
+                />
+              </div>
+            </>
+          )}
+          <div className="mt-2 text-[10px] text-muted-foreground truncate">
+            {home} vs {away}
+          </div>
+        </Card>
+
+        <Card className="virtual-panel p-3">
+          <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/80 mb-2">
+            Previous scores
+          </div>
+          <div className="space-y-1.5">
+            {recent.slice(0, 5).map((r) => (
+              <div key={r.id} className="flex items-center justify-between text-[11px]">
+                <div className="min-w-0 leading-tight">
+                  <div className="truncate">{r.home_team?.name}</div>
+                  <div className="truncate text-muted-foreground">{r.away_team?.name}</div>
+                </div>
+                <div className="font-mono font-black text-primary tabular-nums shrink-0">
+                  {r.home_score}:{r.away_score}
+                </div>
+              </div>
+            ))}
+            {recent.length === 0 && <div className="text-[11px] text-muted-foreground">No history yet.</div>}
+          </div>
+        </Card>
+      </div>
+
+      {/* Line ups (left) + Opposing line (right) */}
+      <div className="grid grid-cols-2 gap-3">
+        <LineUp title="Line ups" team={home} accent="red" />
+        <LineUp title="Opposing line" team={away} accent="sky" align="right" />
+      </div>
+    </div>
+  );
+}
+
+const ROLES = ["Ace", "Shot Caller", "Lookout", "Runner", "Enforcer", "Driver"];
+const RATINGS = [9, 8, 7, 6, 5, 4];
+
+function LineUp({
+  title,
+  team,
+  accent,
+  align,
+}: {
+  title: string;
+  team: string;
+  accent: "red" | "sky";
+  align?: "right";
+}) {
+  const dot = accent === "red" ? "bg-red-500" : "bg-sky-400";
+  return (
+    <Card className="virtual-panel p-3">
+      <div className={`text-[10px] font-black uppercase tracking-[0.25em] text-primary/80 mb-2 ${align === "right" ? "text-right" : ""}`}>
+        {title}
+      </div>
+      <div className="space-y-1.5">
+        {ROLES.map((role, i) => (
+          <div
+            key={role}
+            className={`flex items-center gap-2 text-[11px] ${align === "right" ? "flex-row-reverse text-right" : ""}`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${dot} shrink-0`} />
+            <span className="text-muted-foreground w-3 shrink-0 tabular-nums">{i + 1}</span>
+            <span className="truncate flex-1">
+              <span className="font-semibold">{team}</span> {role} {i + 1}
+            </span>
+            <span className="font-mono font-black text-primary tabular-nums shrink-0">{RATINGS[i]}</span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/* ============================ SCORES TABLE ============================ */
+
+function ScoresTable({ matches, phase }: { matches: VirtualMatch[]; phase: Phase }) {
+  if (matches.length === 0) return null;
+  const live = phase === "live";
+  return (
+    <Card className="virtual-panel p-0 overflow-hidden">
+      <div className="grid grid-cols-[1fr_auto] px-3 py-1.5 text-[9px] uppercase tracking-widest text-muted-foreground border-b border-primary/20 bg-black/30">
+        <span>Team</span>
+        <span>{live ? "Score" : "FT"}</span>
+      </div>
+      <div className="divide-y divide-primary/10">
+        {matches.map((m) => (
+          <ScoreRow key={m.id} match={m} live={live} />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function ScoreRow({ match, live }: { match: VirtualMatch; live: boolean }) {
+  const { h, a } = useLiveScore(match, 40);
+  return (
+    <div className="grid grid-cols-[1fr_auto] items-center px-3 py-2 gap-3">
+      <div className="min-w-0 leading-tight">
+        <div className="text-xs font-semibold truncate">{match.home_team?.name}</div>
+        <div className="text-xs text-muted-foreground truncate">{match.away_team?.name}</div>
+      </div>
+      <div className="text-right font-mono font-black tabular-nums text-primary">
+        {live ? (
+          <div className="leading-tight">
+            <div>{h}</div>
+            <div>{a}</div>
+          </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
         )}
-      </aside>
-      <div className="absolute bottom-3 left-3 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-        {cycle.perRound} gangs queued
       </div>
     </div>
   );
 }
 
-function primaryMarketName(matches: VirtualMatch[]) {
-  return matches.find((m) => m.markets?.some((mk) => /match\s*winner/i.test(mk.name)))?.markets?.find((mk) => /match\s*winner/i.test(mk.name))?.name ?? "Match Winner";
+/* ============================ MARKET BOARD (place your bets) ============================ */
+
+function marketOrder(n: string) {
+  return /match\s*winner/i.test(n)
+    ? 0
+    : /first\s*blood/i.test(n)
+      ? 1
+      : /total/i.test(n)
+        ? 2
+        : /correct\s*score/i.test(n)
+          ? 3
+          : 4;
 }
 
-function LineupsTable({ matches, animSec }: { matches: VirtualMatch[]; animSec: number }) {
-  const split = Math.ceil(matches.length / 2);
-  const left = matches.slice(0, split);
-  const right = matches.slice(split);
-  return (
-    <div className="virtual-lineups">
-      <LineupColumn rows={left} animSec={animSec} />
-      <LineupColumn rows={right} animSec={animSec} />
-    </div>
-  );
-}
+function MarketBoard({ matches, phase }: { matches: VirtualMatch[]; phase: Phase }) {
+  const { add, remove, selections } = useBetSlip();
+  const locked = phase === "live";
 
-function LineupColumn({ rows, animSec }: { rows: VirtualMatch[]; animSec: number }) {
-  return (
-    <div className="min-w-0">
-      <div className="virtual-lineup-head"><span>Team</span><span>FT</span><span>HT</span></div>
-      {rows.map((m) => <LineupRow key={m.id} match={m} animSec={animSec} />)}
-    </div>
-  );
-}
+  const marketNames = useMemo(() => {
+    const set = new Map<string, number>();
+    matches.forEach((m) =>
+      (m.markets ?? []).forEach((mk) => {
+        if (/total\s*kills?/i.test(mk.name) || /correct\s*score/i.test(mk.name)) return;
+        set.set(mk.name, marketOrder(mk.name));
+      }),
+    );
+    return [...set.entries()].sort((a, b) => a[1] - b[1]).map(([n]) => n);
+  }, [matches]);
 
-function LineupRow({ match, animSec }: { match: VirtualMatch; animSec: number }) {
-  const { h, a } = useLiveScore(match, animSec);
-  const live = match.status === "live";
-  const settled = match.status === "ended";
-  const homeScore = settled ? match.home_score : live ? h : null;
-  const awayScore = settled ? match.away_score : live ? a : null;
-  return (
-    <div className="virtual-lineup-row">
-      <div className="min-w-0">
-        <div className="font-bold truncate">{match.home_team?.name}</div>
-        <div className="text-muted-foreground truncate">{match.away_team?.name}</div>
-      </div>
-      <div className="font-mono text-primary text-right tabular-nums">
-        {homeScore ?? "-"}<br />{awayScore ?? "-"}
-      </div>
-      <div className="font-mono text-muted-foreground text-right tabular-nums">-<br />-</div>
-    </div>
-  );
-}
+  const [idx, setIdx] = useState(0);
+  const activeMarket = marketNames[Math.min(idx, Math.max(0, marketNames.length - 1))] ?? "";
+  const isPicked = (oddId: string) => selections.some((s) => s.odd_id === oddId);
 
-function MarketBoard({ matches }: { matches: VirtualMatch[] }) {
-  return (
-    <div className="virtual-market-board">
-      {matches.map((match) => <MarketMatchRow key={match.id} match={match} />)}
-    </div>
-  );
-}
-
-function MarketMatchRow({ match }: { match: VirtualMatch }) {
-  const { add, selections } = useBetSlip();
-  const locked = match.status !== "scheduled" || (match.lock_time ? new Date(match.lock_time).getTime() <= serverNow() : false);
-  const home = match.home_team?.name ?? "Gang A";
-  const away = match.away_team?.name ?? "Gang B";
-  const market = [...(match.markets ?? [])].sort((a, b) => (/match\s*winner/i.test(a.name) ? -1 : /match\s*winner/i.test(b.name) ? 1 : 0))[0];
-  const odds = market?.odds ?? [];
-
-  function pick(o: OddRow) {
-    if (!market || locked || !market.is_open) return;
+  function pick(match: VirtualMatch, mk: MarketRow, o: OddRow) {
+    if (locked || !mk.is_open) return;
+    if (isPicked(o.id)) {
+      remove(o.id);
+      return;
+    }
     if (selections.length > 0 && selections.some((s) => !s.is_virtual)) {
-      toast.error("Clear the current slip before adding virtual selections.");
+      toast.error("Your slip has non-virtual bets. Clear it before adding virtual selections.");
       return;
     }
     add({
       match_id: match.id,
-      match_name: `${home} vs ${away}`,
-      market_id: market.id,
-      market_name: market.name,
+      match_name: `${match.home_team?.name ?? "Gang A"} vs ${match.away_team?.name ?? "Gang B"}`,
+      market_id: mk.id,
+      market_name: mk.name,
       odd_id: o.id,
       selection_label: o.label,
       odds: Number(o.value),
       is_virtual: true,
       virtual_round_batch_id: match.virtual_round_batch_id ?? match.id,
     });
-    toast.success("Selection added to ready slip");
+    // NOTE: intentionally do NOT open the bet slip here — the user keeps
+    // selecting matches and opens the slip themselves when ready.
+    toast.success("Added to bet slip");
   }
 
+  if (marketNames.length === 0) return null;
+
   return (
-    <div className="virtual-market-row">
-      <div className="virtual-market-teams">
-        <span className="text-muted-foreground">{home}</span>
-        <b>{away}</b>
-        <span className="text-primary text-[9px] uppercase tracking-widest">More bets +</span>
+    <Card className="virtual-panel p-0 overflow-hidden">
+      <div className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.3em] text-primary/80 border-b border-primary/20 bg-black/30">
+        Place your bets
       </div>
-      <div className="virtual-odd-grid">
-        {odds.slice(0, 3).map((o) => {
-          const picked = selections.some((s) => s.odd_id === o.id);
+      {/* Market carousel selector */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-primary/15">
+        <button
+          onClick={() => setIdx((i) => (i - 1 + marketNames.length) % marketNames.length)}
+          className="text-muted-foreground hover:text-primary p-1"
+          aria-label="Previous market"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <div className="text-center">
+          <div className="text-sm font-black">{activeMarket}</div>
+          <div className="flex items-center justify-center gap-1 mt-1">
+            {marketNames.map((_, i) => (
+              <span
+                key={i}
+                className={`h-1.5 w-1.5 rounded-full ${i === idx ? "bg-primary" : "bg-muted"}`}
+              />
+            ))}
+          </div>
+        </div>
+        <button
+          onClick={() => setIdx((i) => (i + 1) % marketNames.length)}
+          className="text-muted-foreground hover:text-primary p-1"
+          aria-label="Next market"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="divide-y divide-primary/10">
+        {matches.map((m) => {
+          const mk = (m.markets ?? []).find((x) => x.name === activeMarket);
+          if (!mk) return null;
+          const odds = mk.odds.slice(0, 6);
           return (
-            <button key={o.id} disabled={locked || !market?.is_open} onClick={() => pick(o)} className={picked ? "virtual-odd picked" : "virtual-odd"}>
-              <span>{o.label === home ? "1" : o.label === away ? "2" : "X"}</span>
-              <b>{Number(o.value).toFixed(2)}</b>
-            </button>
+            <div key={m.id} className="px-3 py-2.5">
+              <div className="flex items-center justify-between mb-2">
+                <div className="min-w-0 leading-tight text-[11px]">
+                  <div className="font-semibold truncate">{m.home_team?.name}</div>
+                  <div className="text-muted-foreground truncate">{m.away_team?.name}</div>
+                </div>
+              </div>
+              <div
+                className={`grid gap-1.5 ${odds.length <= 3 ? "grid-cols-3" : "grid-cols-3 sm:grid-cols-6"}`}
+              >
+                {odds.map((o) => {
+                  const picked = isPicked(o.id);
+                  return (
+                    <button
+                      key={o.id}
+                      disabled={locked || !mk.is_open}
+                      onClick={() => pick(m, mk, o)}
+                      className={`rounded-md py-2 text-center transition-all border ${
+                        locked || !mk.is_open
+                          ? "bg-secondary/20 text-muted-foreground cursor-not-allowed border-transparent"
+                          : picked
+                            ? "bg-primary/25 border-primary text-primary shadow-gold"
+                            : "bg-emerald-600/80 border-emerald-500/40 text-white hover:bg-emerald-500"
+                      }`}
+                    >
+                      <div className="text-[9px] uppercase tracking-wider opacity-90 truncate">{o.label}</div>
+                      <div className="text-sm font-black flex items-center justify-center gap-1">
+                        {(locked || !mk.is_open) && <Lock className="h-3 w-3" />}
+                        {Number(o.value).toFixed(2)}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
-        {odds.length === 0 && <div className="virtual-odd locked"><Lock className="h-4 w-4" /></div>}
       </div>
-      <div className="virtual-stats-dot"><Zap className="h-4 w-4" /></div>
-    </div>
+    </Card>
   );
 }
 
-function RecentResultsPanel({ recent }: { recent: VirtualMatch[] }) {
+/* ============================ RECENT RESULTS ============================ */
+
+function RecentResults({ recent }: { recent: VirtualMatch[] }) {
+  if (recent.length === 0) return null;
   return (
-    <div className="virtual-history-panel">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
-        <div className="text-[10px] uppercase tracking-[0.25em] text-primary flex items-center gap-1"><Trophy className="h-3 w-3" /> Recent results</div>
-        <Link to="/virtual/history" className="text-[10px] text-primary">Full history</Link>
+    <section>
+      <div className="flex items-center gap-2 mb-2">
+        <Trophy className="h-4 w-4 text-amber-400" />
+        <h2 className="text-xs font-black uppercase tracking-[0.2em]">Recent results</h2>
+        <div className="flex-1 h-px bg-gradient-to-r from-primary/30 to-transparent" />
+        <Link to="/virtual/history" className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary">
+          Full history
+        </Link>
       </div>
-      {recent.slice(0, 7).map((r) => (
-        <div key={r.id} className="virtual-history-row">
-          <div className="min-w-0">
-            <div className="font-bold truncate">{r.home_team?.name}</div>
-            <div className="text-muted-foreground truncate">{r.away_team?.name}</div>
-          </div>
-          <div className="font-mono text-primary text-right tabular-nums">{r.home_score}<br />{r.away_score}</div>
+      <Card className="virtual-panel p-0 overflow-hidden">
+        <div className="divide-y divide-primary/10">
+          {recent.slice(0, 8).map((m) => {
+            const win =
+              m.home_score > m.away_score ? "1" : m.away_score > m.home_score ? "2" : "X";
+            return (
+              <div key={m.id} className="flex items-center justify-between px-3 py-2 gap-3">
+                <div className="min-w-0 leading-tight text-[11px]">
+                  <div className="font-semibold truncate">{m.home_team?.name}</div>
+                  <div className="text-muted-foreground truncate">{m.away_team?.name}</div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-mono font-black text-primary tabular-nums">
+                    {m.home_score}:{m.away_score}
+                  </span>
+                  <Badge variant="outline" className="text-[9px] border-amber-500/40 text-amber-400 bg-amber-500/10">
+                    {win}
+                  </Badge>
+                </div>
+              </div>
+            );
+          })}
         </div>
-      ))}
-    </div>
+      </Card>
+    </section>
   );
 }
 
-function newestVirtualBatch(rows: VirtualMatch[]) {
-  if (rows.length === 0) return [];
-  const groups = new Map<string, VirtualMatch[]>();
-  rows.forEach((row) => {
-    const key = row.virtual_round_batch_id ?? row.id;
-    groups.set(key, [...(groups.get(key) ?? []), row]);
-  });
-  return [...groups.values()].sort((a, b) => {
-    const newestA = Math.max(...a.map((m) => new Date(m.lock_time ?? m.start_time).getTime()));
-    const newestB = Math.max(...b.map((m) => new Date(m.lock_time ?? m.start_time).getTime()));
-    return newestB - newestA;
-  })[0] ?? [];
-}
+/* ============================ TIME / SCORE HELPERS ============================ */
 
-// Server-time offset so every client agrees with the DB clock (not their local time).
 let __serverOffsetMs = 0;
 async function syncServerOffset() {
   const t0 = Date.now();
@@ -517,6 +638,22 @@ function serverNow() {
   return Date.now() + __serverOffsetMs;
 }
 
+function newestVirtualBatch(rows: VirtualMatch[]): VirtualMatch[] {
+  if (rows.length === 0) return [];
+  const groups = new Map<string, VirtualMatch[]>();
+  rows.forEach((row) => {
+    const key = row.virtual_round_batch_id ?? row.id;
+    groups.set(key, [...(groups.get(key) ?? []), row]);
+  });
+  return (
+    [...groups.values()].sort((a, b) => {
+      const newestA = Math.max(...a.map((m) => new Date(m.lock_time ?? m.start_time).getTime()));
+      const newestB = Math.max(...b.map((m) => new Date(m.lock_time ?? m.start_time).getTime()));
+      return newestB - newestA;
+    })[0] ?? []
+  );
+}
+
 function useCountdown(target: string | null | undefined) {
   const [now, setNow] = useState(serverNow());
   useEffect(() => {
@@ -531,177 +668,6 @@ function useCountdown(target: string | null | undefined) {
   return { secs, mm, ss, done: secs <= 0 };
 }
 
-function VirtualRoundCard({ match, animSec }: { match: VirtualMatch; animSec: number }) {
-  const { add, selections } = useBetSlip();
-  const home = match.home_team?.name ?? "Home";
-  const away = match.away_team?.name ?? "Away";
-  const lockTime = match.lock_time;
-  const cd = useCountdown(lockTime);
-  const settled = match.status === "ended";
-  const playing = match.status === "live";
-  const locked = settled || playing || cd.done;
-  const isPicked = (oddId: string) => selections.some((s) => s.odd_id === oddId);
-
-  const order = (n: string) =>
-    /match\s*winner/i.test(n)
-      ? 0
-      : /first\s*blood/i.test(n)
-        ? 1
-        : /total/i.test(n)
-          ? 2
-          : /correct\s*score/i.test(n)
-            ? 3
-            : 4;
-  // Hide Total Kills and Correct Score markets from the virtual marketing UI.
-  const markets = [...(match.markets ?? [])]
-    .filter((mk) => !/total\s*kills?/i.test(mk.name) && !/correct\s*score/i.test(mk.name))
-    .sort((a, b) => order(a.name) - order(b.name));
-
-  function pick(mk: MarketRow, o: OddRow) {
-    if (locked) return;
-    if (selections.length > 0 && selections.some((s) => !s.is_virtual)) {
-      toast.error("Your slip has regular bets. Clear it before adding virtual selections.");
-      return;
-    }
-    add({
-      match_id: match.id,
-      match_name: `${home} vs ${away}`,
-      market_id: mk.id,
-      market_name: mk.name,
-      odd_id: o.id,
-      selection_label: o.label,
-      odds: Number(o.value),
-      is_virtual: true,
-      virtual_round_batch_id: match.virtual_round_batch_id ?? match.id,
-    });
-    toast.success("Selection added to ready slip");
-  }
-
-  return (
-    <Card className="virtual-match-card p-4 relative overflow-hidden">
-      <StatusBadge settled={settled} playing={playing} locked={locked} />
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-        Instant Virtual
-      </div>
-
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 mt-2">
-        <TeamSide name={home} url={match.home_team?.logo_url ?? null} side="Gang A" />
-        <CenterDial match={match} playing={playing} settled={settled} animSec={animSec} />
-        <TeamSide name={away} url={match.away_team?.logo_url ?? null} side="Gang B" reverse />
-      </div>
-
-      <div className="mt-3 text-center text-xs">
-        {settled ? (
-          <span className="text-emerald-400 font-bold flex items-center justify-center gap-1">
-            <CheckCircle2 className="h-3 w-3" />
-            Final {match.home_score}-{match.away_score}
-          </span>
-        ) : playing ? (
-          <span className="text-destructive font-bold flex items-center justify-center gap-1 animate-pulse">
-            <Crosshair className="h-3 w-3" />
-            Match in progress…
-          </span>
-        ) : locked ? (
-          <span className="text-destructive font-bold flex items-center justify-center gap-1">
-            <Lock className="h-3 w-3" />
-            Starting…
-          </span>
-        ) : (
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-muted-foreground text-[10px] uppercase tracking-widest">
-              Locks in
-            </span>
-            <span className="font-black text-2xl tabular-nums gradient-gold-text">
-              {cd.mm}:{cd.ss}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {!settled && !playing && (
-        <div className="mt-3 space-y-2">
-          {markets.map((mk) => {
-            const isCS = /correct\s*score/i.test(mk.name);
-            const odds = isCS ? mk.odds.slice(0, 6) : mk.odds;
-            return (
-              <div
-                key={mk.id}
-                className="rounded-lg border border-primary/25 bg-background/40 p-2.5 shadow-inner"
-              >
-                <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5">
-                  {mk.name}
-                </div>
-                <div
-                  className={`grid gap-1.5 ${odds.length <= 3 ? "grid-cols-3" : "grid-cols-3 sm:grid-cols-6"}`}
-                >
-                  {odds.map((o) => {
-                    const picked = isPicked(o.id);
-                    return (
-                      <button
-                        key={o.id}
-                        disabled={locked || !mk.is_open}
-                        onClick={() => pick(mk, o)}
-                        className={`px-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all border ${
-                          locked
-                            ? "bg-secondary/30 text-muted-foreground cursor-not-allowed border-transparent"
-                            : picked
-                              ? "bg-primary/25 border-primary text-primary shadow-gold"
-                              : "bg-secondary/50 border-primary/20 hover:border-primary/70 hover:bg-primary/15"
-                        }`}
-                      >
-                        <div className="text-[9px] uppercase tracking-wider opacity-80 truncate">
-                          {o.label}
-                        </div>
-                        <div className="text-[12px]">{Number(o.value).toFixed(2)}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-          {markets.length === 0 && (
-            <Badge variant="outline" className="text-[10px]">
-              No markets yet
-            </Badge>
-          )}
-        </div>
-      )}
-
-      {playing && <LiveMatchTicker match={match} animSec={animSec} />}
-    </Card>
-  );
-}
-
-function StatusBadge({
-  settled,
-  playing,
-  locked,
-}: {
-  settled: boolean;
-  playing: boolean;
-  locked: boolean;
-}) {
-  const tone = settled
-    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
-    : playing
-      ? "bg-destructive/15 border-destructive/40 text-destructive animate-pulse"
-      : locked
-        ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
-        : "bg-primary/15 border-primary/40 text-primary";
-  const label = settled ? "● SETTLED" : playing ? "● LIVE" : locked ? "● LOCKED" : "● OPEN";
-  return (
-    <div
-      className={`absolute top-0 right-0 px-2 py-0.5 text-[10px] font-bold tracking-widest rounded-bl-md border ${tone}`}
-    >
-      {label}
-    </div>
-  );
-}
-
-// Deterministic progressive score for a live virtual match. Starts 0-0 and ramps up smoothly
-// over `animSec`, ending at the simulated total. The DB writes the authoritative final when
-// the round resolves — at that point the card flips to status `ended` and shows the DB value.
 function useLiveScore(match: VirtualMatch, animSec: number) {
   const lockMs = match.locked_at
     ? new Date(match.locked_at).getTime()
@@ -723,134 +689,6 @@ function useLiveScore(match: VirtualMatch, animSec: number) {
   return { h, a, ratio };
 }
 
-function LiveFeedSection({ matches, animSec }: { matches: VirtualMatch[]; animSec: number }) {
-  // Feature the most recently started live match; the rest get compact scorecards underneath.
-  const featured = matches[0];
-  const rest = matches.slice(1);
-  return (
-    <div className="space-y-4">
-      <VirtualRoundCard match={featured} animSec={animSec} />
-      {rest.length > 0 && (
-        <Card className="virtual-live-list p-0 overflow-hidden">
-          <div className="px-4 py-3 bg-destructive/10 border-b border-primary/30 flex items-center gap-2">
-            <Flame className="h-3.5 w-3.5 text-destructive" />
-            <div className="text-[10px] font-black tracking-widest uppercase text-destructive">
-              Other live matches · {rest.length}
-            </div>
-          </div>
-          <div className="max-h-[420px] overflow-y-auto divide-y divide-border/50">
-            {rest.map((m) => (
-              <LiveScoreRow key={m.id} match={m} animSec={animSec} />
-            ))}
-          </div>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-function LiveScoreRow({ match, animSec }: { match: VirtualMatch; animSec: number }) {
-  const { h, a, ratio } = useLiveScore(match, animSec);
-  const settled = match.status === "ended";
-  const home = match.home_team?.name ?? "Home";
-  const away = match.away_team?.name ?? "Away";
-  const showH = settled ? match.home_score : h;
-  const showA = settled ? match.away_score : a;
-  return (
-    <div className="px-3 py-2.5 flex items-center gap-3 hover:bg-primary/5 transition-colors">
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        <TeamLogo name={home} url={match.home_team?.logo_url ?? null} size={26} rounded="full" />
-        <span className="text-xs font-bold truncate">{home}</span>
-      </div>
-      <div className="text-center min-w-[68px]">
-        <div className="font-mono font-black text-base tabular-nums text-primary">
-          {showH} - {showA}
-        </div>
-        {!settled ? (
-          <div className="h-0.5 mt-0.5 rounded-full bg-background overflow-hidden">
-            <div
-              className="h-full bg-destructive transition-all"
-              style={{ width: `${ratio * 100}%` }}
-            />
-          </div>
-        ) : (
-          <div className="text-[8px] font-bold text-emerald-400 tracking-widest">FINAL</div>
-        )}
-      </div>
-      <div className="flex items-center gap-2 flex-1 min-w-0 flex-row-reverse text-right">
-        <TeamLogo name={away} url={match.away_team?.logo_url ?? null} size={26} rounded="full" />
-        <span className="text-xs font-bold truncate">{away}</span>
-      </div>
-    </div>
-  );
-}
-
-function TeamSide({
-  name,
-  url,
-  side,
-  reverse,
-}: {
-  name: string;
-  url: string | null;
-  side: string;
-  reverse?: boolean;
-}) {
-  return (
-    <div
-      className={`flex items-center gap-2 min-w-0 ${reverse ? "flex-row-reverse text-right" : ""}`}
-    >
-      <TeamLogo name={name} url={url} size={42} rounded="full" />
-      <div className="min-w-0">
-        <div className="font-black truncate text-sm">{name}</div>
-        <div className="text-[10px] text-muted-foreground">{side}</div>
-      </div>
-    </div>
-  );
-}
-
-function CenterDial({
-  match,
-  playing,
-  settled,
-  animSec,
-}: {
-  match: MatchRow;
-  playing: boolean;
-  settled: boolean;
-  animSec: number;
-}) {
-  if (settled) {
-    return (
-      <div className="text-center">
-        <div className="text-[9px] text-muted-foreground uppercase tracking-widest">Final</div>
-        <div className="font-mono font-black text-xl text-emerald-400 tabular-nums">
-          {match.home_score}-{match.away_score}
-        </div>
-      </div>
-    );
-  }
-  if (playing) {
-    return (
-      <div className="text-center">
-        <div className="text-[9px] text-destructive uppercase tracking-widest animate-pulse">
-          LIVE
-        </div>
-        <Crosshair
-          className="h-7 w-7 text-destructive mx-auto animate-spin"
-          style={{ animationDuration: "2s" }}
-        />
-      </div>
-    );
-  }
-  return (
-    <div className="text-center">
-      <div className="text-[9px] text-muted-foreground uppercase tracking-widest">VS</div>
-      <Dice5 className="h-7 w-7 text-primary mx-auto animate-pulse" />
-    </div>
-  );
-}
-
 const KILL_LINES = [
   "⚔ Ambush in the alley!",
   "💥 Headshot — clean drop!",
@@ -864,7 +702,6 @@ const KILL_LINES = [
   "🔪 Close-quarters knife kill!",
 ];
 
-// Deterministic pseudo-random based on match id + index — keeps positions stable per round.
 function seedRand(seed: string, i: number) {
   const s = `${seed}:${i}`;
   let h = 0;
@@ -888,15 +725,9 @@ function progressiveScore(matchId: string, ratio: number, finalHome = 0, finalAw
   return { h: ratio >= 1 ? finalHome : h, a: ratio >= 1 ? finalAway : a };
 }
 
-type Fighter = {
-  x: number;
-  y: number;
-  side: "h" | "a";
-  alive: boolean;
-  flash: number;
-  vx: number;
-  vy: number;
-};
+/* ============================ LIVE SHOOTOUT ARENA ============================ */
+
+type Fighter = { x: number; y: number; side: "h" | "a"; alive: boolean; flash: number; vx: number; vy: number };
 type Tracer = { x1: number; y1: number; x2: number; y2: number; side: "h" | "a"; born: number };
 type Blast = { x: number; y: number; born: number; size: number };
 
@@ -949,9 +780,8 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
         Math.max(0, Number(match.away_score ?? 0)),
       );
 
-      // Move fighters through the block, exchange fire, and drop casualties as the simulated score climbs.
       setFighters((prev) => {
-        const next = prev.map((f, idx) => {
+        const next = prev.map((f) => {
           const jitterX = (Math.random() - 0.5) * 0.85;
           const jitterY = (Math.random() - 0.5) * 0.95;
           const targetAlive =
@@ -981,16 +811,15 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
         return next;
       });
 
-      // Spawn tracer between random alive opponents.
       if (Math.random() < 0.55) {
         setTracers((prev) => {
           const alive = fightersRef.current.filter((f) => f.alive);
           if (alive.length < 2) return prev;
-          const a = alive[Math.floor(Math.random() * alive.length)];
-          const enemies = alive.filter((f) => f.side !== a.side);
+          const shooter = alive[Math.floor(Math.random() * alive.length)];
+          const enemies = alive.filter((f) => f.side !== shooter.side);
           if (!enemies.length) return prev;
           const b = enemies[Math.floor(Math.random() * enemies.length)];
-          const next = [...prev, { x1: a.x, y1: a.y, x2: b.x, y2: b.y, side: a.side, born: now }];
+          const next = [...prev, { x1: shooter.x, y1: shooter.y, x2: b.x, y2: b.y, side: shooter.side, born: now }];
           if (Math.random() < 0.18)
             setBlasts((old) =>
               [...old, { x: b.x, y: b.y, born: now, size: 18 + Math.random() * 18 }]
@@ -1006,17 +835,11 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
 
       const surfaced: string[] = [];
       for (let i = 0; i < fh; i++) {
-        const line =
-          KILL_LINES[
-            Math.abs((match.id.charCodeAt(i % match.id.length) + i * 7) % KILL_LINES.length)
-          ];
+        const line = KILL_LINES[Math.abs((match.id.charCodeAt(i % match.id.length) + i * 7) % KILL_LINES.length)];
         surfaced.unshift(`${match.home_team?.name}: ${line}`);
       }
       for (let i = 0; i < fa; i++) {
-        const line =
-          KILL_LINES[
-            Math.abs((match.id.charCodeAt((i + 5) % match.id.length) + i * 11) % KILL_LINES.length)
-          ];
+        const line = KILL_LINES[Math.abs((match.id.charCodeAt((i + 5) % match.id.length) + i * 11) % KILL_LINES.length)];
         surfaced.unshift(`${match.away_team?.name}: ${line}`);
       }
       setFeed(surfaced.slice(0, 4));
@@ -1031,15 +854,10 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
   const aliveH = fighters.filter((f) => f.side === "h" && f.alive).length;
   const aliveA = fighters.filter((f) => f.side === "a" && f.alive).length;
   const { h: liveH, a: liveA } = useLiveScore(match, animSec);
-  const settled = match.status === "ended";
-  const showH = settled ? match.home_score : liveH;
-  const showA = settled ? match.away_score : liveA;
 
   return (
-    <div className="mt-3 rounded-xl border border-primary/40 bg-background/50 overflow-hidden shadow-gold">
-      {/* Top-down combat zone (gang shooting battlefield) */}
-      <div className="relative w-full aspect-[16/9] overflow-hidden bg-[#0b0f0a]">
-        {/* Urban ground texture */}
+    <Card className="virtual-panel overflow-hidden shadow-gold p-0">
+      <div className="relative w-full aspect-[16/10] overflow-hidden bg-[#07090a]">
         <div
           className="absolute inset-0"
           style={{
@@ -1048,58 +866,25 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
             radial-gradient(circle at 75% 70%, rgba(60,40,30,0.4), transparent 45%),
             repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 22px),
             repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 22px),
-            linear-gradient(180deg, #1a1410 0%, #0d0a08 100%)`,
+            linear-gradient(180deg, #14100c 0%, #08060a 100%)`,
           }}
         />
-        {/* Buildings / cover blocks */}
-        <div
-          className="absolute bg-black/70 border border-white/10 rounded-sm"
-          style={{ left: "18%", top: "18%", width: "14%", height: "22%" }}
-        />
-        <div
-          className="absolute bg-black/70 border border-white/10 rounded-sm"
-          style={{ left: "42%", top: "55%", width: "16%", height: "20%" }}
-        />
-        <div
-          className="absolute bg-black/70 border border-white/10 rounded-sm"
-          style={{ left: "68%", top: "20%", width: "12%", height: "28%" }}
-        />
-        <div
-          className="absolute bg-black/70 border border-white/10 rounded-sm"
-          style={{ left: "8%", top: "70%", width: "12%", height: "16%" }}
-        />
-        {/* Street median line */}
+        <div className="absolute bg-black/70 border border-white/10 rounded-sm" style={{ left: "18%", top: "18%", width: "14%", height: "22%" }} />
+        <div className="absolute bg-black/70 border border-white/10 rounded-sm" style={{ left: "42%", top: "55%", width: "16%", height: "20%" }} />
+        <div className="absolute bg-black/70 border border-white/10 rounded-sm" style={{ left: "68%", top: "20%", width: "12%", height: "28%" }} />
+        <div className="absolute bg-black/70 border border-white/10 rounded-sm" style={{ left: "8%", top: "70%", width: "12%", height: "16%" }} />
         <div className="absolute left-1/2 top-2 bottom-2 w-px bg-gradient-to-b from-transparent via-amber-400/40 to-transparent" />
 
-        {/* Side labels */}
         <div className="absolute top-1 left-2 text-[9px] font-black tracking-widest text-red-400 drop-shadow">
           RED · {homeName.toUpperCase()}
         </div>
         <div className="absolute top-1 right-2 text-[9px] font-black tracking-widest text-sky-400 drop-shadow">
           {awayName.toUpperCase()} · BLUE
         </div>
-        <div className="absolute bottom-1 left-2 text-[9px] font-mono text-red-300/80">
-          ALIVE {aliveH}
-        </div>
-        <div className="absolute bottom-1 right-2 text-[9px] font-mono text-sky-300/80">
-          ALIVE {aliveA}
-        </div>
+        <div className="absolute bottom-1 left-2 text-[9px] font-mono text-red-300/80">ALIVE {aliveH}</div>
+        <div className="absolute bottom-1 right-2 text-[9px] font-mono text-sky-300/80">ALIVE {aliveA}</div>
 
-        {/* Tracers (bullet paths) */}
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          preserveAspectRatio="none"
-          viewBox="0 0 100 100"
-        >
-          <defs>
-            <filter id={`glow-${match.id}`} x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="1.4" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 100">
           {tracers.map((t, i) => (
             <line
               key={i}
@@ -1116,44 +901,22 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
           ))}
         </svg>
 
-        {/* Bomb / impact bursts */}
         {blasts.map((b, i) => (
-          <div
-            key={`${b.born}-${i}`}
-            className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ left: `${b.x}%`, top: `${b.y}%` }}
-          >
-            <div
-              className="rounded-full bg-amber-300/80 animate-ping"
-              style={{ width: b.size, height: b.size, animationDuration: "0.75s" }}
-            />
+          <div key={`${b.born}-${i}`} className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{ left: `${b.x}%`, top: `${b.y}%` }}>
+            <div className="rounded-full bg-amber-300/80 animate-ping" style={{ width: b.size, height: b.size, animationDuration: "0.75s" }} />
             <div className="absolute inset-1 rounded-full bg-orange-500/70 blur-sm" />
           </div>
         ))}
 
-        {/* Fighters */}
         {fighters.map((f, i) => (
-          <div
-            key={i}
-            className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-linear"
-            style={{ left: `${f.x}%`, top: `${f.y}%` }}
-          >
+          <div key={i} className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-linear" style={{ left: `${f.x}%`, top: `${f.y}%` }}>
             {f.alive ? (
               <div className="relative">
-                <div
-                  className={`relative h-3.5 w-3.5 rounded-full border ${f.side === "h" ? "bg-red-500 border-red-200 shadow-[0_0_8px_#ff5252]" : "bg-sky-400 border-sky-100 shadow-[0_0_8px_#4dd2ff]"}`}
-                >
+                <div className={`relative h-3.5 w-3.5 rounded-full border ${f.side === "h" ? "bg-red-500 border-red-200 shadow-[0_0_8px_#ff5252]" : "bg-sky-400 border-sky-100 shadow-[0_0_8px_#4dd2ff]"}`}>
                   <span className="absolute left-1/2 top-[-5px] h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-foreground/85" />
-                  <span
-                    className={`absolute top-1/2 h-[2px] w-3 -translate-y-1/2 ${f.side === "h" ? "left-2 bg-red-200" : "right-2 bg-sky-100"}`}
-                  />
+                  <span className={`absolute top-1/2 h-[2px] w-3 -translate-y-1/2 ${f.side === "h" ? "left-2 bg-red-200" : "right-2 bg-sky-100"}`} />
                 </div>
-                {f.flash > 0.2 && (
-                  <div
-                    className="absolute -top-1 -left-1 h-4 w-4 rounded-full bg-amber-300/80 animate-ping"
-                    style={{ animationDuration: "0.6s" }}
-                  />
-                )}
+                {f.flash > 0.2 && <div className="absolute -top-1 -left-1 h-4 w-4 rounded-full bg-amber-300/80 animate-ping" style={{ animationDuration: "0.6s" }} />}
               </div>
             ) : (
               <div className="text-[10px] leading-none text-muted-foreground/70">✕</div>
@@ -1161,53 +924,31 @@ function LiveMatchTicker({ match, animSec }: { match: VirtualMatch; animSec: num
           </div>
         ))}
 
-        {/* Smoke vignette */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(circle at 50% 50%, transparent 40%, rgba(0,0,0,0.55) 100%)",
-          }}
-        />
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle at 50% 50%, transparent 40%, rgba(0,0,0,0.55) 100%)" }} />
       </div>
 
-      {/* Scoreboard + ticker */}
-      <div className="p-3 bg-gradient-to-r from-background/80 via-secondary/50 to-background/80">
+      <div className="p-3 bg-gradient-to-r from-black/80 via-black/60 to-black/80">
         <div className="flex items-center justify-between mb-2">
           <div className="text-[10px] uppercase tracking-widest text-destructive font-bold flex items-center gap-1">
-            <Crosshair className="h-3 w-3" />
-            Live shootout
+            <Radio className="h-3 w-3 animate-pulse" /> Live shootout
           </div>
           <div className="font-mono font-black text-2xl tabular-nums text-primary tracking-widest">
-            {showH} - {showA}
-            {settled && (
-              <span className="ml-2 text-[9px] font-bold text-emerald-400 tracking-widest align-middle">
-                FINAL
-              </span>
-            )}
+            {liveH} - {liveA}
           </div>
         </div>
         <div className="h-1 rounded-full bg-background overflow-hidden mb-2">
-          <div
-            className="h-full bg-gradient-to-r from-red-500 via-amber-400 to-sky-400 transition-all"
-            style={{ width: `${progress * 100}%` }}
-          />
+          <div className="h-full bg-gradient-to-r from-red-500 via-amber-400 to-sky-400 transition-all" style={{ width: `${progress * 100}%` }} />
         </div>
         <div className="space-y-1 min-h-[56px]">
-          {feed.length === 0 && (
-            <div className="text-[10px] text-muted-foreground">Gangs locking & loading…</div>
-          )}
+          {feed.length === 0 && <div className="text-[10px] text-muted-foreground">Gangs locking & loading…</div>}
           {feed.map((line, i) => (
-            <div
-              key={i}
-              className="text-[11px] text-foreground/90 animate-fade-in flex items-start gap-1.5"
-            >
+            <div key={i} className="text-[11px] text-foreground/90 animate-fade-in flex items-start gap-1.5">
               <span className="text-destructive">▸</span>
               {line}
             </div>
           ))}
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

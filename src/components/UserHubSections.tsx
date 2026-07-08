@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
+import { getPushState, subscribeToPush, syncExistingPushSubscription } from "@/lib/push";
 import {
   Users, Copy, Share2, Trophy, Star, Crown, Shield, Bell, BellOff,
   Upload, Image as ImageIcon, Filter, Search, TrendingUp, TrendingDown,
@@ -20,7 +21,10 @@ const TIER_META: Record<string, { label: string; color: string; min: number; nex
   silver:   { label: "Silver",   color: "from-slate-300 to-slate-500",   min: 500,   next: 3000,  perks: ["+10% stake limit", "Silver chat badge"] },
   gold:     { label: "Gold",     color: "from-amber-400 to-yellow-600",  min: 3000,  next: 10000, perks: ["+25% stake limit", "Faster withdrawals", "Gold chat color"] },
   platinum: { label: "Platinum", color: "from-cyan-300 to-blue-600",     min: 10000, next: 25000, perks: ["+50% stake limit", "Exclusive promos", "Platinum badge"] },
-  legend:   { label: "Legend",   color: "from-fuchsia-500 to-pink-600",  min: 25000, perks: ["+100% stake limit", "Priority support", "Legend animation", "Hall of fame"] },
+  legend:   { label: "Legend",   color: "from-fuchsia-500 to-pink-600",  min: 25000, next: 50000,  perks: ["+100% stake limit", "Priority support", "Legend animation", "Hall of fame"] },
+  mythic:   { label: "Mythic",   color: "from-violet-500 to-indigo-700", min: 50000, next: 100000, perks: ["+150% stake limit", "Mythic aura badge", "Monthly bonus drops"] },
+  titan:    { label: "Titan",    color: "from-emerald-400 to-teal-600",  min: 100000, next: 250000, perks: ["+200% stake limit", "Titan-only events", "Dedicated concierge"] },
+  immortal: { label: "Immortal", color: "from-rose-400 via-amber-300 to-yellow-500", min: 250000, perks: ["Unlimited stake tier", "Immortal hall of legends", "Bespoke rewards", "Lifetime VIP status"] },
 };
 
 /* ============================ REFERRAL CARD ============================ */
@@ -116,20 +120,14 @@ export function ReferralCard() {
 /* ============================ VIP CARD ============================ */
 export function VipCard() {
   const { profile } = useAuth();
-  const [xpRules, setXpRules] = useState<{ bet: number; win: number; login: number; referral: number } | null>(null);
-  useEffect(() => {
-    supabase.from("app_settings").select("xp_per_bet,xp_per_win,xp_per_login,xp_per_referral").eq("id", 1).maybeSingle()
-      .then(({ data }) => {
-        if (data) setXpRules({ bet: data.xp_per_bet ?? 10, win: data.xp_per_win ?? 25, login: data.xp_per_login ?? 5, referral: data.xp_per_referral ?? 100 });
-      });
-  }, []);
   if (!profile) return null;
   const tier = (profile.vip_tier as string) ?? "bronze";
   const meta = TIER_META[tier] ?? TIER_META.bronze;
   const xp = Number((profile as any).xp ?? 0);
   const progress = meta.next ? Math.min(100, ((xp - meta.min) / (meta.next - meta.min)) * 100) : 100;
-  const TierIcon = tier === "legend" ? Crown : tier === "platinum" ? Shield : tier === "gold" ? Trophy : Star;
-  const tierOrder = ["bronze", "silver", "gold", "platinum", "legend"];
+  const TierIcon = ["legend", "mythic", "titan", "immortal"].includes(tier) ? Crown : tier === "platinum" ? Shield : tier === "gold" ? Trophy : Star;
+  const tierOrder = ["bronze", "silver", "gold", "platinum", "legend", "mythic", "titan", "immortal"];
+  const nextLabel = TIER_META[tierOrder[tierOrder.indexOf(tier) + 1]]?.label;
 
   return (
     <Card className="relative overflow-hidden p-6 backdrop-blur-xl border-amber-500/30">
@@ -139,14 +137,16 @@ export function VipCard() {
           <div className="flex items-center gap-2"><TierIcon className="h-5 w-5 text-amber-300" /><h3 className="font-bold text-lg">VIP Status</h3></div>
           <Badge className={`bg-gradient-to-r ${meta.color} text-white border-0`}>{meta.label}</Badge>
         </div>
-        <div className="text-3xl font-extrabold gradient-gold-text">{xp.toLocaleString()} XP</div>
-        {meta.next && (
+        <div className="text-2xl font-extrabold gradient-gold-text">{meta.label} member</div>
+        {meta.next ? (
           <>
             <div className="mt-3 h-2 rounded-full bg-background/40 overflow-hidden">
-              <div className={`h-full bg-gradient-to-r ${meta.color}`} style={{ width: `${progress}%` }} />
+              <div className={`h-full bg-gradient-to-r ${meta.color} animate-pulse`} style={{ width: `${Math.max(8, progress)}%` }} />
             </div>
-            <div className="text-[11px] text-muted-foreground mt-1">{Math.max(0, meta.next - xp).toLocaleString()} XP to reach {TIER_META[tierOrder[tierOrder.indexOf(tier) + 1]]?.label ?? "next tier"}</div>
+            <div className="text-[11px] text-muted-foreground mt-1">Keep playing to unlock <span className="text-amber-300 font-semibold">a mystery tier</span> — the next rank stays hidden until you reach it! 🎁</div>
           </>
+        ) : (
+          <div className="text-[11px] text-amber-300 mt-1">You've reached the highest tier. Legendary! 👑</div>
         )}
         <div className="mt-4">
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5">Your perks</div>
@@ -155,34 +155,36 @@ export function VipCard() {
           </ul>
         </div>
 
-        {/* How to earn XP */}
+        {/* How to level up (blind — no numbers) */}
         <div className="mt-5 pt-4 border-t border-border/50">
-          <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">How to earn XP</div>
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">How to level up</div>
           <ul className="grid grid-cols-2 gap-2 text-xs">
-            <li className="flex items-center justify-between rounded-md bg-background/40 px-2 py-1.5"><span>Place a bet</span><span className="font-bold text-amber-300">+{xpRules?.bet ?? 10}</span></li>
-            <li className="flex items-center justify-between rounded-md bg-background/40 px-2 py-1.5"><span>Win a bet</span><span className="font-bold text-amber-300">+{xpRules?.win ?? 25}</span></li>
-            <li className="flex items-center justify-between rounded-md bg-background/40 px-2 py-1.5"><span>Daily login</span><span className="font-bold text-amber-300">+{xpRules?.login ?? 5}</span></li>
-            <li className="flex items-center justify-between rounded-md bg-background/40 px-2 py-1.5"><span>Referral signup</span><span className="font-bold text-amber-300">+{xpRules?.referral ?? 100}</span></li>
+            <li className="flex items-center gap-2 rounded-md bg-background/40 px-2 py-1.5"><Sparkles className="h-3 w-3 text-amber-300" /><span>Place bets</span></li>
+            <li className="flex items-center gap-2 rounded-md bg-background/40 px-2 py-1.5"><Sparkles className="h-3 w-3 text-amber-300" /><span>Win bets</span></li>
+            <li className="flex items-center gap-2 rounded-md bg-background/40 px-2 py-1.5"><Sparkles className="h-3 w-3 text-amber-300" /><span>Log in daily</span></li>
+            <li className="flex items-center gap-2 rounded-md bg-background/40 px-2 py-1.5"><Sparkles className="h-3 w-3 text-amber-300" /><span>Invite friends</span></li>
           </ul>
         </div>
 
-        {/* Tier ladder */}
+        {/* Tier ladder (blind — locked/unlocked, no thresholds) */}
         <div className="mt-5 pt-4 border-t border-border/50">
-          <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Rank-up requirements</div>
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Tier journey</div>
           <div className="space-y-1.5">
             {tierOrder.map((t) => {
               const m = TIER_META[t];
               const reached = xp >= m.min;
               const isCurrent = t === tier;
+              // Blind progression: only reveal names for tiers already reached (or the current one).
+              const revealName = reached || isCurrent;
               return (
                 <div key={t} className={`flex items-center justify-between text-xs rounded-md px-2 py-1.5 ${isCurrent ? "bg-amber-500/15 border border-amber-500/40" : "bg-background/30"}`}>
                   <div className="flex items-center gap-2">
                     <span className={`h-2 w-2 rounded-full bg-gradient-to-r ${m.color}`} />
-                    <span className={reached ? "font-semibold" : "text-muted-foreground"}>{m.label}</span>
+                    <span className={reached ? "font-semibold" : "text-muted-foreground"}>{revealName ? m.label : "???"}</span>
                     {isCurrent && <Badge variant="outline" className="h-4 px-1 text-[9px]">YOU</Badge>}
                   </div>
-                  <span className={reached ? "text-amber-300 font-mono" : "text-muted-foreground font-mono"}>
-                    {m.min.toLocaleString()} XP{m.next ? "" : "+"}
+                  <span className={`text-[10px] font-semibold ${reached ? "text-emerald-300" : "text-muted-foreground"}`}>
+                    {reached ? "Unlocked" : "Locked"}
                   </span>
                 </div>
               );
@@ -199,21 +201,18 @@ export function PushNotifSettings() {
   const { user } = useAuth();
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [prefs, setPrefs] = useState<any>(null);
-  const [vapidKey, setVapidKey] = useState<string | null>(null);
   const [subscribed, setSubscribed] = useState(false);
 
   useEffect(() => {
     if (typeof Notification !== "undefined") setPermission(Notification.permission);
-    supabase.from("app_settings").select("vapid_public_key").eq("id", 1).maybeSingle()
-      .then(({ data }) => setVapidKey((data as any)?.vapid_public_key ?? null));
-    if ("serviceWorker" in navigator) {
-      /* sw disabled */
-      navigator.serviceWorker.ready.then(async (reg) => {
-        const sub = await reg.pushManager.getSubscription();
-        setSubscribed(!!sub);
-      }).catch(() => {});
-    }
   }, []);
+  useEffect(() => {
+    if (!user) return;
+    getPushState().then((state) => setSubscribed(state === "subscribed")).catch(() => setSubscribed(false));
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      syncExistingPushSubscription(user.id).then((res) => setSubscribed(!!res.subscribed)).catch(() => {});
+    }
+  }, [user?.id]);
   useEffect(() => {
     if (!user) return;
     supabase.from("notification_prefs").select("*").eq("user_id", user.id).maybeSingle()
@@ -247,29 +246,12 @@ export function PushNotifSettings() {
     const p = await Notification.requestPermission();
     setPermission(p);
     if (p === "granted") {
-      try {
-        if ("serviceWorker" in navigator && vapidKey && user) {
-          const reg = await navigator.serviceWorker.ready;
-          let sub = await reg.pushManager.getSubscription();
-          if (!sub) {
-            sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidKey) });
-          }
-          const json: any = sub.toJSON();
-          await supabase.from("push_subscriptions").upsert({
-            user_id: user.id,
-            endpoint: json.endpoint,
-            p256dh: json.keys?.p256dh ?? "",
-            auth_key: json.keys?.auth ?? "",
-            user_agent: navigator.userAgent,
-            enabled: true,
-          }, { onConflict: "endpoint" });
-          setSubscribed(true);
-          toast.success("Push notifications enabled");
-        } else {
-          toast.success("Notifications enabled (in-page only — admin hasn't set VAPID keys yet)");
-        }
-      } catch (err: any) {
-        toast.error(err?.message || "Push subscription failed");
+      const res = user ? await subscribeToPush(user.id) : { ok: false, error: "Please sign in again." };
+      if (res.ok) {
+        setSubscribed(true);
+        toast.success("Push notifications enabled");
+      } else {
+        toast.error(res.error || "Push subscription failed");
       }
     } else {
       toast.error("Permission denied by your browser", {
@@ -328,15 +310,6 @@ export function PushNotifSettings() {
       </div>
     </Card>
   );
-}
-
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = atob(base64);
-  const out = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; ++i) out[i] = raw.charCodeAt(i);
-  return out;
 }
 
 /* ============================ USER ANALYTICS ============================ */
