@@ -1,0 +1,1 @@
+ALTER TABLE public.scheduled_pushes ADD COLUMN IF NOT EXISTS image text;

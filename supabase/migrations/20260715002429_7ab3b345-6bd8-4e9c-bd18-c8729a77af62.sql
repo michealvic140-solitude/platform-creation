@@ -1,0 +1,1 @@
+ALTER TABLE public.events ALTER COLUMN ends_at DROP NOT NULL;
