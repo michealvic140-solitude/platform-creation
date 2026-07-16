@@ -43,11 +43,18 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AchievementsRouteImport } from './routes/achievements'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as VirtualIndexRouteImport } from './routes/virtual.index'
+import { Route as VirtualInstantRouteImport } from './routes/virtual.instant'
 import { Route as VirtualHistoryRouteImport } from './routes/virtual.history'
+import { Route as VirtualFootballInstantRouteImport } from './routes/virtual.football-instant'
+import { Route as VirtualFootballChampionshipRouteImport } from './routes/virtual.football-championship'
+import { Route as VirtualChampionshipRouteImport } from './routes/virtual.championship'
 import { Route as TicketIdRouteImport } from './routes/ticket.$id'
 import { Route as MatchesMatchIdRouteImport } from './routes/matches.$matchId'
+import { Route as GuidesHowItWorksRouteImport } from './routes/guides.how-it-works'
 import { Route as ApiPublicVirtualTickRouteImport } from './routes/api/public/virtual-tick'
 import { Route as ApiPublicHooksSendPushRouteImport } from './routes/api/public/hooks/send-push'
+import { Route as ApiPublicHooksRecurringPushRouteImport } from './routes/api/public/hooks/recurring-push'
 import { Route as ApiPublicHooksProcessScheduledPushRouteImport } from './routes/api/public/hooks/process-scheduled-push'
 import { Route as ApiPublicHooksBroadcastPushRouteImport } from './routes/api/public/hooks/broadcast-push'
 
@@ -221,9 +228,35 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VirtualIndexRoute = VirtualIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => VirtualRoute,
+} as any)
+const VirtualInstantRoute = VirtualInstantRouteImport.update({
+  id: '/instant',
+  path: '/instant',
+  getParentRoute: () => VirtualRoute,
+} as any)
 const VirtualHistoryRoute = VirtualHistoryRouteImport.update({
   id: '/history',
   path: '/history',
+  getParentRoute: () => VirtualRoute,
+} as any)
+const VirtualFootballInstantRoute = VirtualFootballInstantRouteImport.update({
+  id: '/football-instant',
+  path: '/football-instant',
+  getParentRoute: () => VirtualRoute,
+} as any)
+const VirtualFootballChampionshipRoute =
+  VirtualFootballChampionshipRouteImport.update({
+    id: '/football-championship',
+    path: '/football-championship',
+    getParentRoute: () => VirtualRoute,
+  } as any)
+const VirtualChampionshipRoute = VirtualChampionshipRouteImport.update({
+  id: '/championship',
+  path: '/championship',
   getParentRoute: () => VirtualRoute,
 } as any)
 const TicketIdRoute = TicketIdRouteImport.update({
@@ -236,6 +269,11 @@ const MatchesMatchIdRoute = MatchesMatchIdRouteImport.update({
   path: '/$matchId',
   getParentRoute: () => MatchesRoute,
 } as any)
+const GuidesHowItWorksRoute = GuidesHowItWorksRouteImport.update({
+  id: '/guides/how-it-works',
+  path: '/guides/how-it-works',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicVirtualTickRoute = ApiPublicVirtualTickRouteImport.update({
   id: '/api/public/virtual-tick',
   path: '/api/public/virtual-tick',
@@ -246,6 +284,12 @@ const ApiPublicHooksSendPushRoute = ApiPublicHooksSendPushRouteImport.update({
   path: '/api/public/hooks/send-push',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksRecurringPushRoute =
+  ApiPublicHooksRecurringPushRouteImport.update({
+    id: '/api/public/hooks/recurring-push',
+    path: '/api/public/hooks/recurring-push',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksProcessScheduledPushRoute =
   ApiPublicHooksProcessScheduledPushRouteImport.update({
     id: '/api/public/hooks/process-scheduled-push',
@@ -294,12 +338,19 @@ export interface FileRoutesByFullPath {
   '/virtual': typeof VirtualRouteWithChildren
   '/watchlist': typeof WatchlistRoute
   '/withdraw': typeof WithdrawRoute
+  '/guides/how-it-works': typeof GuidesHowItWorksRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/ticket/$id': typeof TicketIdRoute
+  '/virtual/championship': typeof VirtualChampionshipRoute
+  '/virtual/football-championship': typeof VirtualFootballChampionshipRoute
+  '/virtual/football-instant': typeof VirtualFootballInstantRoute
   '/virtual/history': typeof VirtualHistoryRoute
+  '/virtual/instant': typeof VirtualInstantRoute
+  '/virtual/': typeof VirtualIndexRoute
   '/api/public/virtual-tick': typeof ApiPublicVirtualTickRoute
   '/api/public/hooks/broadcast-push': typeof ApiPublicHooksBroadcastPushRoute
   '/api/public/hooks/process-scheduled-push': typeof ApiPublicHooksProcessScheduledPushRoute
+  '/api/public/hooks/recurring-push': typeof ApiPublicHooksRecurringPushRoute
   '/api/public/hooks/send-push': typeof ApiPublicHooksSendPushRoute
 }
 export interface FileRoutesByTo {
@@ -334,15 +385,21 @@ export interface FileRoutesByTo {
   '/tournament': typeof TournamentRoute
   '/transactions': typeof TransactionsRoute
   '/trivia': typeof TriviaRoute
-  '/virtual': typeof VirtualRouteWithChildren
   '/watchlist': typeof WatchlistRoute
   '/withdraw': typeof WithdrawRoute
+  '/guides/how-it-works': typeof GuidesHowItWorksRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/ticket/$id': typeof TicketIdRoute
+  '/virtual/championship': typeof VirtualChampionshipRoute
+  '/virtual/football-championship': typeof VirtualFootballChampionshipRoute
+  '/virtual/football-instant': typeof VirtualFootballInstantRoute
   '/virtual/history': typeof VirtualHistoryRoute
+  '/virtual/instant': typeof VirtualInstantRoute
+  '/virtual': typeof VirtualIndexRoute
   '/api/public/virtual-tick': typeof ApiPublicVirtualTickRoute
   '/api/public/hooks/broadcast-push': typeof ApiPublicHooksBroadcastPushRoute
   '/api/public/hooks/process-scheduled-push': typeof ApiPublicHooksProcessScheduledPushRoute
+  '/api/public/hooks/recurring-push': typeof ApiPublicHooksRecurringPushRoute
   '/api/public/hooks/send-push': typeof ApiPublicHooksSendPushRoute
 }
 export interface FileRoutesById {
@@ -381,12 +438,19 @@ export interface FileRoutesById {
   '/virtual': typeof VirtualRouteWithChildren
   '/watchlist': typeof WatchlistRoute
   '/withdraw': typeof WithdrawRoute
+  '/guides/how-it-works': typeof GuidesHowItWorksRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/ticket/$id': typeof TicketIdRoute
+  '/virtual/championship': typeof VirtualChampionshipRoute
+  '/virtual/football-championship': typeof VirtualFootballChampionshipRoute
+  '/virtual/football-instant': typeof VirtualFootballInstantRoute
   '/virtual/history': typeof VirtualHistoryRoute
+  '/virtual/instant': typeof VirtualInstantRoute
+  '/virtual/': typeof VirtualIndexRoute
   '/api/public/virtual-tick': typeof ApiPublicVirtualTickRoute
   '/api/public/hooks/broadcast-push': typeof ApiPublicHooksBroadcastPushRoute
   '/api/public/hooks/process-scheduled-push': typeof ApiPublicHooksProcessScheduledPushRoute
+  '/api/public/hooks/recurring-push': typeof ApiPublicHooksRecurringPushRoute
   '/api/public/hooks/send-push': typeof ApiPublicHooksSendPushRoute
 }
 export interface FileRouteTypes {
@@ -426,12 +490,19 @@ export interface FileRouteTypes {
     | '/virtual'
     | '/watchlist'
     | '/withdraw'
+    | '/guides/how-it-works'
     | '/matches/$matchId'
     | '/ticket/$id'
+    | '/virtual/championship'
+    | '/virtual/football-championship'
+    | '/virtual/football-instant'
     | '/virtual/history'
+    | '/virtual/instant'
+    | '/virtual/'
     | '/api/public/virtual-tick'
     | '/api/public/hooks/broadcast-push'
     | '/api/public/hooks/process-scheduled-push'
+    | '/api/public/hooks/recurring-push'
     | '/api/public/hooks/send-push'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -466,15 +537,21 @@ export interface FileRouteTypes {
     | '/tournament'
     | '/transactions'
     | '/trivia'
-    | '/virtual'
     | '/watchlist'
     | '/withdraw'
+    | '/guides/how-it-works'
     | '/matches/$matchId'
     | '/ticket/$id'
+    | '/virtual/championship'
+    | '/virtual/football-championship'
+    | '/virtual/football-instant'
     | '/virtual/history'
+    | '/virtual/instant'
+    | '/virtual'
     | '/api/public/virtual-tick'
     | '/api/public/hooks/broadcast-push'
     | '/api/public/hooks/process-scheduled-push'
+    | '/api/public/hooks/recurring-push'
     | '/api/public/hooks/send-push'
   id:
     | '__root__'
@@ -512,12 +589,19 @@ export interface FileRouteTypes {
     | '/virtual'
     | '/watchlist'
     | '/withdraw'
+    | '/guides/how-it-works'
     | '/matches/$matchId'
     | '/ticket/$id'
+    | '/virtual/championship'
+    | '/virtual/football-championship'
+    | '/virtual/football-instant'
     | '/virtual/history'
+    | '/virtual/instant'
+    | '/virtual/'
     | '/api/public/virtual-tick'
     | '/api/public/hooks/broadcast-push'
     | '/api/public/hooks/process-scheduled-push'
+    | '/api/public/hooks/recurring-push'
     | '/api/public/hooks/send-push'
   fileRoutesById: FileRoutesById
 }
@@ -556,10 +640,12 @@ export interface RootRouteChildren {
   VirtualRoute: typeof VirtualRouteWithChildren
   WatchlistRoute: typeof WatchlistRoute
   WithdrawRoute: typeof WithdrawRoute
+  GuidesHowItWorksRoute: typeof GuidesHowItWorksRoute
   TicketIdRoute: typeof TicketIdRoute
   ApiPublicVirtualTickRoute: typeof ApiPublicVirtualTickRoute
   ApiPublicHooksBroadcastPushRoute: typeof ApiPublicHooksBroadcastPushRoute
   ApiPublicHooksProcessScheduledPushRoute: typeof ApiPublicHooksProcessScheduledPushRoute
+  ApiPublicHooksRecurringPushRoute: typeof ApiPublicHooksRecurringPushRoute
   ApiPublicHooksSendPushRoute: typeof ApiPublicHooksSendPushRoute
 }
 
@@ -803,11 +889,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/virtual/': {
+      id: '/virtual/'
+      path: '/'
+      fullPath: '/virtual/'
+      preLoaderRoute: typeof VirtualIndexRouteImport
+      parentRoute: typeof VirtualRoute
+    }
+    '/virtual/instant': {
+      id: '/virtual/instant'
+      path: '/instant'
+      fullPath: '/virtual/instant'
+      preLoaderRoute: typeof VirtualInstantRouteImport
+      parentRoute: typeof VirtualRoute
+    }
     '/virtual/history': {
       id: '/virtual/history'
       path: '/history'
       fullPath: '/virtual/history'
       preLoaderRoute: typeof VirtualHistoryRouteImport
+      parentRoute: typeof VirtualRoute
+    }
+    '/virtual/football-instant': {
+      id: '/virtual/football-instant'
+      path: '/football-instant'
+      fullPath: '/virtual/football-instant'
+      preLoaderRoute: typeof VirtualFootballInstantRouteImport
+      parentRoute: typeof VirtualRoute
+    }
+    '/virtual/football-championship': {
+      id: '/virtual/football-championship'
+      path: '/football-championship'
+      fullPath: '/virtual/football-championship'
+      preLoaderRoute: typeof VirtualFootballChampionshipRouteImport
+      parentRoute: typeof VirtualRoute
+    }
+    '/virtual/championship': {
+      id: '/virtual/championship'
+      path: '/championship'
+      fullPath: '/virtual/championship'
+      preLoaderRoute: typeof VirtualChampionshipRouteImport
       parentRoute: typeof VirtualRoute
     }
     '/ticket/$id': {
@@ -824,6 +945,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MatchesMatchIdRouteImport
       parentRoute: typeof MatchesRoute
     }
+    '/guides/how-it-works': {
+      id: '/guides/how-it-works'
+      path: '/guides/how-it-works'
+      fullPath: '/guides/how-it-works'
+      preLoaderRoute: typeof GuidesHowItWorksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/virtual-tick': {
       id: '/api/public/virtual-tick'
       path: '/api/public/virtual-tick'
@@ -836,6 +964,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/hooks/send-push'
       fullPath: '/api/public/hooks/send-push'
       preLoaderRoute: typeof ApiPublicHooksSendPushRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/recurring-push': {
+      id: '/api/public/hooks/recurring-push'
+      path: '/api/public/hooks/recurring-push'
+      fullPath: '/api/public/hooks/recurring-push'
+      preLoaderRoute: typeof ApiPublicHooksRecurringPushRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/process-scheduled-push': {
@@ -867,11 +1002,21 @@ const MatchesRouteWithChildren =
   MatchesRoute._addFileChildren(MatchesRouteChildren)
 
 interface VirtualRouteChildren {
+  VirtualChampionshipRoute: typeof VirtualChampionshipRoute
+  VirtualFootballChampionshipRoute: typeof VirtualFootballChampionshipRoute
+  VirtualFootballInstantRoute: typeof VirtualFootballInstantRoute
   VirtualHistoryRoute: typeof VirtualHistoryRoute
+  VirtualInstantRoute: typeof VirtualInstantRoute
+  VirtualIndexRoute: typeof VirtualIndexRoute
 }
 
 const VirtualRouteChildren: VirtualRouteChildren = {
+  VirtualChampionshipRoute: VirtualChampionshipRoute,
+  VirtualFootballChampionshipRoute: VirtualFootballChampionshipRoute,
+  VirtualFootballInstantRoute: VirtualFootballInstantRoute,
   VirtualHistoryRoute: VirtualHistoryRoute,
+  VirtualInstantRoute: VirtualInstantRoute,
+  VirtualIndexRoute: VirtualIndexRoute,
 }
 
 const VirtualRouteWithChildren =
@@ -912,23 +1057,15 @@ const rootRouteChildren: RootRouteChildren = {
   VirtualRoute: VirtualRouteWithChildren,
   WatchlistRoute: WatchlistRoute,
   WithdrawRoute: WithdrawRoute,
+  GuidesHowItWorksRoute: GuidesHowItWorksRoute,
   TicketIdRoute: TicketIdRoute,
   ApiPublicVirtualTickRoute: ApiPublicVirtualTickRoute,
   ApiPublicHooksBroadcastPushRoute: ApiPublicHooksBroadcastPushRoute,
   ApiPublicHooksProcessScheduledPushRoute:
     ApiPublicHooksProcessScheduledPushRoute,
+  ApiPublicHooksRecurringPushRoute: ApiPublicHooksRecurringPushRoute,
   ApiPublicHooksSendPushRoute: ApiPublicHooksSendPushRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
