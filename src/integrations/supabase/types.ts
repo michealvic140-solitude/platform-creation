@@ -84,8 +84,12 @@ export type Database = {
           daily_login_enabled: boolean
           daily_login_max_streak: number
           discord_support_channel: string | null
+          discord_support_url: string | null
           discord_url: string | null
           emblem_auto_approve: boolean
+          featured_bg_fit: string | null
+          featured_bg_position: string | null
+          featured_bg_url: string | null
           featured_matches_bg_fit: string | null
           featured_matches_bg_url: string | null
           force_reload_at: string | null
@@ -152,6 +156,7 @@ export type Database = {
           vip_enabled: boolean
           vip_token_multipliers: Json
           virtual_animation_seconds: number
+          virtual_championship_enabled: boolean
           virtual_concurrent_rounds: number
           virtual_cycle_last_tick: string | null
           virtual_cycle_running: boolean
@@ -188,8 +193,12 @@ export type Database = {
           daily_login_enabled?: boolean
           daily_login_max_streak?: number
           discord_support_channel?: string | null
+          discord_support_url?: string | null
           discord_url?: string | null
           emblem_auto_approve?: boolean
+          featured_bg_fit?: string | null
+          featured_bg_position?: string | null
+          featured_bg_url?: string | null
           featured_matches_bg_fit?: string | null
           featured_matches_bg_url?: string | null
           force_reload_at?: string | null
@@ -256,6 +265,7 @@ export type Database = {
           vip_enabled?: boolean
           vip_token_multipliers?: Json
           virtual_animation_seconds?: number
+          virtual_championship_enabled?: boolean
           virtual_concurrent_rounds?: number
           virtual_cycle_last_tick?: string | null
           virtual_cycle_running?: boolean
@@ -292,8 +302,12 @@ export type Database = {
           daily_login_enabled?: boolean
           daily_login_max_streak?: number
           discord_support_channel?: string | null
+          discord_support_url?: string | null
           discord_url?: string | null
           emblem_auto_approve?: boolean
+          featured_bg_fit?: string | null
+          featured_bg_position?: string | null
+          featured_bg_url?: string | null
           featured_matches_bg_fit?: string | null
           featured_matches_bg_url?: string | null
           force_reload_at?: string | null
@@ -360,6 +374,7 @@ export type Database = {
           vip_enabled?: boolean
           vip_token_multipliers?: Json
           virtual_animation_seconds?: number
+          virtual_championship_enabled?: boolean
           virtual_concurrent_rounds?: number
           virtual_cycle_last_tick?: string | null
           virtual_cycle_running?: boolean
@@ -1620,6 +1635,7 @@ export type Database = {
           num_picks: number
           number_max: number
           number_min: number
+          picks_count: number
           status: string
           title: string
           updated_at: string
@@ -1634,6 +1650,7 @@ export type Database = {
           num_picks?: number
           number_max?: number
           number_min?: number
+          picks_count?: number
           status?: string
           title: string
           updated_at?: string
@@ -1648,6 +1665,7 @@ export type Database = {
           num_picks?: number
           number_max?: number
           number_min?: number
+          picks_count?: number
           status?: string
           title?: string
           updated_at?: string
@@ -1740,6 +1758,9 @@ export type Database = {
           category_id: string | null
           created_at: string
           created_by: string | null
+          featured_image_fit: string | null
+          featured_image_position: string | null
+          featured_image_url: string | null
           home_player_id: string | null
           home_present: boolean
           home_score: number
@@ -1774,6 +1795,9 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           created_by?: string | null
+          featured_image_fit?: string | null
+          featured_image_position?: string | null
+          featured_image_url?: string | null
           home_player_id?: string | null
           home_present?: boolean
           home_score?: number
@@ -1808,6 +1832,9 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           created_by?: string | null
+          featured_image_fit?: string | null
+          featured_image_position?: string | null
+          featured_image_url?: string | null
           home_player_id?: string | null
           home_present?: boolean
           home_score?: number
@@ -1878,6 +1905,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      news: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          image_url: string | null
+          is_active: boolean
+          link_url: string | null
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          link_url?: string | null
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          link_url?: string | null
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       notification_prefs: {
         Row: {
@@ -3090,16 +3153,20 @@ export type Database = {
       tournaments: {
         Row: {
           banner_url: string | null
+          bracket_size: number
           champion_id: string | null
           champion_participant_id: string | null
           created_at: string
           created_by: string | null
+          current_stage: string | null
           event_date: string | null
           futures_match_id: string | null
           id: string
           is_featured: boolean
+          kind: string
           name: string
           size: number
+          stage_gap_seconds: number
           starts_at: string | null
           status: string
           tagline: string | null
@@ -3107,16 +3174,20 @@ export type Database = {
         }
         Insert: {
           banner_url?: string | null
+          bracket_size?: number
           champion_id?: string | null
           champion_participant_id?: string | null
           created_at?: string
           created_by?: string | null
+          current_stage?: string | null
           event_date?: string | null
           futures_match_id?: string | null
           id?: string
           is_featured?: boolean
+          kind?: string
           name: string
           size?: number
+          stage_gap_seconds?: number
           starts_at?: string | null
           status?: string
           tagline?: string | null
@@ -3124,16 +3195,20 @@ export type Database = {
         }
         Update: {
           banner_url?: string | null
+          bracket_size?: number
           champion_id?: string | null
           champion_participant_id?: string | null
           created_at?: string
           created_by?: string | null
+          current_stage?: string | null
           event_date?: string | null
           futures_match_id?: string | null
           id?: string
           is_featured?: boolean
+          kind?: string
           name?: string
           size?: number
+          stage_gap_seconds?: number
           starts_at?: string | null
           status?: string
           tagline?: string | null
@@ -3578,6 +3653,10 @@ export type Database = {
       }
     }
     Functions: {
+      _settle_lottery_draw: {
+        Args: { _draw_id: string; _winning: number[] }
+        Returns: Json
+      }
       admin_adjust_xp: {
         Args: { _delta: number; _reason?: string; _user_id: string }
         Returns: Json
@@ -3708,6 +3787,7 @@ export type Database = {
         Args: { _id: string; _note?: string }
         Returns: string
       }
+      auto_draw_due_lotteries: { Args: never; Returns: number }
       auto_draw_lotteries: { Args: never; Returns: number }
       auto_resolve_virtual_round: { Args: { _match_id: string }; Returns: Json }
       can_use_gang_chat: { Args: { _user_id: string }; Returns: boolean }
@@ -3727,6 +3807,11 @@ export type Database = {
       decline_promo_request: {
         Args: { _id: string; _note?: string }
         Returns: undefined
+      }
+      display_name_for: { Args: { _uid: string }; Returns: string }
+      draw_lottery: {
+        Args: { _draw_id: string; _winning_number?: number }
+        Returns: Json
       }
       fix_pending_virtual_bets: { Args: never; Returns: Json }
       gang_directory: {
@@ -3758,9 +3843,21 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_mod_or_admin: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      notify_admins: {
+        Args: { _body: string; _link: string; _title: string }
+        Returns: undefined
+      }
       place_lottery_ticket: {
         Args: { _draw_id: string; _numbers: number[]; _stake: number }
         Returns: string
+      }
+      place_lottery_ticket_multi: {
+        Args: { _draw_id: string; _numbers: number[]; _stake: number }
+        Returns: Json
+      }
+      place_real_ticket: {
+        Args: { _selections: Json; _stake: number }
+        Returns: Json
       }
       place_virtual_bet: {
         Args: { _match_id: string; _odd_id: string; _stake: number }
@@ -3796,6 +3893,7 @@ export type Database = {
         Args: { _match_id?: string }
         Returns: number
       }
+      refund_shop_redemption: { Args: { _id: string }; Returns: Json }
       resolve_virtual_round: {
         Args: {
           _away_score: number
