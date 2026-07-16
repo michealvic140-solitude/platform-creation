@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 
-export function MatchCardLive({ match }: { match: MatchRow }) {
+export function MatchCardLive({ match, variant = "card" }: { match: MatchRow; variant?: "card" | "row" }) {
   const { selections, add, remove } = useBetSlip();
   // Prefer the Match Winner / 1X2 market for inline odds, but surface the Correct Score market as its own CTA.
   const csMarket = match.markets?.find((m) => /correct\s*score/i.test(m.name));
@@ -25,8 +25,200 @@ export function MatchCardLive({ match }: { match: MatchRow }) {
   const [csTab, setCsTab] = useState<"all" | "home" | "draw" | "away">("all");
   const csLocked = match.status !== "scheduled" || !csMarket?.is_open;
 
+  const addOdd = (o: { id: string; label: string; value: number }, marketId: string, marketName: string) => {
+    if (selectedOdd === o.id) { remove(o.id); return; }
+    add({
+      match_id: match.id, match_name: `${homeName} vs ${awayName}`,
+      market_id: marketId, market_name: marketName,
+      odd_id: o.id, selection_label: o.label, odds: Number(o.value),
+    });
+  };
+  // Short header for 3-way markets → 1 / X / 2 like a classic coupon.
+  const shortLabels = (count: number) => count === 3 ? ["1", "X", "2"] : Array.from({ length: count }, (_, i) => `${i + 1}`);
+
+  const csButton = csMarket && csMarket.odds.length > 0 ? (
+    <button
+      type="button"
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCsOpen(true); }}
+      className="flex items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-[11px] font-bold text-primary hover:bg-primary/20 transition-colors"
+    >
+      <span className="flex items-center gap-1.5"><Target className="h-3 w-3" />Correct Score · {csMarket.odds.length}</span>
+      <span className="text-[9px] uppercase tracking-widest opacity-80">Pick →</span>
+    </button>
+  ) : null;
+
+  const csDialog = csMarket ? (
+    <Dialog open={csOpen} onOpenChange={setCsOpen}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Target className="h-4 w-4 text-primary" />
+            Correct Score · {homeName} vs {awayName}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-4 gap-1 rounded-lg border border-border bg-background/40 p-1 text-xs">
+            {([
+              { k: "all", label: "All" },
+              { k: "home", label: `${homeName}` },
+              { k: "draw", label: "Draw" },
+              { k: "away", label: `${awayName}` },
+            ] as const).map((t) => (
+              <button
+                key={t.k}
+                onClick={() => setCsTab(t.k)}
+                className={`rounded-md px-2 py-1.5 font-bold transition truncate ${csTab === t.k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <div className="relative">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input value={csSearch} onChange={(e) => setCsSearch(e.target.value)} placeholder="Search score (e.g. 2-1)" className="pl-9" />
+          </div>
+          {csLocked && (
+            <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              <Lock className="h-3 w-3" /> Market is closed for picks
+            </div>
+          )}
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {[...csMarket.odds]
+              .sort((a, b) => {
+                const pa = a.label.split(/[-:]/).map(Number);
+                const pb = b.label.split(/[-:]/).map(Number);
+                return (pa[0] + pa[1]) - (pb[0] + pb[1]) || pa[0] - pb[0] || pa[1] - pb[1];
+              })
+              .filter((o) => {
+                const [h, a] = o.label.split(/[-:]/).map(Number);
+                if (csTab === "home" && !(h > a)) return false;
+                if (csTab === "away" && !(a > h)) return false;
+                if (csTab === "draw" && h !== a) return false;
+                if (csSearch.trim() && !o.label.replace(/[-:]/g, "").includes(csSearch.replace(/[-:\s]/g, ""))) return false;
+                return true;
+              })
+              .map((o) => {
+                const sel = selectedOdd === o.id;
+                return (
+                  <button
+                    key={o.id}
+                    disabled={csLocked}
+                    onClick={() => {
+                      if (sel) { remove(o.id); return; }
+                      add({
+                        match_id: match.id,
+                        match_name: `${homeName} vs ${awayName}`,
+                        market_id: csMarket.id,
+                        market_name: csMarket.name,
+                        odd_id: o.id,
+                        selection_label: `Correct Score [${o.label}]`,
+                        odds: Number(o.value),
+                      });
+                      setCsOpen(false);
+                    }}
+                    className={`relative rounded-xl border p-2 text-center transition ${
+                      sel ? "border-primary bg-primary/15" : "border-border bg-background/40 hover:border-primary/50"
+                    } ${csLocked ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Score</div>
+                    <div className="font-mono font-black text-base">{o.label}</div>
+                    <div className="font-mono font-bold text-primary text-sm">{Number(o.value).toFixed(2)}</div>
+                  </button>
+                );
+              })}
+          </div>
+          <div className="flex items-center justify-between pt-2 border-t border-border/50">
+            <Link
+              to="/matches/$matchId"
+              params={{ matchId: match.id }}
+              hash="correct-score"
+              className="text-xs text-muted-foreground hover:text-primary"
+              onClick={() => setCsOpen(false)}
+            >
+              Open full match page →
+            </Link>
+            <button onClick={() => setCsOpen(false)} className="text-xs flex items-center gap-1 text-muted-foreground hover:text-foreground">
+              <X className="h-3 w-3" /> Close
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  ) : null;
+
+  // ------- Compact coupon ROW variant (bet9ja / iLOTBET style) -------
+  if (variant === "row") {
+    const oddsList = market?.odds.slice(0, 3) ?? [];
+    const labels = shortLabels(oddsList.length);
+    return (
+      <Card className="glass bg-background/20 backdrop-blur-[2px] px-3 py-1 pl-4 hover:border-primary/60 hover:-translate-y-0.5 transition-all relative overflow-hidden">
+        <span className={`absolute left-0 top-0 h-full w-1 ${match.status === "live" ? "bg-destructive" : match.status === "ended" ? "bg-muted-foreground/40" : "bg-emerald-500/70"}`} />
+        <div className="flex items-stretch gap-2 sm:gap-3">
+          <Link to="/matches/$matchId" params={{ matchId: match.id }} className="min-w-0 flex-1 flex flex-col justify-center">
+            <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-wider text-muted-foreground">
+              {match.status === "live" && <span className="text-destructive font-bold">● LIVE</span>}
+              <span className="truncate">{match.name}</span>
+            </div>
+            <div className="mt-0.5 space-y-0">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <TeamLogo name={homeName} url={match.match_kind === "shooter" ? match.home_player?.avatar_url : match.home_team?.logo_url} size={18} rounded="full" />
+                <span className="font-bold text-xs truncate">{homeName}</span>
+                {match.status !== "scheduled" && <span className="ml-auto text-xs font-mono text-muted-foreground">{match.home_score}</span>}
+              </div>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <TeamLogo name={awayName} url={match.match_kind === "shooter" ? match.away_player?.avatar_url : match.away_team?.logo_url} size={18} rounded="full" />
+                <span className="font-bold text-xs truncate">{awayName}</span>
+                {match.status !== "scheduled" && <span className="ml-auto text-xs font-mono text-muted-foreground">{match.away_score}</span>}
+              </div>
+            </div>
+            <div className="mt-0.5 text-[9px] text-muted-foreground leading-tight">
+              {match.status === "scheduled" && <>Starts in <Countdown target={match.start_time} /></>}
+              {match.status === "live" && <span className="text-destructive font-bold">In progress</span>}
+              {match.status === "ended" && <span>Final</span>}
+            </div>
+          </Link>
+          <div className="flex items-stretch gap-1 shrink-0">
+            {oddsList.length === 0 && <span className="self-center text-[10px] text-muted-foreground px-2">No odds</span>}
+            {oddsList.map((o, i) => {
+              const selected = selectedOdd === o.id;
+              return (
+                <button
+                  key={o.id}
+                  disabled={locked}
+                  onClick={() => addOdd(o, market!.id, market!.name)}
+                  className={`w-11 sm:w-12 rounded-md flex flex-col items-center justify-center gap-0.5 py-1 transition-all border ${
+                    locked ? "bg-secondary/20 text-muted-foreground cursor-not-allowed border-transparent"
+                    : selected ? "bg-primary text-primary-foreground border-transparent shadow-[0_0_0_1px_hsl(var(--primary))]"
+                    : "bg-emerald-500/[0.04] border-emerald-500/15 text-emerald-100 hover:bg-emerald-500/10 hover:border-emerald-400/40"
+                  }`}
+                  title={o.label}
+                >
+                  <span className="text-[8px] uppercase tracking-wider opacity-70 leading-none">{labels[i]}</span>
+                  <span className="text-xs font-mono font-bold flex items-center gap-0.5 leading-none">{locked && <Lock className="h-2.5 w-2.5" />}{Number(o.value).toFixed(2)}</span>
+                </button>
+              );
+            })}
+            {csMarket && csMarket.odds.length > 0 && (
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCsOpen(true); }}
+                className="w-11 sm:w-12 rounded-md flex flex-col items-center justify-center gap-0.5 py-1 transition-all border border-[var(--gold)]/60 bg-[var(--gold)]/15 text-[var(--gold)] hover:bg-[var(--gold)]/25"
+                title={`Correct Score · ${csMarket.odds.length}`}
+              >
+                <Target className="h-3 w-3" />
+                <span className="text-[8px] uppercase tracking-wider font-bold leading-none">CS</span>
+              </button>
+            )}
+          </div>
+        </div>
+        {csDialog}
+      </Card>
+    );
+  }
+
   return (
-    <Card className="glass p-4 hover:border-primary/60 transition-all relative overflow-hidden">
+    <Card className="glass p-4 hover:border-primary/60 hover:-translate-y-0.5 hover:shadow-luxury transition-all relative overflow-hidden">
+      <span className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
       {match.status === "live" && (
         <div className="absolute top-0 right-0 px-2 py-0.5 text-[10px] font-bold tracking-widest text-destructive-foreground bg-destructive rounded-bl-md">
           ● LIVE
@@ -76,12 +268,12 @@ export function MatchCardLive({ match }: { match: MatchRow }) {
                 }}
                 className={`px-2 py-2 rounded-md text-xs font-bold transition-all border ${
                   locked ? "bg-secondary/30 text-muted-foreground cursor-not-allowed border-transparent"
-                  : selected ? "bg-primary text-primary-foreground border-transparent"
-                  : "bg-secondary/40 border-border hover:border-primary/60"
+                  : selected ? "bg-primary text-primary-foreground border-transparent shadow-[0_0_0_1px_hsl(var(--primary))]"
+                  : "bg-emerald-500/10 border-emerald-500/25 text-emerald-100 hover:bg-emerald-500/20 hover:border-emerald-400/50"
                 }`}
               >
                 <div className="text-[9px] uppercase tracking-wider opacity-80 truncate">{o.label}</div>
-                <div className="text-sm flex items-center justify-center gap-1">
+                <div className="text-sm font-mono flex items-center justify-center gap-1">
                   {locked && <Lock className="h-3 w-3" />}{Number(o.value).toFixed(2)}
                 </div>
               </button>
@@ -90,19 +282,7 @@ export function MatchCardLive({ match }: { match: MatchRow }) {
         </div>
       )}
 
-      {csMarket && csMarket.odds.length > 0 && (
-        <button
-          type="button"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCsOpen(true); }}
-          className="mt-2 w-full flex items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
-        >
-          <span className="flex items-center gap-2">
-            <Target className="h-3.5 w-3.5" />
-            Correct Score · {csMarket.odds.length} options
-          </span>
-          <span className="text-[10px] uppercase tracking-widest opacity-80">Tap to pick →</span>
-        </button>
-      )}
+      {csButton && <div className="mt-2 [&>button]:w-full [&>button]:px-3 [&>button]:py-2 [&>button]:text-xs">{csButton}</div>}
 
       <div className="mt-2 flex items-center justify-between">
         <Badge variant="outline" className="text-[10px]">{market?.name ?? "TBA"}</Badge>
@@ -112,104 +292,7 @@ export function MatchCardLive({ match }: { match: MatchRow }) {
         </div>
       </div>
 
-      {csMarket && (
-        <Dialog open={csOpen} onOpenChange={setCsOpen}>
-          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-base">
-                <Target className="h-4 w-4 text-primary" />
-                Correct Score · {homeName} vs {awayName}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div className="grid grid-cols-4 gap-1 rounded-lg border border-border bg-background/40 p-1 text-xs">
-                {([
-                  { k: "all", label: "All" },
-                  { k: "home", label: `${homeName}` },
-                  { k: "draw", label: "Draw" },
-                  { k: "away", label: `${awayName}` },
-                ] as const).map((t) => (
-                  <button
-                    key={t.k}
-                    onClick={() => setCsTab(t.k)}
-                    className={`rounded-md px-2 py-1.5 font-bold transition truncate ${csTab === t.k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-              <div className="relative">
-                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input value={csSearch} onChange={(e) => setCsSearch(e.target.value)} placeholder="Search score (e.g. 2-1)" className="pl-9" />
-              </div>
-              {csLocked && (
-                <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                  <Lock className="h-3 w-3" /> Market is closed for picks
-                </div>
-              )}
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {[...csMarket.odds]
-                  .sort((a, b) => {
-                    const pa = a.label.split(/[-:]/).map(Number);
-                    const pb = b.label.split(/[-:]/).map(Number);
-                    return (pa[0] + pa[1]) - (pb[0] + pb[1]) || pa[0] - pb[0] || pa[1] - pb[1];
-                  })
-                  .filter((o) => {
-                    const [h, a] = o.label.split(/[-:]/).map(Number);
-                    if (csTab === "home" && !(h > a)) return false;
-                    if (csTab === "away" && !(a > h)) return false;
-                    if (csTab === "draw" && h !== a) return false;
-                    if (csSearch.trim() && !o.label.replace(/[-:]/g, "").includes(csSearch.replace(/[-:\s]/g, ""))) return false;
-                    return true;
-                  })
-                  .map((o) => {
-                    const sel = selectedOdd === o.id;
-                    return (
-                      <button
-                        key={o.id}
-                        disabled={csLocked}
-                        onClick={() => {
-                          if (sel) { remove(o.id); return; }
-                          add({
-                            match_id: match.id,
-                            match_name: `${homeName} vs ${awayName}`,
-                            market_id: csMarket.id,
-                            market_name: csMarket.name,
-                            odd_id: o.id,
-                            selection_label: `Correct Score [${o.label}]`,
-                            odds: Number(o.value),
-                          });
-                          setCsOpen(false);
-                        }}
-                        className={`relative rounded-xl border p-2 text-center transition ${
-                          sel ? "border-primary bg-primary/15" : "border-border bg-background/40 hover:border-primary/50"
-                        } ${csLocked ? "opacity-50 cursor-not-allowed" : ""}`}
-                      >
-                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Score</div>
-                        <div className="font-mono font-black text-base">{o.label}</div>
-                        <div className="font-mono font-bold text-primary text-sm">{Number(o.value).toFixed(2)}</div>
-                      </button>
-                    );
-                  })}
-              </div>
-              <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                <Link
-                  to="/matches/$matchId"
-                  params={{ matchId: match.id }}
-                  hash="correct-score"
-                  className="text-xs text-muted-foreground hover:text-primary"
-                  onClick={() => setCsOpen(false)}
-                >
-                  Open full match page →
-                </Link>
-                <button onClick={() => setCsOpen(false)} className="text-xs flex items-center gap-1 text-muted-foreground hover:text-foreground">
-                  <X className="h-3 w-3" /> Close
-                </button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      {csDialog}
     </Card>
   );
 }
